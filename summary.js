@@ -17,7 +17,9 @@ const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
 
 // ⭐ CONFIGURE THIS: Set the week(s) you want to process
-const TARGET_WEEKS = [1, 2, 3, 4]; // Single week: [22] | Multiple weeks: [20, 21, 22, 23]
+const TARGET_WEEKS = [
+  4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+]; // Single week: [22] | Multiple weeks: [20, 21, 22, 23]
 
 // Load context file (optional - will work without it)
 let CONTEXT = "";
