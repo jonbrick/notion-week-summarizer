@@ -5,7 +5,7 @@ Automated system that generates AI-powered summaries of completed tasks by categ
 ## ✨ Features
 
 - **Smart Week Processing**: Handle single weeks or batch process multiple weeks
-- **Intelligent Padding**: Works with both "Week 1" and "Week 01" naming conventions  
+- **Intelligent Padding**: Works with both "Week 1" and "Week 01" naming conventions
 - **AI-Powered Summaries**: Professional, concise summaries that group similar tasks
 - **Personal Context**: Customizable context file for definitions and writing style
 - **Category Support**: Processes all task types (Work, Personal, Interpersonal, Physical Health, Mental Health, Home)
@@ -14,6 +14,7 @@ Automated system that generates AI-powered summaries of completed tasks by categ
 ## 🚀 Quick Start
 
 1. **Clone and install**:
+
    ```bash
    git clone <your-repo>
    cd notion-scripts
@@ -21,6 +22,7 @@ Automated system that generates AI-powered summaries of completed tasks by categ
    ```
 
 2. **Set up environment** (create `.env` file):
+
    ```env
    NOTION_TOKEN=your_notion_integration_token
    ANTHROPIC_API_KEY=your_claude_api_key
@@ -30,6 +32,7 @@ Automated system that generates AI-powered summaries of completed tasks by categ
    ```
 
 3. **Configure weeks** (edit `summary.js` line 17):
+
    ```javascript
    const TARGET_WEEKS = [1, 2, 3, 4]; // Any weeks you want to process
    ```
@@ -42,11 +45,12 @@ Automated system that generates AI-powered summaries of completed tasks by categ
 ## 📋 Notion Setup Requirements
 
 ### 2025 Tasks Table
+
 - **Task** (Title) - Task name
 - **Due Date** (Date) - When task is due/completed
 - **Type** (Select) - Categories:
   - 🏃‍♂️ Physical Health
-  - 💼 Work  
+  - 💼 Work
   - 🌱 Personal
   - 🍻 Interpersonal
   - ❤️ Mental Health
@@ -54,7 +58,8 @@ Automated system that generates AI-powered summaries of completed tasks by categ
 - **Status** (Status) - Must include "🟢 Done" option
 - **Week Number** (Number) - Optional, for reference
 
-### 2025 Recap Table  
+### 2025 Recap Table
+
 - **Week Recap** (Title) - Week identifier (e.g., "Week 01 Recap")
 - **⌛ Weeks** (Relation) - Links to 2025 Weeks table
 - **Summary Fields** (Rich Text):
@@ -66,27 +71,32 @@ Automated system that generates AI-powered summaries of completed tasks by categ
   - Home Summary
 
 ### 2025 Weeks Table
+
 - **Date Range (SET)** (Date Range) - Start and end date for each week
 - **Title/Name** - Week identifier (e.g., "Week 01")
 
 ## 🎯 Usage Examples
 
 ### Single Week
+
 ```javascript
 const TARGET_WEEKS = [22];
 ```
 
-### Multiple Weeks  
+### Multiple Weeks
+
 ```javascript
 const TARGET_WEEKS = [1, 2, 3, 4];
 ```
 
 ### Catch Up on a Month
+
 ```javascript
 const TARGET_WEEKS = [15, 16, 17, 18, 19];
 ```
 
 ### Mixed Weeks
+
 ```javascript
 const TARGET_WEEKS = [1, 11, 22, 33];
 ```
@@ -94,43 +104,55 @@ const TARGET_WEEKS = [1, 11, 22, 33];
 ## 📝 Customization
 
 ### Personal Context File
+
 Create `context.md` to customize AI behavior:
 
 ```markdown
 # AI Summary Context
 
 ## Writing Style Rules
+
 ### Avoid Corporate HR Speak
+
 - NEVER use: "participated in", "collaborated", "attended social events"
 - Use natural verbs: "went to", "worked with", "hung out"
 
 ## Definitions
+
 ### People
+
 - **Person Name**: Relationship or context
 
-### Bars/Restaurants  
+### Bars/Restaurants
+
 - **Place Name**: Type of establishment
 
 ### General
+
 - **Abbreviation**: Full meaning
 ```
 
 ### Output Examples
 
 **Before customization:**
+
 > "Participated in social events with colleagues and attended multiple restaurants for dining experiences."
 
 **After customization:**
+
 > "Went to Pubkey with Alex and Pat, had dinner at Gene's with Jen."
 
 ## 🔧 Configuration
 
 ### Week Naming
+
 The script automatically handles both formats:
-- Single digit: "Week 1 Recap" → "Week 01 Recap"  
+
+- Single digit: "Week 1 Recap" → "Week 01 Recap"
 - Double digit: "Week 11 Recap" (no change needed)
 
 ### AI Settings
+
 - **Model**: Claude 3 Haiku (cost-effective)
 - **Max tokens**: 80 (keeps summaries concise)
 - **Cost**: ~$0.003 per week summary
@@ -166,18 +188,22 @@ The script automatically handles both formats:
 ## 🐛 Troubleshooting
 
 ### "Could not find Week X Recap"
+
 - Check that your recap page is named exactly "Week XX Recap"
 - Verify the page exists in your Recap database
 
 ### "Week X has no week relation"
+
 - Ensure your recap page is linked to the correct week in the "⌛ Weeks" field
 
 ### "No tasks found"
+
 - Verify tasks have Status = "🟢 Done"
 - Check that Due Date falls within the week's date range
 - Confirm task Type matches the expected categories
 
 ### Context not loading
+
 - Ensure `context.md` exists in the same folder as `summary.js`
 - Check file permissions and encoding (should be UTF-8)
 
@@ -192,7 +218,7 @@ Very cost-effective for the time saved!
 ## 🔄 Version History
 
 - **v1.0**: Basic single-week processing
-- **v2.0**: Added multi-week array support  
+- **v2.0**: Added multi-week array support
 - **v3.0**: Smart padding for week numbers
 - **v4.0**: Personal context file integration
 - **v5.0**: Improved natural language and corporate speak removal
