@@ -16,10 +16,27 @@ const TASKS_DATABASE_ID = process.env.TASKS_DATABASE_ID;
 const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
 
-// ⭐ CONFIGURE THIS: Set the week(s) you want to process
-const TARGET_WEEKS = [
-  4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-]; // Single week: [22] | Multiple weeks: [20, 21, 22, 23]
+// ========================================
+// ⭐ MAIN CONFIGURATION - EDIT THESE! ⭐
+// ========================================
+
+// 1️⃣ WHICH WEEKS TO PROCESS?
+const TARGET_WEEKS = [4, 5, 6, 7, 8, 9, 10]; // Examples: [1] or [1,2,3] or [1,2,3,4,5,6,7,8,9,10]
+
+// 2️⃣ WHICH CATEGORIES TO PROCESS?
+// Type two slashes to comment out a category
+const ACTIVE_CATEGORIES = [
+  "💼 Work",
+  // "🏃‍♂️ Physical Health",
+  // "🌱 Personal",
+  // "🍻 Interpersonal",
+  // "❤️ Mental Health",
+  // "🏠 Home",
+];
+
+// ========================================
+// END OF CONFIGURATION
+// ========================================
 
 // Load context file (optional - will work without it)
 let CONTEXT = "";
@@ -33,7 +50,7 @@ try {
 }
 
 // Task categories configuration
-const TASK_CATEGORIES = [
+const ALL_TASK_CATEGORIES = [
   {
     notionValue: "🏃‍♂️ Physical Health",
     summaryField: "Physical Health Summary",
@@ -66,12 +83,24 @@ const TASK_CATEGORIES = [
   },
 ];
 
+// Filter categories based on ACTIVE_CATEGORIES
+const TASK_CATEGORIES = ALL_TASK_CATEGORIES.filter(
+  (cat) =>
+    ACTIVE_CATEGORIES.includes(cat.notionValue) ||
+    ACTIVE_CATEGORIES.includes(cat.summaryField)
+);
+
 async function generateAllWeekSummaries() {
   try {
     console.log(
       `🚀 Starting summary generation for weeks: ${TARGET_WEEKS.join(", ")}`
     );
-    console.log(`📊 Processing ${TARGET_WEEKS.length} week(s)...\n`);
+    console.log(`📊 Processing ${TARGET_WEEKS.length} week(s)...`);
+    console.log(
+      `📋 Active categories: ${TASK_CATEGORIES.map((c) => c.notionValue).join(
+        ", "
+      )}\n`
+    );
 
     for (const weekNumber of TARGET_WEEKS) {
       console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
@@ -143,7 +172,7 @@ async function generateWeekSummary(targetWeek) {
 
     console.log(`📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}`);
 
-    // 4. Process each category
+    // 4. Process each category (only the active ones!)
     const summaryUpdates = {};
 
     for (const category of TASK_CATEGORIES) {
@@ -222,7 +251,7 @@ async function generateWeekSummary(targetWeek) {
     // 5. Update all summaries at once
     await updateAllSummaries(targetWeekPage.id, summaryUpdates);
     console.log(
-      `✅ Successfully updated Week ${paddedWeek} recap with all category summaries!`
+      `✅ Successfully updated Week ${paddedWeek} recap with selected category summaries!`
     );
   } catch (error) {
     console.error(`❌ Error processing Week ${targetWeek}:`, error);
