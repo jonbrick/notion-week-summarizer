@@ -1,6 +1,7 @@
 const { Client } = require("@notionhq/client");
 const Anthropic = require("@anthropic-ai/sdk");
 const fs = require("fs");
+const readline = require("readline");
 require("dotenv").config();
 
 // Configuration - now using environment variables
@@ -17,26 +18,26 @@ const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
 
 // ========================================
-// ⭐ MAIN CONFIGURATION - EDIT THESE! ⭐
+// ⭐ DEFAULT CONFIGURATION (BACKDOOR) ⭐
 // ========================================
 
-// 1️⃣ WHICH WEEKS TO PROCESS?
-const TARGET_WEEKS = [4, 5, 6, 7, 8, 9, 10]; // Examples: [1] or [1,2,3] or [1,2,3,4,5,6,7,8,9,10]
+// 1️⃣ DEFAULT WEEKS TO PROCESS
+const DEFAULT_TARGET_WEEKS = [1]; // Default: just week 1
 
-// 2️⃣ WHICH CATEGORIES TO PROCESS?
-// Type two slashes to comment out a category
-const ACTIVE_CATEGORIES = [
+// 2️⃣ DEFAULT CATEGORIES TO PROCESS (all on by default)
+const DEFAULT_ACTIVE_CATEGORIES = [
   "💼 Work",
-  // "🏃‍♂️ Physical Health",
-  // "🌱 Personal",
-  // "🍻 Interpersonal",
-  // "❤️ Mental Health",
-  // "🏠 Home",
+  "🏃‍♂️ Physical Health",
+  "🌱 Personal",
+  "🍻 Interpersonal",
+  "❤️ Mental Health",
+  "🏠 Home",
 ];
 
 // ========================================
-// END OF CONFIGURATION
-// ========================================
+// These will be set either from defaults or user input
+let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
+let ACTIVE_CATEGORIES = [...DEFAULT_ACTIVE_CATEGORIES];
 
 // Load context file (optional - will work without it)
 let CONTEXT = "";
@@ -52,14 +53,14 @@ try {
 // Task categories configuration
 const ALL_TASK_CATEGORIES = [
   {
-    notionValue: "🏃‍♂️ Physical Health",
-    summaryField: "Physical Health Summary",
-    promptContext: "health task",
-  },
-  {
     notionValue: "💼 Work",
     summaryField: "Work Summary",
     promptContext: "work task",
+  },
+  {
+    notionValue: "🏃‍♂️ Physical Health",
+    summaryField: "Physical Health Summary",
+    promptContext: "health task",
   },
   {
     notionValue: "🌱 Personal",
@@ -83,15 +84,145 @@ const ALL_TASK_CATEGORIES = [
   },
 ];
 
+// Create readline interface for user input
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+// Helper function to ask questions
+function askQuestion(question) {
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer);
+    });
+  });
+}
+
+// Check if running in interactive mode (no command line args)
+async function checkInteractiveMode() {
+  // If command line args are provided, parse them
+  const args = process.argv.slice(2);
+
+  if (args.includes("--weeks") || args.includes("--categories")) {
+    // Command line mode
+    const weeksIndex = args.indexOf("--weeks");
+    const categoriesIndex = args.indexOf("--categories");
+
+    if (weeksIndex !== -1 && args[weeksIndex + 1]) {
+      TARGET_WEEKS = args[weeksIndex + 1].split(",").map((w) => parseInt(w));
+    }
+
+    if (categoriesIndex !== -1 && args[categoriesIndex + 1]) {
+      const catIndices = args[categoriesIndex + 1]
+        .split(",")
+        .map((c) => parseInt(c));
+      if (catIndices.includes(0)) {
+        ACTIVE_CATEGORIES = ALL_TASK_CATEGORIES.map((cat) => cat.notionValue);
+      } else {
+        ACTIVE_CATEGORIES = catIndices
+          .map((idx) => ALL_TASK_CATEGORIES[idx - 1]?.notionValue)
+          .filter(Boolean);
+      }
+    }
+
+    return false; // Not interactive
+  }
+
+  // No command line args, run interactive mode
+  return true;
+}
+
+async function runInteractiveMode() {
+  console.log("\n🎯 Notion Week Summary Generator");
+
+  // Format default categories display
+  let categoriesDisplay = "";
+  if (DEFAULT_ACTIVE_CATEGORIES.length === 6) {
+    categoriesDisplay = "All categories";
+  } else {
+    // Show emoji icons for active categories
+    categoriesDisplay = DEFAULT_ACTIVE_CATEGORIES.map(
+      (cat) => cat.split(" ")[0]
+    ).join(" ");
+  }
+
+  console.log(
+    `📌 Defaults: Week ${DEFAULT_TARGET_WEEKS.join(
+      ","
+    )} | ${categoriesDisplay}\n`
+  );
+
+  // Ask for weeks
+  const weeksInput = await askQuestion(
+    "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
+  );
+  if (weeksInput.trim()) {
+    TARGET_WEEKS = weeksInput
+      .split(",")
+      .map((w) => parseInt(w.trim()))
+      .filter((w) => !isNaN(w));
+  }
+
+  // Show category options
+  console.log("\n? Which categories to process?");
+  console.log("  0 - All Categories");
+  ALL_TASK_CATEGORIES.forEach((cat, idx) => {
+    console.log(`  ${idx + 1} - ${cat.notionValue}`);
+  });
+
+  // Ask for categories
+  const catInput = await askQuestion(
+    "\n? Enter numbers (e.g., 1,3 or 0 for all): "
+  );
+  if (catInput.trim()) {
+    const selections = catInput
+      .split(",")
+      .map((c) => parseInt(c.trim()))
+      .filter((c) => !isNaN(c));
+
+    if (selections.includes(0)) {
+      ACTIVE_CATEGORIES = ALL_TASK_CATEGORIES.map((cat) => cat.notionValue);
+    } else {
+      ACTIVE_CATEGORIES = selections
+        .filter((num) => num >= 1 && num <= ALL_TASK_CATEGORIES.length)
+        .map((num) => ALL_TASK_CATEGORIES[num - 1].notionValue);
+    }
+  }
+
+  // Show confirmation
+  console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+  console.log(
+    `📋 Processing categories: ${
+      ACTIVE_CATEGORIES.length === ALL_TASK_CATEGORIES.length
+        ? "All 6 categories"
+        : ACTIVE_CATEGORIES.join(", ")
+    }`
+  );
+
+  const confirm = await askQuestion("Continue? (y/n): ");
+
+  rl.close();
+
+  if (confirm.toLowerCase() !== "y") {
+    console.log("❌ Cancelled by user");
+    process.exit(0);
+  }
+
+  console.log(""); // Empty line before processing starts
+}
+
 // Filter categories based on ACTIVE_CATEGORIES
-const TASK_CATEGORIES = ALL_TASK_CATEGORIES.filter(
-  (cat) =>
-    ACTIVE_CATEGORIES.includes(cat.notionValue) ||
-    ACTIVE_CATEGORIES.includes(cat.summaryField)
-);
+function getActiveCategories() {
+  return ALL_TASK_CATEGORIES.filter((cat) =>
+    ACTIVE_CATEGORIES.includes(cat.notionValue)
+  );
+}
 
 async function generateAllWeekSummaries() {
   try {
+    const TASK_CATEGORIES = getActiveCategories();
+
     console.log(
       `🚀 Starting summary generation for weeks: ${TARGET_WEEKS.join(", ")}`
     );
@@ -117,6 +248,8 @@ async function generateAllWeekSummaries() {
 
 async function generateWeekSummary(targetWeek) {
   try {
+    const TASK_CATEGORIES = getActiveCategories();
+
     // 1. Get all recap pages and find target week
     const recapPages = await notion.databases.query({
       database_id: RECAP_DATABASE_ID,
@@ -330,5 +463,16 @@ async function updateAllSummaries(pageId, summaryUpdates) {
   });
 }
 
+// Main execution
+async function main() {
+  const isInteractive = await checkInteractiveMode();
+
+  if (isInteractive) {
+    await runInteractiveMode();
+  }
+
+  await generateAllWeekSummaries();
+}
+
 // Run the script
-generateAllWeekSummaries();
+main();
