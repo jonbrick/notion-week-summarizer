@@ -177,8 +177,33 @@ end run
    ```bash
    export PATH="/Users/YOUR_USERNAME/.nvm/versions/node/vXX.XX.X/bin:$PATH"
    cd /path/to/your/notion-scripts/week-summarizer
+
+   # Run the node script
    node summary.js $@
-   osascript -e 'display dialog "📊 Week summary generated successfully!" buttons {"OK"} default button "OK"'
+
+   # Capture the exit code
+   EXIT_CODE=$?
+
+   # Format the categories display
+   CATEGORIES_DISPLAY="$4"
+   if [ "$4" = "0" ]; then
+       CATEGORIES_DISPLAY="All"
+   fi
+
+   # Check if it succeeded
+   if [ $EXIT_CODE -eq 0 ]; then
+       # Success - show completion dialog
+       osascript -e 'tell application "System Events" to display dialog "✅ Week Summary Complete!" & return & return & "Processed weeks: '"$2"'" & return & "Categories: '"$CATEGORIES_DISPLAY"'" & return & return & "Your Notion recap pages have been updated." buttons {"OK"} default button "OK" with title "🤖 Summary Generator"'
+
+       # Also show a notification center alert
+       osascript -e 'display notification "Week summaries have been generated!" with title "🤖 Summary Complete" sound name "Glass"'
+   else
+       # Error occurred
+       osascript -e 'tell application "System Events" to display dialog "❌ Error generating summaries" & return & return & "Check the terminal for details." buttons {"OK"} default button "OK" with title "Summary Generator"'
+   fi
+
+   # Explicit exit
+   exit $EXIT_CODE
    ```
 
 4. **Save as Application**:
@@ -191,7 +216,28 @@ end run
 1. Press `Cmd + Space`
 2. Type "Week" (or your app name)
 3. Press Enter
-4. Follow the dialogs!
+4. Follow the dialogs:
+   - Enter week numbers (or press Enter for default)
+   - Enter category numbers (0 for all)
+   - Confirm your selections
+5. Get completion notification with sound!
+
+### Completion Notifications
+
+When done, you'll see:
+
+- **Success Dialog**: Shows weeks processed and categories updated
+- **Notification Center**: Alert with sound
+- **Clear confirmation** that your Notion pages have been updated
+
+### Customizing the App Icon
+
+Want the 🤖 emoji as your app icon?
+
+1. Find a high-res robot emoji image
+2. Right-click your Automator app → Get Info
+3. Drag the image onto the icon in the top-left
+4. Now it'll show in Spotlight with your custom icon!
 
 ### How It Works
 
@@ -206,12 +252,21 @@ The magic happens through argument passing:
 2. **Shell receives** these as separate arguments (`$1`, `$2`, `$3`, `$4`)
 
 3. **Node script** parses them:
+
    ```javascript
    // Detects --weeks and --categories flags
    // Uses those values instead of showing prompts
    ```
 
-This is why we use `{"--weeks", weekList, ...}` instead of a single string!
+4. **Smart formatting** in the shell script:
+   ```bash
+   # Convert "0" to "All" for display
+   if [ "$4" = "0" ]; then
+       CATEGORIES_DISPLAY="All"
+   fi
+   ```
+
+This is why we use `{"--weeks", weekList, ...}` instead of a single string - it properly separates arguments!
 
 ## 📋 Notion Setup Requirements
 
@@ -389,7 +444,30 @@ Returning `{"--weeks", weekList, "--categories", categoryInput}` creates 4 separ
 2. **Use Spotlight** for ad-hoc summaries during weekly reviews
 3. **Command-line mode** is perfect for cron jobs or scripting
 4. **Context file** makes summaries match your communication style
-5. **Check debug.log** if Automator acts weird
+5. **The "0" shortcut** - Always use 0 for all categories instead of typing 1,2,3,4,5,6
+6. **Sound notifications** - The "Glass" sound confirms completion even if you're not looking
+7. **Quick Spotlight access** - Name your app starting with "Week" for fast access
+
+## 🎯 Sample Workflows
+
+### Weekly Review Routine
+
+1. Cmd+Space → "week" → Enter
+2. Enter "23" for this week
+3. Enter "0" for all categories
+4. Confirm → Done in 30 seconds!
+
+### Monthly Work Summary
+
+1. Cmd+Space → "week" → Enter
+2. Enter "1,2,3,4" for the month
+3. Enter "1" for just Work
+4. Get a month of work summaries instantly
+
+### Quick Health Check
+
+1. Edit defaults to `[20,21,22,23]` and `["🏃‍♂️ Physical Health", "❤️ Mental Health"]`
+2. Run with Enter-Enter for instant health summaries
 
 ---
 
