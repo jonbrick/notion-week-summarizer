@@ -1,29 +1,21 @@
-# 🤖 Notion AI Task Summary Automation
+# Notion AI Task Summary Automation
 
-Automated system that generates AI-powered summaries of completed tasks by category for weekly retrospectives in Notion. Features an interactive terminal interface, command-line arguments, and macOS Automator integration for Spotlight access!
+This Node.js automation script connects to Notion and Claude AI to automatically generate concise weekly summaries of completed tasks by category, turning your task lists into professional recap content for retrospectives.
 
 ## ✨ Features
 
-- **🎯 Three Ways to Run**:
-  - Interactive mode with numbered menus
-  - Command-line arguments for automation
-  - Spotlight integration via Automator app
-- **Smart Week Processing**: Handle single weeks or batch process multiple weeks
-- **Intelligent Padding**: Works with both "Week 1" and "Week 01" naming conventions
-- **AI-Powered Summaries**: Professional, concise summaries that group similar tasks
-- **Personal Context**: Customizable context file for definitions and writing style
-- **Category Support**: Processes all task types (Work, Personal, Interpersonal, Physical Health, Mental Health, Home)
-- **Natural Language**: Avoids corporate HR speak in favor of human, professional tone
+- **Interactive & Command-Line Modes**: Choose weeks and categories interactively or via CLI arguments
+- **Multi-Week Processing**: Handle single weeks or batch process multiple weeks at once
+- **AI-Powered Summaries**: Uses Claude AI (Haiku) to create professional 1-3 sentence summaries
+- **Smart Category Filtering**: Process all 6 categories or select specific ones
+- **Custom Context Support**: Optional `context.md` file for AI writing style and definitions
+- **Date Range Filtering**: Automatically finds tasks within each week's date range
 
 ## 🚀 Quick Start
 
-### Initial Setup
-
-1. **Clone and install**:
+1. **Install dependencies**:
 
    ```bash
-   git clone <your-repo>
-   cd notion-scripts/week-summarizer
    npm install
    ```
 
@@ -37,439 +29,174 @@ Automated system that generates AI-powered summaries of completed tasks by categ
    WEEKS_DATABASE_ID=your_weeks_database_id
    ```
 
-3. **Create context file** (optional):
-   ```bash
-   touch context.md
-   # Add your personal definitions and style preferences
-   ```
-
-## 🎮 Three Ways to Use
-
-### 1. Interactive Mode (Terminal)
-
-Just run without arguments:
-
-```bash
-node summary.js
-```
-
-You'll see:
-
-```
-🎯 Notion Week Summary Generator
-📌 Defaults: Week 1 | All categories
-
-? Which weeks to process? (comma-separated, e.g., 1,2,3): 5,6,7
-? Which categories to process?
-  0 - All Categories
-  1 - 💼 Work
-  2 - 🏃‍♂️ Physical Health
-  3 - 🌱 Personal
-  4 - 🍻 Interpersonal
-  5 - ❤️ Mental Health
-  6 - 🏠 Home
-? Enter numbers (e.g., 1,3 or 0 for all): 1,3
-
-📊 Processing weeks: 5, 6, 7
-📋 Processing categories: 💼 Work, 🌱 Personal
-Continue? (y/n): y
-```
-
-**Pro tip**: Hit Enter at any prompt to use your configured defaults!
-
-### 2. Command-Line Mode
-
-For automation or quick runs:
-
-```bash
-# Process week 1 with all categories
-node summary.js --weeks 1 --categories 0
-
-# Process weeks 5,6,7 with just Work and Personal
-node summary.js --weeks 5,6,7 --categories 1,3
-
-# Process week 22 with all except Home
-node summary.js --weeks 22 --categories 1,2,3,4,5
-```
-
-### 3. Backdoor Mode (Edit Defaults)
-
-Edit `summary.js` lines 24-34 to set your preferred defaults:
-
-```javascript
-// 1️⃣ DEFAULT WEEKS TO PROCESS
-const DEFAULT_TARGET_WEEKS = [20, 21, 22, 23]; // Your regular weeks
-
-// 2️⃣ DEFAULT CATEGORIES TO PROCESS
-const DEFAULT_ACTIVE_CATEGORIES = [
-  "💼 Work",
-  // "🏃‍♂️ Physical Health",  // Commented out
-  "🌱 Personal",
-  // "🍻 Interpersonal",      // Commented out
-  "❤️ Mental Health",
-  "🏠 Home",
-];
-```
-
-Then just run `node summary.js` and hit Enter twice to use these defaults!
-
-## 🤖 Automator Setup (Spotlight Integration)
-
-Turn this into a Spotlight-accessible app for the ultimate convenience!
-
-### Creating the Automator App
-
-1. **Open Automator** and create a new **Application**
-
-2. **Add "Run AppleScript" action** with this code:
-
-```applescript
-on run {input, parameters}
-    -- Week Selection Dialog
-    set weekPrompt to "Which weeks to process?" & return & return & "Enter week numbers separated by commas" & return & "(e.g., 1 or 1,2,3 or 5,6,7,8)"
-
-    set weekInput to text returned of (display dialog weekPrompt default answer "1" buttons {"Cancel", "Continue"} default button "Continue" with title "📊 Week Summary Generator")
-
-    -- Parse and validate weeks
-    set weekList to weekInput
-
-    -- Category Selection Dialog
-    set categoryPrompt to "Which categories to process?" & return & return & ¬
-        "0 - All Categories" & return & ¬
-        "1 - 💼 Work" & return & ¬
-        "2 - 🏃‍♂️ Physical Health" & return & ¬
-        "3 - 🌱 Personal" & return & ¬
-        "4 - 🍻 Interpersonal" & return & ¬
-        "5 - ❤️ Mental Health" & return & ¬
-        "6 - 🏠 Home" & return & return & ¬
-        "Enter numbers (e.g., 1,3 or 0 for all):"
-
-    set categoryInput to text returned of (display dialog categoryPrompt default answer "0" buttons {"Cancel", "Continue"} default button "Continue" with title "📊 Week Summary Generator")
-
-    -- Parse categories for display
-    set categoryDisplay to ""
-    if categoryInput is "0" then
-        set categoryDisplay to "All categories"
-    else
-        set categoryDisplay to "Selected categories: " & categoryInput
-    end if
-
-    -- Confirmation Dialog
-    set confirmPrompt to "Ready to process:" & return & return & ¬
-        "📅 Weeks: " & weekList & return & ¬
-        "📋 " & categoryDisplay & return & return & ¬
-        "Continue with summary generation?"
-
-    display dialog confirmPrompt buttons {"Cancel", "Generate"} default button "Generate" with title "📊 Week Summary Generator" with icon note
-
-    -- Return the parameters for the shell script
-    return {"--weeks", weekList, "--categories", categoryInput}
-
-end run
-```
-
-3. **Add "Run Shell Script" action** with:
-
-   - Shell: `/bin/zsh` (or `/bin/bash`)
-   - Pass input: **as arguments** ⚠️ IMPORTANT!
-   - Code:
+3. **Run interactively**:
 
    ```bash
-   export PATH="/Users/YOUR_USERNAME/.nvm/versions/node/vXX.XX.X/bin:$PATH"
-   cd /path/to/your/notion-scripts/week-summarizer
-
-   # Run the node script
-   node summary.js $@
-
-   # Capture the exit code
-   EXIT_CODE=$?
-
-   # Format the categories display
-   CATEGORIES_DISPLAY="$4"
-   if [ "$4" = "0" ]; then
-       CATEGORIES_DISPLAY="All"
-   fi
-
-   # Check if it succeeded
-   if [ $EXIT_CODE -eq 0 ]; then
-       # Success - show completion dialog
-       osascript -e 'tell application "System Events" to display dialog "✅ Week Summary Complete!" & return & return & "Processed weeks: '"$2"'" & return & "Categories: '"$CATEGORIES_DISPLAY"'" & return & return & "Your Notion recap pages have been updated." buttons {"OK"} default button "OK" with title "🤖 Summary Generator"'
-
-       # Also show a notification center alert
-       osascript -e 'display notification "Week summaries have been generated!" with title "🤖 Summary Complete" sound name "Glass"'
-   else
-       # Error occurred
-       osascript -e 'tell application "System Events" to display dialog "❌ Error generating summaries" & return & return & "Check the terminal for details." buttons {"OK"} default button "OK" with title "Summary Generator"'
-   fi
-
-   # Explicit exit
-   exit $EXIT_CODE
+   node summary.js
    ```
 
-4. **Save as Application**:
-   - Name: "Week Summary" (or whatever you like)
-   - Where: Applications folder
-   - Add a 🤖 emoji icon for style!
+4. **Run with command-line args**:
 
-### Using from Spotlight
-
-1. Press `Cmd + Space`
-2. Type "Week" (or your app name)
-3. Press Enter
-4. Follow the dialogs:
-   - Enter week numbers (or press Enter for default)
-   - Enter category numbers (0 for all)
-   - Confirm your selections
-5. Get completion notification with sound!
-
-### Completion Notifications
-
-When done, you'll see:
-
-- **Success Dialog**: Shows weeks processed and categories updated
-- **Notification Center**: Alert with sound
-- **Clear confirmation** that your Notion pages have been updated
-
-### Customizing the App Icon
-
-Want the 🤖 emoji as your app icon?
-
-1. Find a high-res robot emoji image
-2. Right-click your Automator app → Get Info
-3. Drag the image onto the icon in the top-left
-4. Now it'll show in Spotlight with your custom icon!
-
-### How It Works
-
-The magic happens through argument passing:
-
-1. **AppleScript** collects your input and returns an array:
-
-   ```applescript
-   return {"--weeks", "1,2,3", "--categories", "0"}
-   ```
-
-2. **Shell receives** these as separate arguments (`$1`, `$2`, `$3`, `$4`)
-
-3. **Node script** parses them:
-
-   ```javascript
-   // Detects --weeks and --categories flags
-   // Uses those values instead of showing prompts
-   ```
-
-4. **Smart formatting** in the shell script:
    ```bash
-   # Convert "0" to "All" for display
-   if [ "$4" = "0" ]; then
-       CATEGORIES_DISPLAY="All"
-   fi
+   # Process specific weeks and categories
+   node summary.js --weeks 1,2,3 --categories 1,3,5
+
+   # Process all categories for multiple weeks
+   node summary.js --weeks 15,16,17,18 --categories 0
    ```
 
-This is why we use `{"--weeks", weekList, ...}` instead of a single string - it properly separates arguments!
+## 📋 Notion Database Requirements
 
-## 📋 Notion Setup Requirements
-
-### 2025 Tasks Table
+### Tasks Database
 
 - **Task** (Title) - Task name
 - **Due Date** (Date) - When task is due/completed
 - **Type** (Select) - Categories:
-  - 🏃‍♂️ Physical Health
   - 💼 Work
+  - 🏃‍♂️ Physical Health
   - 🌱 Personal
   - 🍻 Interpersonal
   - ❤️ Mental Health
   - 🏠 Home
 - **Status** (Status) - Must include "🟢 Done" option
+- **Week Number** (Number) - Optional reference field
 
-### 2025 Recap Table
+### Recap Database
 
 - **Week Recap** (Title) - Week identifier (e.g., "Week 01 Recap")
-- **⌛ Weeks** (Relation) - Links to 2025 Weeks table
+- **⌛ Weeks** (Relation) - Links to Weeks database
 - **Summary Fields** (Rich Text):
-  - Physical Health Summary
   - Work Summary
+  - Physical Health Summary
   - Personal Summary
   - Interpersonal Summary
   - Mental Health Summary
   - Home Summary
 
-### 2025 Weeks Table
+### Weeks Database
 
 - **Date Range (SET)** (Date Range) - Start and end date for each week
 - **Title/Name** - Week identifier (e.g., "Week 01")
 
 ## 🎯 Usage Examples
 
-### Quick Catchup
+### Interactive Mode
 
 ```bash
-# Last 4 weeks, all categories
-node summary.js --weeks 20,21,22,23 --categories 0
+node summary.js
+# Follow prompts to select weeks and categories
 ```
 
-### Targeted Review
+### Command Line Examples
 
 ```bash
-# Just work summaries for Q1
-node summary.js --weeks 1,2,3,4,5,6,7,8,9,10,11,12,13 --categories 1
+# Single week, all categories
+node summary.js --weeks 22 --categories 0
+
+# Multiple weeks, specific categories (Work and Personal)
+node summary.js --weeks 1,2,3,4 --categories 1,3
+
+# Catch up on a month
+node summary.js --weeks 15,16,17,18,19 --categories 0
 ```
 
-### Health Check
+### Category Numbers
 
-```bash
-# Physical and Mental Health for recent weeks
-node summary.js --weeks 22,23,24 --categories 2,5
-```
+- `0` - All Categories
+- `1` - 💼 Work
+- `2` - 🏃‍♂️ Physical Health
+- `3` - 🌱 Personal
+- `4` - 🍻 Interpersonal
+- `5` - ❤️ Mental Health
+- `6` - 🏠 Home
 
-## 📝 Personal Context Customization
+## 📝 Customization
 
-Create `context.md` to teach the AI your preferences:
+### Context File (Optional)
+
+Create `context.md` to customize AI behavior:
 
 ```markdown
 # AI Summary Context
 
 ## Writing Style Rules
 
-### Avoid Corporate HR Speak
-
-- NEVER use: "participated in", "collaborated", "attended social events"
-- Use natural verbs: "went to", "worked with", "hung out"
+- Use natural language, avoid corporate speak
+- Be concise and professional
+- Group similar tasks together
 
 ## Definitions
 
-### People
+- **Person Name**: Relationship context
+- **Abbreviation**: Full meaning
+```
 
-- **Pat**: Friend from work
-- **Jen**: Partner
+### Default Configuration
 
-### Places
+Edit `summary.js` to change defaults:
 
-- **Pubkey**: Local bar
-- **Gene's**: Italian restaurant
+```javascript
+// Default weeks to process
+const DEFAULT_TARGET_WEEKS = [1];
 
-### Abbreviations
+// Default categories (all active by default)
+const DEFAULT_ACTIVE_CATEGORIES = [
+  "💼 Work",
+  "🏃‍♂️ Physical Health",
+  // ... etc
+];
+```
 
-- **ECG**: Educational card game
+## 🔧 How It Works
+
+1. **Week Discovery**: Finds recap pages by title (supports "Week 1" or "Week 01" format)
+2. **Date Range**: Gets week's start/end dates from linked Weeks database
+3. **Task Filtering**: Queries tasks with:
+   - Due Date within week range
+   - Status = "🟢 Done"
+   - Matching category type
+4. **AI Summary**: Sends task names to Claude AI with context for professional summarization
+5. **Update**: Writes generated summaries back to recap page fields
+
+## 📊 Sample Output
+
+```bash
+🚀 Starting summary generation for weeks: 1, 2, 3
+📊 Processing 3 week(s)...
+📋 Active categories: 💼 Work, 🍻 Interpersonal, 🌱 Personal
+
+🗓️  === PROCESSING WEEK 1 ===
+✅ Found Week 01 Recap!
+📅 Week 01 date range: 2024-12-29 to 2025-01-04
+
+🔄 Processing 💼 Work...
+📋 Found 5 Work tasks
+🤖 Generated summary: Completed project setup, attended team meetings, and finished Q4 documentation.
+
+✅ Successfully updated Week 01 recap with selected category summaries!
+🎉 Successfully completed all 3 week(s)!
 ```
 
 ## 💰 Cost Estimation
 
-- **Per week**: ~$0.003 (0.3 cents)
-- **Per year (52 weeks)**: ~$0.16
-- **Batch processing 20 weeks**: ~$0.06
+- **Claude Haiku**: ~$0.003 per week summary
+- **Annual cost** (52 weeks): ~$0.16
+- Very cost-effective for automation!
 
-Incredibly cost-effective for the time saved!
+## 🛡️ Security
 
-## 🛡️ Security Best Practices
+- API keys stored securely in `.env` (gitignored)
+- Personal context file excluded from version control
+- Database IDs protected in environment variables
 
-- **API keys**: Always in `.env` (never commit!)
-- **Context file**: Personal info stays in `context.md` (gitignored)
-- **Database IDs**: Environment variables only
+## 📄 Dependencies
 
-## 🐛 Troubleshooting
-
-### Interactive Mode Issues
-
-**Defaults not showing correctly**: Check that `DEFAULT_TARGET_WEEKS` and `DEFAULT_ACTIVE_CATEGORIES` are properly formatted arrays
-
-**Categories not processing**: Ensure category numbers are 0-6 (0 for all)
-
-### Automator Issues
-
-**"SyntaxError: Unexpected identifier"**: This means AppleScript is mixed with JavaScript. Check that:
-
-- AppleScript is ONLY in the "Run AppleScript" action
-- `summary.js` contains only JavaScript
-
-**Arguments not passing**: Ensure Shell Script action has "Pass input: as arguments"
-
-**Can't find node**: Update the PATH in your shell script to match your node installation:
-
-```bash
-which node  # Run this in terminal to find your node path
-```
-
-### Notion Issues
-
-**"Could not find Week X Recap"**: Check naming matches exactly (e.g., "Week 01 Recap")
-
-**"No week relation"**: Ensure recap pages are linked to week pages via ⌛ Weeks field
-
-**No tasks found**: Verify:
-
-- Tasks have Status = "🟢 Done"
-- Due Date falls within week's date range
-- Task Type matches category names exactly
-
-## 📚 Technical Details
-
-### Category Numbering System
-
-- 0 = All Categories (special case)
-- 1 = 💼 Work
-- 2 = 🏃‍♂️ Physical Health
-- 3 = 🌱 Personal
-- 4 = 🍻 Interpersonal
-- 5 = ❤️ Mental Health
-- 6 = 🏠 Home
-
-### Argument Parsing
-
-The script checks for `--weeks` and `--categories` flags:
-
-- If found: Uses command-line values
-- If not found: Runs interactive mode
-- Empty input in interactive: Uses defaults
-
-### Why AppleScript Returns an Array
-
-Returning `{"--weeks", weekList, "--categories", categoryInput}` creates 4 separate arguments instead of 1 concatenated string. This is crucial for proper parsing!
-
-## 🔄 Version History
-
-- **v1.0**: Basic single-week processing
-- **v2.0**: Multi-week array support
-- **v3.0**: Smart padding for week numbers
-- **v4.0**: Personal context file integration
-- **v5.0**: Natural language improvements
-- **v6.0**: Interactive mode with numbered categories
-- **v7.0**: Command-line arguments support
-- **v8.0**: Automator/Spotlight integration 🤖
-
-## 🎉 Tips & Tricks
-
-1. **Set up common patterns** as defaults for quick Enter-Enter runs
-2. **Use Spotlight** for ad-hoc summaries during weekly reviews
-3. **Command-line mode** is perfect for cron jobs or scripting
-4. **Context file** makes summaries match your communication style
-5. **The "0" shortcut** - Always use 0 for all categories instead of typing 1,2,3,4,5,6
-6. **Sound notifications** - The "Glass" sound confirms completion even if you're not looking
-7. **Quick Spotlight access** - Name your app starting with "Week" for fast access
-
-## 🎯 Sample Workflows
-
-### Weekly Review Routine
-
-1. Cmd+Space → "week" → Enter
-2. Enter "23" for this week
-3. Enter "0" for all categories
-4. Confirm → Done in 30 seconds!
-
-### Monthly Work Summary
-
-1. Cmd+Space → "week" → Enter
-2. Enter "1,2,3,4" for the month
-3. Enter "1" for just Work
-4. Get a month of work summaries instantly
-
-### Quick Health Check
-
-1. Edit defaults to `[20,21,22,23]` and `["🏃‍♂️ Physical Health", "❤️ Mental Health"]`
-2. Run with Enter-Enter for instant health summaries
+- `@notionhq/client` - Notion API integration
+- `@anthropic-ai/sdk` - Claude AI API
+- `dotenv` - Environment variable management
+- `fs` & `readline` - File operations and user input
 
 ---
 
-**Built with**: Notion API, Claude AI, Node.js, AppleScript
-**Time saved**: Hours of manual weekly review automated to seconds! 🚀
+**Built with**: Notion API, Claude AI, Node.js  
+**Time saved**: Automated weekly retrospectives! 🎉
