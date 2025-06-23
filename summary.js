@@ -55,32 +55,32 @@ try {
 const ALL_TASK_CATEGORIES = [
   {
     notionValue: "💼 Work",
-    summaryField: "Work Summary",
+    summaryField: "Work Task Summary",
     promptContext: "work task",
   },
   {
     notionValue: "💪 Physical Health",
-    summaryField: "Physical Health Summary",
+    summaryField: "Physical Health Task Summary",
     promptContext: "health task",
   },
   {
     notionValue: "🌱 Personal",
-    summaryField: "Personal Summary",
+    summaryField: "Personal Task Summary",
     promptContext: "personal task",
   },
   {
     notionValue: "🍻 Interpersonal",
-    summaryField: "Interpersonal Summary",
+    summaryField: "Interpersonal Task Summary",
     promptContext: "interpersonal task",
   },
   {
     notionValue: "❤️ Mental Health",
-    summaryField: "Mental Health Summary",
+    summaryField: "Mental Health Task Summary",
     promptContext: "mental health task",
   },
   {
     notionValue: "🏠 Home",
-    summaryField: "Home Summary",
+    summaryField: "Home Task Summary",
     promptContext: "home task",
   },
 ];
