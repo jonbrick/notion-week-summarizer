@@ -38,6 +38,7 @@ const DEFAULT_ACTIVE_CATEGORIES = [
 // These will be set either from defaults or user input
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 let ACTIVE_CATEGORIES = [...DEFAULT_ACTIVE_CATEGORIES];
+let DRY_RUN = false;
 
 // Load context file (optional - will work without it)
 let CONTEXT = "";
@@ -104,7 +105,11 @@ async function checkInteractiveMode() {
   // If command line args are provided, parse them
   const args = process.argv.slice(2);
 
-  if (args.includes("--weeks") || args.includes("--categories")) {
+  if (
+    args.includes("--weeks") ||
+    args.includes("--categories") ||
+    args.includes("--dry-run")
+  ) {
     // Command line mode
     const weeksIndex = args.indexOf("--weeks");
     const categoriesIndex = args.indexOf("--categories");
@@ -124,6 +129,11 @@ async function checkInteractiveMode() {
           .map((idx) => ALL_TASK_CATEGORIES[idx - 1]?.notionValue)
           .filter(Boolean);
       }
+    }
+
+    // Add this new section:
+    if (args.includes("--dry-run")) {
+      DRY_RUN = true;
     }
 
     return false; // Not interactive
@@ -232,6 +242,10 @@ async function generateAllWeekSummaries() {
         ", "
       )}\n`
     );
+
+    if (DRY_RUN) {
+      console.log("🔍 DRY RUN MODE - No changes will be made to Notion\n");
+    }
 
     for (const weekNumber of TARGET_WEEKS) {
       console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
@@ -351,7 +365,7 @@ async function generateWeekSummary(targetWeek) {
       if (tasksResponse.results.length === 0) {
         // Create short, clear empty message
         const categoryName = category.notionValue
-          .replace(/🏃‍♂️|💼|🌱|🍻|❤️|🏠/g, "")
+          .replace(/💪|💼|🌱|🍻|❤️|🏠/g, "")
           .trim();
         summaryUpdates[
           category.summaryField
@@ -382,9 +396,19 @@ async function generateWeekSummary(targetWeek) {
     }
 
     // 5. Update all summaries at once
-    await updateAllSummaries(targetWeekPage.id, summaryUpdates);
+    if (DRY_RUN) {
+      console.log("🔍 DRY RUN MODE - Would update these summaries:");
+      for (const [field, summary] of Object.entries(summaryUpdates)) {
+        console.log(`   ${field}: ${summary}`);
+      }
+      console.log("   (No changes made to Notion)");
+    } else {
+      await updateAllSummaries(targetWeekPage.id, summaryUpdates);
+    }
     console.log(
-      `✅ Successfully updated Week ${paddedWeek} recap with selected category summaries!`
+      `✅ Successfully ${
+        DRY_RUN ? "simulated" : "updated"
+      } Week ${paddedWeek} recap with selected category summaries!`
     );
   } catch (error) {
     console.error(`❌ Error processing Week ${targetWeek}:`, error);
