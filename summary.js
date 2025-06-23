@@ -27,7 +27,7 @@ const DEFAULT_TARGET_WEEKS = [1]; // Default: just week 1
 // 2️⃣ DEFAULT CATEGORIES TO PROCESS (all on by default)
 const DEFAULT_ACTIVE_CATEGORIES = [
   "💼 Work",
-  "🏃‍♂️ Physical Health",
+  "💪 Physical Health",
   "🌱 Personal",
   "🍻 Interpersonal",
   "❤️ Mental Health",
@@ -58,7 +58,7 @@ const ALL_TASK_CATEGORIES = [
     promptContext: "work task",
   },
   {
-    notionValue: "🏃‍♂️ Physical Health",
+    notionValue: "💪 Physical Health",
     summaryField: "Physical Health Summary",
     promptContext: "health task",
   },
