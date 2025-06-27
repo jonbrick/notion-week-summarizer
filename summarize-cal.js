@@ -188,11 +188,74 @@ async function generateWeekSummary(targetWeek) {
       }
 
       // Generate AI summary
-      const eventDescriptions = categoryData.events.map((event) => {
-        const title = event.summary || "Untitled event";
-        const description = event.description ? ` - ${event.description}` : "";
-        return `${title}${description}`;
-      });
+      const eventDescriptions = categoryData.events
+        .filter((event) => {
+          const title = event.summary || "";
+
+          // Filter out working location events
+          const locationKeywords = [
+            "home",
+            "mc out",
+            "office",
+            "remote",
+            "wfh",
+            "work from home",
+            "out of office",
+            "ooo",
+            "vacation",
+            "sick",
+            "personal day",
+          ];
+
+          const isLocationEvent = locationKeywords.some((keyword) =>
+            title.toLowerCase().includes(keyword)
+          );
+
+          // Filter out events where user didn't RSVP or RSVP'd no
+          const attendees = event.attendees || [];
+          const userAttendee = attendees.find(
+            (att) =>
+              att.email === process.env.PERSONAL_EMAIL ||
+              att.email === process.env.WORK_EMAIL
+          );
+
+          const didNotRSVP = !userAttendee;
+          const rsvpNo =
+            userAttendee && userAttendee.responseStatus === "declined";
+
+          // Keep event if it's not a location event AND user RSVP'd yes or no RSVP info
+          return !isLocationEvent && !didNotRSVP && !rsvpNo;
+        })
+        .map((event) => {
+          const title = event.summary || "Untitled event";
+          let description = event.description || "";
+
+          // Clean up description: strip HTML tags and take only first line
+          if (description) {
+            // Remove HTML tags
+            description = description.replace(/<[^>]*>/g, "");
+            // Remove extra whitespace and newlines
+            description = description.replace(/\s+/g, " ").trim();
+            // Take only the first line (before any line breaks)
+            const firstLine = description.split("\n")[0].split("\r")[0];
+            // Truncate if still too long (more than 80 chars)
+            if (firstLine.length > 80) {
+              description = firstLine.substring(0, 80) + "...";
+            } else {
+              description = firstLine;
+            }
+            // Only add description if it's meaningful (not just whitespace)
+            if (description && description !== "") {
+              description = ` - ${description}`;
+            } else {
+              description = "";
+            }
+          }
+
+          return `${title}${description}`;
+        });
+
+      console.log(`📝 Events to summarize:`, eventDescriptions);
 
       const summary = await generateCalendarSummary(
         eventDescriptions,
@@ -200,7 +263,7 @@ async function generateWeekSummary(targetWeek) {
       );
       summaryUpdates[category.summaryField] = summary;
 
-      console.log(`   ${category.notionValue}: Generated summary`);
+      console.log(`🤖 Generated summary: ${summary}`);
     }
 
     // 7. Update all summaries at once
