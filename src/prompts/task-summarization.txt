@@ -1,49 +1,31 @@
 {{CONTEXT}}
 
-Convert these {{PROMPT_CONTEXT}}s into a very concise summary. I need ultra-brief, scannable language - no fluff or unnecessary words.
+Convert these {{PROMPT_CONTEXT}}s into a very concise summary. I need ultra-brief, scannable language—no fluff or unnecessary words.
 
-RULES:
-- 1-2 sentences maximum
-- Use comma-separated phrases instead of full sentences when possible
-- Professional but direct language - not casual
-- Be matter-of-fact and neutral - no judgment about outcomes
-- Focus on WHAT I did, not how well I did it
-- Group similar/related items together with commas
-- Cut all unnecessary words - be extremely efficient
-- Use action verbs and key details only
-- Avoid repetitive phrases like "this week" or "you"
-- ALWAYS include specific locations when available
-- ALWAYS include specific details: "PR #1234 redesign cleanup" not "various PRs"
-- ALWAYS include meeting types: "design sync with Cristina" not "meeting with Cristina"
-- Group multiple activities with the same person: "Pubkey, Res, Blind Tiger with Alex" (not "met up with Alex multiple times")
-- Use semicolons to separate different types of activities
-- Include specific project names, PR numbers, meeting types, and key details
-- Don't use "various" or "multiple" - be specific about what was done
-- NEVER use generic terms like "various", "multiple", "several", "some", "a few"
-- Use the exact event titles and descriptions provided - don't summarize them away
-- If an event has a specific name, use it: "Phish Night 1 of 3" not "Phish concert"
-- Include specific people names when available in the event data
-
-GROUPING & REPHRASING EXAMPLES:
+EXAMPLES:
 - "Level-icons PR, Avatar & CortexLogo Nav PR" → "PRs for level-icons and avatar & cortex logo"
+- "Merge CET-15007 and CET-15386/CET-15958 redesign polish" → "merge PRs for search, select, card-search, datepicker heights"
+- "Doug <> Jon sync" → "Met with Doug (I am Jon)"
+- "Paired with Doug and Jon on scorecards, colors, and circle progress styling" → "Pairing with Doug on scorecards, colors, and circle progress styling"
+- "Input cleanup PR, datepicker/typeahead/select height cleanup PR" → "PRs for input cleanup and datepicker/typeahead/select height cleanup"
 - "Tech Leadership Sync, Redesign Standup, LMS Design Quick Sync with Cristina" → "Leadership and design syncs with Cristina"
 - "Redesign Standup with Ariel, Redesign Standup with Cristina" → "Redesign standups with Ariel and Cristina"
-- "Paired with Doug, Paired with Jon" → "Pairing sessions with Doug and Jon"
 - "Input Cleanup, Datepicker/Typeahead/Select Height" → "Input cleanup and datepicker/typeahead/select height work"
 - "Phish Night 1 of 3, Phish Night 2 of 3, Phish Night 3 of 3" → "Attended Phish concerts (Nights 1, 2, 3)"
 - "I Sodi Dinner with Jen Rothman, Matchaland St Jardim and L'Accolade with Jen" → "Dinners with Jen at I Sodi, Matchaland St Jardim, and L'Accolade"
+- "CET-15007 redesign polish, CET-15386 typeahead fixes, CET-15958 datepicker height" → "PRs for redesign polish, typeahead fixes, and datepicker height"
+- "Merge CET-12345 [Feature X], Merge CET-67890 [Feature Y]" → "merge PRs for Feature X and Feature Y"
+- "Setup machine, Get local running again" → "Setup machine and got local running"
+- "Various design and engineering meetings" → "Design and engineering meetings"
+- "Design sync with Cristina, Tech sync with Cristina" → "Design and tech syncs with Cristina"
+- "PR for level-icons, PR for avatar updates, PR for cortex logo" → "PRs for level-icons, avatar updates, and cortex logo"
+- "Merge CET-11111 [Search improvements], Merge CET-22222 [Select fixes]" → "merge PRs for search improvements and select fixes"
 
-GROUPING EXAMPLES:
-Multiple games: "ECG Game 3, ECG Game 4, ECG Game 5" → "ECG Games 3, 4, 5"
-Multiple appointments: "Dr. Smith checkup, Dr. Jones blood test" → "Appointments with Dr. Smith and Dr. Jones"
-Multiple chores: "Clean kitchen, Vacuum living room, Dishes" → "Cleaned kitchen, vacuumed living room, dishes"
-Multiple meetings: "Team standup, Client call, 1:1 with manager" → "Team standup, client call, 1:1 with manager"
-
-SINGLE ITEM EXAMPLES:
-"Dr. Smith - checkup" → "Checkup with Dr. Smith"
-"Gym - leg day" → "Leg day at gym"
-"Therapy - Jernee Montoya" → "Therapy with Jernee Montoya"
-"Hackathon" → "Hackathon"
+REMINDERS:
+- Only summarize the events provided—don't add or invent any.
+- Don't mention concerts, social events, or personal activities unless they're in the list.
+- Be concise and group similar items.
+- Talk in the first person (I/me/my). Jon is ME.
 
 TASKS TO SUMMARIZE:
 {{TASK_NAMES}}
