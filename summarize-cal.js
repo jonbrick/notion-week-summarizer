@@ -56,9 +56,9 @@ const CALENDAR_MAPPING = {
   // Work Category - Direct mapping
   work: {
     calendars: [
-      process.env.WORK_CALENDAR_ID,
-      process.env.WORK_PR_DATA_CALENDAR_ID,
-    ].filter(Boolean),
+      { id: process.env.WORK_CALENDAR_ID, name: "Work Calendar" },
+      { id: process.env.WORK_PR_DATA_CALENDAR_ID, name: "💾 PR Data - Work" },
+    ].filter((cal) => cal.id),
     authType: "work",
     summaryField: "Work Calendar Summary",
     aiClassification: false,
@@ -68,11 +68,14 @@ const CALENDAR_MAPPING = {
   // Personal Category - Direct mapping
   personal: {
     calendars: [
-      process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID,
-      process.env.VIDEO_GAMES_CALENDAR_ID,
-      process.env.READ_CALENDAR_ID,
-      process.env.TRAVEL_CALENDAR_ID,
-    ].filter(Boolean),
+      {
+        id: process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID,
+        name: "💾 GitHub Data - Personal",
+      },
+      { id: process.env.VIDEO_GAMES_CALENDAR_ID, name: "🎮 Video Games" },
+      { id: process.env.READ_CALENDAR_ID, name: "📖 Read" },
+      { id: process.env.TRAVEL_CALENDAR_ID, name: "✈️ Travel" },
+    ].filter((cal) => cal.id),
     authType: "personal",
     summaryField: "Personal Calendar Summary",
     aiClassification: false,
@@ -82,13 +85,13 @@ const CALENDAR_MAPPING = {
   // Physical Health Category - Direct mapping
   physicalHealth: {
     calendars: [
-      process.env.WORKOUT_CALENDAR_ID,
-      process.env.WAKE_UP_EARLY_CALENDAR_ID,
-      process.env.SLEEP_IN_CALENDAR_ID,
-      process.env.SOBER_DAYS_CALENDAR_ID,
-      process.env.DRINKING_DAYS_CALENDAR_ID,
-      process.env.BODY_WEIGHT_CALENDAR_ID,
-    ].filter(Boolean),
+      { id: process.env.WORKOUT_CALENDAR_ID, name: "💪 Workouts" },
+      { id: process.env.WAKE_UP_EARLY_CALENDAR_ID, name: "☀️ Wake up early" },
+      { id: process.env.SLEEP_IN_CALENDAR_ID, name: "🛌 Sleep in" },
+      { id: process.env.SOBER_DAYS_CALENDAR_ID, name: "🚰 Sober days" },
+      { id: process.env.DRINKING_DAYS_CALENDAR_ID, name: "🍻 Drinking days" },
+      { id: process.env.BODY_WEIGHT_CALENDAR_ID, name: "⚖️ Body weight" },
+    ].filter((cal) => cal.id),
     authType: "personal",
     summaryField: "Physical Health Calendar Summary",
     aiClassification: false,
@@ -97,7 +100,9 @@ const CALENDAR_MAPPING = {
 
   // Multi-category calendar - Requires AI classification
   personalMultiCategory: {
-    calendars: [process.env.PERSONAL_CALENDAR_ID].filter(Boolean),
+    calendars: [
+      { id: process.env.PERSONAL_CALENDAR_ID, name: "📅 Personal Calendar" },
+    ].filter((cal) => cal.id),
     authType: "personal",
     aiClassification: true,
     targetCategories: [
@@ -180,23 +185,27 @@ function askQuestion(question) {
 
 // Google Calendar authentication
 function getGoogleAuth(authType) {
-  const oauth2Client = new google.auth.OAuth2();
-
   if (authType === "work") {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.WORK_GOOGLE_CLIENT_ID,
+      process.env.WORK_GOOGLE_CLIENT_SECRET,
+      "urn:ietf:wg:oauth:2.0:oob"
+    );
     oauth2Client.setCredentials({
-      client_id: process.env.WORK_GOOGLE_CLIENT_ID,
-      client_secret: process.env.WORK_GOOGLE_CLIENT_SECRET,
       refresh_token: process.env.WORK_GOOGLE_REFRESH_TOKEN,
     });
+    return oauth2Client;
   } else {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.PERSONAL_GOOGLE_CLIENT_ID,
+      process.env.PERSONAL_GOOGLE_CLIENT_SECRET,
+      "urn:ietf:wg:oauth:2.0:oob"
+    );
     oauth2Client.setCredentials({
-      client_id: process.env.PERSONAL_GOOGLE_CLIENT_ID,
-      client_secret: process.env.PERSONAL_GOOGLE_CLIENT_SECRET,
       refresh_token: process.env.PERSONAL_GOOGLE_REFRESH_TOKEN,
     });
+    return oauth2Client;
   }
-
-  return oauth2Client;
 }
 
 // Check if running in interactive mode (no command line args)
@@ -350,7 +359,7 @@ async function generateAllWeekSummaries() {
     }
 
     for (const weekNumber of TARGET_WEEKS) {
-      console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
+      console.log(`🗓️  === PROCESSING WEEK ${weekNumber} ===`);
       await generateWeekSummary(weekNumber);
     }
 
@@ -419,24 +428,28 @@ async function generateWeekSummary(targetWeek) {
     const startDate = dateRange.start;
     const endDate = dateRange.end;
 
-    console.log(`📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}`);
+    console.log(
+      `📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}\n`
+    );
 
-    // 4. Process each category (only the active ones!)
+    // 4. NEW: Collect all calendar and event data first
+    const calendarData = await collectCalendarData(
+      CALENDAR_CATEGORIES,
+      startDate,
+      endDate
+    );
+
+    // 5. NEW: Display nice summary of what we found
+    displayCalendarSummary(calendarData);
+
+    // 6. Process summaries for each category
+    console.log(`\n🔄 Processing summaries:`);
     const summaryUpdates = {};
 
     for (const category of CALENDAR_CATEGORIES) {
-      console.log(`\n🔄 Processing ${category.notionValue}...`);
+      const categoryData = calendarData[category.notionValue];
 
-      // Get calendar events for this category
-      const events = await getCalendarEventsForCategory(
-        category,
-        startDate,
-        endDate
-      );
-
-      console.log(`📋 Found ${events.length} ${category.notionValue} events`);
-
-      if (events.length === 0) {
+      if (!categoryData || categoryData.events.length === 0) {
         // Create short, clear empty message
         const categoryName = category.notionValue
           .replace(/💪|💼|🌱|🍻|❤️|🏠/g, "")
@@ -444,36 +457,29 @@ async function generateWeekSummary(targetWeek) {
         summaryUpdates[
           category.summaryField
         ] = `No ${categoryName} calendar events this week.`;
-        console.log(`📝 Empty summary for ${category.notionValue}`);
+        console.log(`   ${category.notionValue}: No events`);
         continue;
       }
 
-      // Extract event descriptions for AI processing
-      const eventDescriptions = events.map((event) => {
+      // Generate AI summary
+      const eventDescriptions = categoryData.events.map((event) => {
         const title = event.summary || "Untitled event";
         const description = event.description ? ` - ${event.description}` : "";
         return `${title}${description}`;
       });
 
-      console.log(
-        `📝 Events to summarize:`,
-        eventDescriptions.slice(0, 3),
-        events.length > 3 ? "..." : ""
-      );
-
-      // Generate AI summary
       const summary = await generateAISummary(
         eventDescriptions,
         category.promptContext
       );
       summaryUpdates[category.summaryField] = summary;
 
-      console.log(`🤖 Generated summary: ${summary}`);
+      console.log(`   ${category.notionValue}: Generated summary`);
     }
 
-    // 5. Update all summaries at once
+    // 7. Update all summaries at once
     if (DRY_RUN) {
-      console.log("🔍 DRY RUN MODE - Would update these summaries:");
+      console.log("\n🔍 DRY RUN MODE - Would update these summaries:");
       for (const [field, summary] of Object.entries(summaryUpdates)) {
         console.log(`   ${field}: ${summary}`);
       }
@@ -482,7 +488,7 @@ async function generateWeekSummary(targetWeek) {
       await updateAllSummaries(targetWeekPage.id, summaryUpdates);
     }
     console.log(
-      `✅ Successfully ${
+      `\n✅ Successfully ${
         DRY_RUN ? "simulated" : "updated"
       } Week ${paddedWeek} recap with selected category summaries!`
     );
@@ -491,53 +497,119 @@ async function generateWeekSummary(targetWeek) {
   }
 }
 
-async function getCalendarEventsForCategory(category, startDate, endDate) {
-  const allEvents = [];
+async function collectCalendarData(categories, startDate, endDate) {
+  const calendarData = {};
+  const calendarSummary = {};
+  let totalCalendars = 0;
+  let totalEvents = 0;
 
-  // Find which calendar mapping contains this category
+  // Initialize data structure
+  for (const category of categories) {
+    calendarData[category.notionValue] = {
+      calendars: [],
+      events: [],
+    };
+  }
+
+  // Collect data for each mapping
   for (const [mappingKey, mapping] of Object.entries(CALENDAR_MAPPING)) {
-    // Check if this is a direct mapping category
-    if (
-      !mapping.aiClassification &&
-      mapping.notionValue === category.notionValue
-    ) {
-      // Direct mapping - get all events from these calendars
-      for (const calendarId of mapping.calendars) {
-        if (!calendarId) continue;
-        const events = await fetchCalendarEvents(
-          calendarId,
-          mapping.authType,
-          startDate,
-          endDate
-        );
-        allEvents.push(...events);
+    // Count calendars for summary
+    totalCalendars += mapping.calendars.length;
+
+    if (!mapping.aiClassification) {
+      // Direct mapping
+      for (const category of categories) {
+        if (mapping.notionValue === category.notionValue) {
+          calendarData[category.notionValue].calendars = mapping.calendars.map(
+            (cal) => cal.name
+          );
+
+          // Fetch events from all calendars in this mapping
+          for (const calendar of mapping.calendars) {
+            const events = await fetchCalendarEvents(
+              calendar.id,
+              mapping.authType,
+              startDate,
+              endDate
+            );
+            calendarData[category.notionValue].events.push(...events);
+            totalEvents += events.length;
+          }
+        }
       }
-    } else if (mapping.aiClassification) {
-      // AI classification needed - get events and classify them
-      for (const calendarId of mapping.calendars) {
-        if (!calendarId) continue;
+    } else {
+      // AI classification needed
+      calendarData["🍻 Interpersonal"].calendars = mapping.calendars.map(
+        (cal) => cal.name
+      );
+
+      for (const calendar of mapping.calendars) {
         const events = await fetchCalendarEvents(
-          calendarId,
+          calendar.id,
           mapping.authType,
           startDate,
           endDate
         );
 
-        // AI classify each event
+        // Classify each event
         for (const event of events) {
           const eventCategory = await classifyCalendarEvent(
             event,
             mapping.targetCategories
           );
-          if (eventCategory === category.notionValue) {
-            allEvents.push(event);
+
+          // Add event to appropriate category
+          for (const category of categories) {
+            if (category.notionValue === eventCategory) {
+              calendarData[category.notionValue].events.push(event);
+              totalEvents++;
+              break;
+            }
           }
         }
       }
     }
   }
 
-  return allEvents;
+  // Store summary info
+  calendarSummary.totalCalendars = totalCalendars;
+  calendarSummary.totalEvents = totalEvents;
+  calendarData._summary = calendarSummary;
+
+  return calendarData;
+}
+
+function displayCalendarSummary(calendarData) {
+  const summary = calendarData._summary;
+
+  console.log(`🔄 Found calendars: ${summary.totalCalendars}`);
+
+  // Show calendars by category
+  for (const [categoryName, data] of Object.entries(calendarData)) {
+    if (categoryName === "_summary") continue;
+
+    if (data.calendars.length > 0) {
+      console.log(`   ${categoryName}: ${data.calendars.join(", ")}`);
+    }
+  }
+
+  console.log(`\n🔄 Found events: ${summary.totalEvents}`);
+
+  // Show event counts by category
+  for (const [categoryName, data] of Object.entries(calendarData)) {
+    if (categoryName === "_summary") continue;
+
+    if (data.events.length > 0) {
+      const sampleEvents = data.events
+        .slice(0, 3)
+        .map((e) => `'${e.summary || "Untitled"}'`);
+      const sampleText = sampleEvents.join(", ");
+      const moreText = data.events.length > 3 ? " ..." : "";
+      console.log(
+        `   ${categoryName}: ${data.events.length} [${sampleText}${moreText}]`
+      );
+    }
+  }
 }
 
 async function fetchCalendarEvents(calendarId, authType, startDate, endDate) {
@@ -611,9 +683,6 @@ Respond with ONLY the exact category text including the emoji. For example: "�
     }
 
     // Default fallback
-    console.log(
-      `   ⚠️  Unclear classification "${classification}" for "${eventTitle}", defaulting to Personal`
-    );
     return "🌱 Personal";
   } catch (error) {
     console.error(
