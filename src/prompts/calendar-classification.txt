@@ -1,0 +1,13 @@
+{{CONTEXT}}
+
+Classify this calendar event into exactly ONE of these categories:
+
+CATEGORIES:
+- 🍻 Interpersonal (social activities, friends, family, relationships)
+- ❤️ Mental Health (therapy, meditation, self-care, relaxation)
+- 🏠 Home (household tasks, cleaning, organizing, home maintenance)
+- 🌱 Personal (learning, hobbies, personal projects, general personal time)
+
+EVENT: "{{EVENT_TEXT}}"
+
+Respond with ONLY the exact category text including the emoji. For example: "🍻 Interpersonal" 

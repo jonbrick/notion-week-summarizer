@@ -6,6 +6,16 @@ const {
   runInteractiveMode,
   rl,
 } = require("./src/utils/cli-utils");
+const {
+  updateAllSummaries,
+  findWeekRecapPage,
+} = require("./src/utils/notion-utils");
+const { generateTaskSummary } = require("./src/utils/ai-utils");
+const {
+  ALL_TASK_CATEGORIES,
+  DEFAULT_TARGET_WEEKS,
+  DEFAULT_ACTIVE_CATEGORIES,
+} = require("./src/config/task-config");
 require("dotenv").config();
 
 // Configuration - now using environment variables
@@ -26,68 +36,13 @@ const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
 // ========================================
 
 // 1️⃣ DEFAULT WEEKS TO PROCESS
-const DEFAULT_TARGET_WEEKS = [1]; // Default: just week 1
-
 // 2️⃣ DEFAULT CATEGORIES TO PROCESS (all on by default)
-const DEFAULT_ACTIVE_CATEGORIES = [
-  "💼 Work",
-  "💪 Physical Health",
-  "🌱 Personal",
-  "🍻 Interpersonal",
-  "❤️ Mental Health",
-  "🏠 Home",
-];
 
 // ========================================
 // These will be set either from defaults or user input
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 let ACTIVE_CATEGORIES = [...DEFAULT_ACTIVE_CATEGORIES];
 let DRY_RUN = false;
-
-// Load context file (optional - will work without it)
-let CONTEXT = "";
-try {
-  CONTEXT = fs.readFileSync("./context.md", "utf8");
-  console.log("📖 Loaded context file");
-} catch (error) {
-  console.log(
-    "📝 No context file found - create context.md to add definitions and style rules"
-  );
-}
-
-// Task categories configuration
-const ALL_TASK_CATEGORIES = [
-  {
-    notionValue: "💼 Work",
-    summaryField: "Work Task Summary",
-    promptContext: "work task",
-  },
-  {
-    notionValue: "💪 Physical Health",
-    summaryField: "Physical Health Task Summary",
-    promptContext: "health task",
-  },
-  {
-    notionValue: "🌱 Personal",
-    summaryField: "Personal Task Summary",
-    promptContext: "personal task",
-  },
-  {
-    notionValue: "🍻 Interpersonal",
-    summaryField: "Interpersonal Task Summary",
-    promptContext: "interpersonal task",
-  },
-  {
-    notionValue: "❤️ Mental Health",
-    summaryField: "Mental Health Task Summary",
-    promptContext: "mental health task",
-  },
-  {
-    notionValue: "🏠 Home",
-    summaryField: "Home Task Summary",
-    promptContext: "home task",
-  },
-];
 
 // Filter categories based on ACTIVE_CATEGORIES
 function getActiveCategories() {
@@ -132,33 +87,15 @@ async function generateWeekSummary(targetWeek) {
     const TASK_CATEGORIES = getActiveCategories();
 
     // 1. Get all recap pages and find target week
-    const recapPages = await notion.databases.query({
-      database_id: RECAP_DATABASE_ID,
-    });
-
-    // Find target week by looking at page titles with smart padding
-    let targetWeekPage = null;
+    const targetWeekPage = await findWeekRecapPage(
+      notion,
+      RECAP_DATABASE_ID,
+      targetWeek
+    );
     const paddedWeek = targetWeek.toString().padStart(2, "0");
-
-    for (const page of recapPages.results) {
-      const titleProperty = page.properties["Week Recap"];
-      if (titleProperty && titleProperty.title) {
-        const title = titleProperty.title.map((t) => t.plain_text).join("");
-
-        if (
-          title === `Week ${targetWeek} Recap` ||
-          title === `Week ${paddedWeek} Recap` ||
-          title === `Week ${targetWeek}` ||
-          title === `Week ${paddedWeek}`
-        ) {
-          targetWeekPage = page;
-          console.log(`✅ Found Week ${paddedWeek} Recap!`);
-          break;
-        }
-      }
-    }
-
-    if (!targetWeekPage) {
+    if (targetWeekPage) {
+      console.log(`✅ Found Week ${paddedWeek} Recap!`);
+    } else {
       console.log(`❌ Could not find Week ${targetWeek} Recap`);
       return;
     }
@@ -253,7 +190,7 @@ async function generateWeekSummary(targetWeek) {
       console.log(`📝 Tasks to summarize:`, taskNames);
 
       // Generate AI summary
-      const summary = await generateAISummary(
+      const summary = await generateTaskSummary(
         taskNames,
         category.promptContext
       );
@@ -270,7 +207,7 @@ async function generateWeekSummary(targetWeek) {
       }
       console.log("   (No changes made to Notion)");
     } else {
-      await updateAllSummaries(targetWeekPage.id, summaryUpdates);
+      await updateAllSummaries(notion, targetWeekPage.id, summaryUpdates);
     }
     console.log(
       `✅ Successfully ${
@@ -280,78 +217,6 @@ async function generateWeekSummary(targetWeek) {
   } catch (error) {
     console.error(`❌ Error processing Week ${targetWeek}:`, error);
   }
-}
-
-async function generateAISummary(taskNames, promptContext) {
-  // Build prompt with optional context
-  let prompt = "";
-
-  if (CONTEXT) {
-    prompt += `CONTEXT FOR BETTER SUMMARIES:
-${CONTEXT}
-
----
-
-`;
-  }
-
-  prompt += `Convert these ${promptContext}s into a concise summary. I need clear, professional language that respects my time - no fluff or unnecessary words.
-
-RULES:
-- 1-3 sentences maximum (4+ is too much)
-- Group similar/related items together when possible
-- Professional, direct language - not casual
-- Be matter-of-fact and neutral - no judgment about outcomes
-- Focus on WHAT I did, not how well I did it
-- NO bullet points, NO lists, NO line breaks
-- Cut all unnecessary words - be efficient
-
-GROUPING EXAMPLES:
-Multiple games: "ECG Game 3, ECG Game 4, ECG Game 5" → "Played ECG Games 3, 4, 5"
-Multiple appointments: "Dr. Smith checkup, Dr. Jones blood test" → "Had appointments with Dr. Smith and Dr. Jones"
-Multiple chores: "Clean kitchen, Vacuum living room, Dishes" → "Cleaned kitchen, vacuumed living room, did dishes"
-Multiple meetings: "Team standup, Client call, 1:1 with manager" → "Had team standup, client call, and 1:1 with manager"
-
-SINGLE ITEM EXAMPLES:
-"Dr. Smith - checkup" → "Had checkup with Dr. Smith"
-"Gym - leg day" → "Did leg day at gym"
-"Therapy - Jernee Montoya" → "Had therapy with Jernee Montoya"
-"Hackathon" → "Participated in hackathon"
-
-TASKS TO SUMMARIZE:
-${taskNames.map((name) => `${name}`).join("\n")}
-
-Return 1-3 concise sentences combining these activities:`;
-
-  const message = await anthropic.messages.create({
-    model: "claude-3-haiku-20240307",
-    max_tokens: 80,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  return message.content[0].text.trim();
-}
-
-async function updateAllSummaries(pageId, summaryUpdates) {
-  const properties = {};
-
-  // Convert summaries to Notion property format
-  for (const [fieldName, summary] of Object.entries(summaryUpdates)) {
-    properties[fieldName] = {
-      rich_text: [
-        {
-          text: {
-            content: summary,
-          },
-        },
-      ],
-    };
-  }
-
-  await notion.pages.update({
-    page_id: pageId,
-    properties: properties,
-  });
 }
 
 // Main execution

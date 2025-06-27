@@ -1,0 +1,29 @@
+{{CONTEXT}}
+
+Convert these {{PROMPT_CONTEXT}}s into a concise summary. I need clear, professional language that respects my time - no fluff or unnecessary words.
+
+RULES:
+- 1-3 sentences maximum (4+ is too much)
+- Group similar/related items together when possible
+- Professional, direct language - not casual
+- Be matter-of-fact and neutral - no judgment about outcomes
+- Focus on WHAT I did, not how well I did it
+- NO bullet points, NO lists, NO line breaks
+- Cut all unnecessary words - be efficient
+
+GROUPING EXAMPLES:
+Multiple games: "ECG Game 3, ECG Game 4, ECG Game 5" → "Played ECG Games 3, 4, 5"
+Multiple appointments: "Dr. Smith checkup, Dr. Jones blood test" → "Had appointments with Dr. Smith and Dr. Jones"
+Multiple chores: "Clean kitchen, Vacuum living room, Dishes" → "Cleaned kitchen, vacuumed living room, did dishes"
+Multiple meetings: "Team standup, Client call, 1:1 with manager" → "Had team standup, client call, and 1:1 with manager"
+
+SINGLE ITEM EXAMPLES:
+"Dr. Smith - checkup" → "Had checkup with Dr. Smith"
+"Gym - leg day" → "Did leg day at gym"
+"Therapy - Jernee Montoya" → "Had therapy with Jernee Montoya"
+"Hackathon" → "Participated in hackathon"
+
+TASKS TO SUMMARIZE:
+{{TASK_NAMES}}
+
+Return 1-3 concise sentences combining these activities: 

@@ -7,6 +7,22 @@ const {
   runInteractiveMode,
   rl,
 } = require("./src/utils/cli-utils");
+const {
+  updateAllSummaries,
+  findWeekRecapPage,
+} = require("./src/utils/notion-utils");
+const {
+  generateCalendarSummary,
+  classifyCalendarEvent,
+} = require("./src/utils/ai-utils");
+const {
+  CALENDAR_MAPPING,
+  ALL_CALENDAR_CATEGORIES,
+} = require("./src/config/calendar-config");
+const {
+  DEFAULT_TARGET_WEEKS,
+  DEFAULT_ACTIVE_CATEGORIES,
+} = require("./src/config/task-config");
 require("dotenv").config();
 
 // Configuration - using environment variables
@@ -26,151 +42,13 @@ const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
 // ========================================
 
 // 1️⃣ DEFAULT WEEKS TO PROCESS
-const DEFAULT_TARGET_WEEKS = [1]; // Default: just week 1
-
 // 2️⃣ DEFAULT CATEGORIES TO PROCESS (all on by default)
-const DEFAULT_ACTIVE_CATEGORIES = [
-  "💼 Work",
-  "💪 Physical Health",
-  "🌱 Personal",
-  "🍻 Interpersonal",
-  "❤️ Mental Health",
-  "🏠 Home",
-];
 
 // ========================================
 // These will be set either from defaults or user input
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 let ACTIVE_CATEGORIES = [...DEFAULT_ACTIVE_CATEGORIES];
 let DRY_RUN = false;
-
-// Load context file (optional - will work without it)
-let CONTEXT = "";
-try {
-  CONTEXT = fs.readFileSync("./context.md", "utf8");
-  console.log("📖 Loaded context file");
-} catch (error) {
-  console.log(
-    "📝 No context file found - create context.md to add definitions and style rules"
-  );
-}
-
-// Calendar configuration mapping
-const CALENDAR_MAPPING = {
-  // Work Category - Direct mapping
-  work: {
-    calendars: [
-      { id: process.env.WORK_CALENDAR_ID, name: "Work Calendar" },
-      { id: process.env.WORK_PR_DATA_CALENDAR_ID, name: "💾 PR Data - Work" },
-    ].filter((cal) => cal.id),
-    authType: "work",
-    summaryField: "Work Calendar Summary",
-    aiClassification: false,
-    notionValue: "💼 Work",
-  },
-
-  // Personal Category - Direct mapping
-  personal: {
-    calendars: [
-      {
-        id: process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID,
-        name: "💾 GitHub Data - Personal",
-      },
-      { id: process.env.VIDEO_GAMES_CALENDAR_ID, name: "🎮 Video Games" },
-      { id: process.env.READ_CALENDAR_ID, name: "📖 Read" },
-      { id: process.env.TRAVEL_CALENDAR_ID, name: "✈️ Travel" },
-    ].filter((cal) => cal.id),
-    authType: "personal",
-    summaryField: "Personal Calendar Summary",
-    aiClassification: false,
-    notionValue: "🌱 Personal",
-  },
-
-  // Physical Health Category - Direct mapping
-  physicalHealth: {
-    calendars: [
-      { id: process.env.WORKOUT_CALENDAR_ID, name: "💪 Workouts" },
-      { id: process.env.WAKE_UP_EARLY_CALENDAR_ID, name: "☀️ Wake up early" },
-      { id: process.env.SLEEP_IN_CALENDAR_ID, name: "🛌 Sleep in" },
-      { id: process.env.SOBER_DAYS_CALENDAR_ID, name: "🚰 Sober days" },
-      { id: process.env.DRINKING_DAYS_CALENDAR_ID, name: "🍻 Drinking days" },
-      { id: process.env.BODY_WEIGHT_CALENDAR_ID, name: "⚖️ Body weight" },
-    ].filter((cal) => cal.id),
-    authType: "personal",
-    summaryField: "Physical Health Calendar Summary",
-    aiClassification: false,
-    notionValue: "💪 Physical Health",
-  },
-
-  // Multi-category calendar - Requires AI classification
-  personalMultiCategory: {
-    calendars: [
-      { id: process.env.PERSONAL_CALENDAR_ID, name: "📅 Personal Calendar" },
-    ].filter((cal) => cal.id),
-    authType: "personal",
-    aiClassification: true,
-    targetCategories: [
-      {
-        category: "interpersonal",
-        summaryField: "Interpersonal Calendar Summary",
-        promptContext: "interpersonal activities",
-        notionValue: "🍻 Interpersonal",
-      },
-      {
-        category: "mentalHealth",
-        summaryField: "Mental Health Calendar Summary",
-        promptContext: "mental health and self-care activities",
-        notionValue: "❤️ Mental Health",
-      },
-      {
-        category: "home",
-        summaryField: "Home Calendar Summary",
-        promptContext: "home and household activities",
-        notionValue: "🏠 Home",
-      },
-      {
-        category: "personalFallback",
-        summaryField: "Personal Calendar Summary",
-        promptContext: "personal activities and time",
-        notionValue: "🌱 Personal",
-      },
-    ],
-  },
-};
-
-// Calendar categories configuration
-const ALL_CALENDAR_CATEGORIES = [
-  {
-    notionValue: "💼 Work",
-    summaryField: "Work Calendar Summary",
-    promptContext: "work activity",
-  },
-  {
-    notionValue: "💪 Physical Health",
-    summaryField: "Physical Health Calendar Summary",
-    promptContext: "health activity",
-  },
-  {
-    notionValue: "🌱 Personal",
-    summaryField: "Personal Calendar Summary",
-    promptContext: "personal activity",
-  },
-  {
-    notionValue: "🍻 Interpersonal",
-    summaryField: "Interpersonal Calendar Summary",
-    promptContext: "interpersonal activity",
-  },
-  {
-    notionValue: "❤️ Mental Health",
-    summaryField: "Mental Health Calendar Summary",
-    promptContext: "mental health activity",
-  },
-  {
-    notionValue: "🏠 Home",
-    summaryField: "Home Calendar Summary",
-    promptContext: "home activity",
-  },
-];
 
 // Google Calendar authentication
 function getGoogleAuth(authType) {
@@ -242,33 +120,15 @@ async function generateWeekSummary(targetWeek) {
     const CALENDAR_CATEGORIES = getActiveCategories();
 
     // 1. Get all recap pages and find target week
-    const recapPages = await notion.databases.query({
-      database_id: RECAP_DATABASE_ID,
-    });
-
-    // Find target week by looking at page titles with smart padding
-    let targetWeekPage = null;
+    const targetWeekPage = await findWeekRecapPage(
+      notion,
+      RECAP_DATABASE_ID,
+      targetWeek
+    );
     const paddedWeek = targetWeek.toString().padStart(2, "0");
-
-    for (const page of recapPages.results) {
-      const titleProperty = page.properties["Week Recap"];
-      if (titleProperty && titleProperty.title) {
-        const title = titleProperty.title.map((t) => t.plain_text).join("");
-
-        if (
-          title === `Week ${targetWeek} Recap` ||
-          title === `Week ${paddedWeek} Recap` ||
-          title === `Week ${targetWeek}` ||
-          title === `Week ${paddedWeek}`
-        ) {
-          targetWeekPage = page;
-          console.log(`✅ Found Week ${paddedWeek} Recap!`);
-          break;
-        }
-      }
-    }
-
-    if (!targetWeekPage) {
+    if (targetWeekPage) {
+      console.log(`✅ Found Week ${paddedWeek} Recap!`);
+    } else {
       console.log(`❌ Could not find Week ${targetWeek} Recap`);
       return;
     }
@@ -334,7 +194,7 @@ async function generateWeekSummary(targetWeek) {
         return `${title}${description}`;
       });
 
-      const summary = await generateAISummary(
+      const summary = await generateCalendarSummary(
         eventDescriptions,
         category.promptContext
       );
@@ -351,7 +211,7 @@ async function generateWeekSummary(targetWeek) {
       }
       console.log("   (No changes made to Notion)");
     } else {
-      await updateAllSummaries(targetWeekPage.id, summaryUpdates);
+      await updateAllSummaries(notion, targetWeekPage.id, summaryUpdates);
     }
     console.log(
       `\n✅ Successfully ${
@@ -500,123 +360,6 @@ async function fetchCalendarEvents(calendarId, authType, startDate, endDate) {
     );
     return [];
   }
-}
-
-async function classifyCalendarEvent(event, targetCategories) {
-  // Build prompt with optional context
-  let prompt = "";
-
-  if (CONTEXT) {
-    prompt += `CONTEXT FOR BETTER CLASSIFICATION:
-${CONTEXT}
-
----
-
-`;
-  }
-
-  const eventTitle = event.summary || "Untitled event";
-  const eventDescription = event.description || "";
-  const eventText = `${eventTitle}${
-    eventDescription ? ` - ${eventDescription}` : ""
-  }`;
-
-  prompt += `Classify this calendar event into exactly ONE of these categories:
-
-CATEGORIES:
-- 🍻 Interpersonal (social activities, friends, family, relationships)
-- ❤️ Mental Health (therapy, meditation, self-care, relaxation)
-- 🏠 Home (household tasks, cleaning, organizing, home maintenance)
-- 🌱 Personal (learning, hobbies, personal projects, general personal time)
-
-EVENT: "${eventText}"
-
-Respond with ONLY the exact category text including the emoji. For example: "🍻 Interpersonal"`;
-
-  try {
-    const message = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
-      max_tokens: 30,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const classification = message.content[0].text.trim();
-
-    // Validate classification and return the corresponding notionValue
-    for (const targetCategory of targetCategories) {
-      if (classification === targetCategory.notionValue) {
-        return targetCategory.notionValue;
-      }
-    }
-
-    // Default fallback
-    return "🌱 Personal";
-  } catch (error) {
-    console.error(
-      `   ❌ Classification error for "${eventTitle}": ${error.message}`
-    );
-    return "🌱 Personal";
-  }
-}
-
-async function generateAISummary(eventDescriptions, promptContext) {
-  // Build prompt with optional context
-  let prompt = "";
-
-  if (CONTEXT) {
-    prompt += `CONTEXT FOR BETTER SUMMARIES:
-${CONTEXT}
-
----
-
-`;
-  }
-
-  prompt += `Convert these calendar ${promptContext}s into a concise summary. I need clear, professional language that respects my time - no fluff or unnecessary words.
-
-RULES:
-- 1-3 sentences maximum (4+ is too much)
-- Group similar/related items together when possible
-- Professional, direct language - not casual
-- Be matter-of-fact and neutral - no judgment about outcomes
-- Focus on WHAT I did and WHERE I spent my time, not how well I did it
-- NO bullet points, NO lists, NO line breaks
-- Cut all unnecessary words - be efficient
-
-CALENDAR EVENTS TO SUMMARIZE:
-${eventDescriptions.map((desc) => `${desc}`).join("\n")}
-
-Return 1-3 concise sentences combining these activities:`;
-
-  const message = await anthropic.messages.create({
-    model: "claude-3-haiku-20240307",
-    max_tokens: 80,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  return message.content[0].text.trim();
-}
-
-async function updateAllSummaries(pageId, summaryUpdates) {
-  const properties = {};
-
-  // Convert summaries to Notion property format
-  for (const [fieldName, summary] of Object.entries(summaryUpdates)) {
-    properties[fieldName] = {
-      rich_text: [
-        {
-          text: {
-            content: summary,
-          },
-        },
-      ],
-    };
-  }
-
-  await notion.pages.update({
-    page_id: pageId,
-    properties: properties,
-  });
 }
 
 // Main execution

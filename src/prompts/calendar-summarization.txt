@@ -1,0 +1,17 @@
+{{CONTEXT}}
+
+Convert these calendar {{PROMPT_CONTEXT}}s into a concise summary. I need clear, professional language that respects my time - no fluff or unnecessary words.
+
+RULES:
+- 1-3 sentences maximum (4+ is too much)
+- Group similar/related items together when possible
+- Professional, direct language - not casual
+- Be matter-of-fact and neutral - no judgment about outcomes
+- Focus on WHAT I did and WHERE I spent my time, not how well I did it
+- NO bullet points, NO lists, NO line breaks
+- Cut all unnecessary words - be efficient
+
+CALENDAR EVENTS TO SUMMARIZE:
+{{EVENT_DESCRIPTIONS}}
+
+Return 1-3 concise sentences combining these activities: 
