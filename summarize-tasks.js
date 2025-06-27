@@ -1,7 +1,11 @@
 const { Client } = require("@notionhq/client");
 const Anthropic = require("@anthropic-ai/sdk");
 const fs = require("fs");
-const readline = require("readline");
+const {
+  checkInteractiveMode,
+  runInteractiveMode,
+  rl,
+} = require("./src/utils/cli-utils");
 require("dotenv").config();
 
 // Configuration - now using environment variables
@@ -84,143 +88,6 @@ const ALL_TASK_CATEGORIES = [
     promptContext: "home task",
   },
 ];
-
-// Create readline interface for user input
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
-// Helper function to ask questions
-function askQuestion(question) {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer);
-    });
-  });
-}
-
-// Check if running in interactive mode (no command line args)
-async function checkInteractiveMode() {
-  // If command line args are provided, parse them
-  const args = process.argv.slice(2);
-
-  if (
-    args.includes("--weeks") ||
-    args.includes("--categories") ||
-    args.includes("--dry-run")
-  ) {
-    // Command line mode
-    const weeksIndex = args.indexOf("--weeks");
-    const categoriesIndex = args.indexOf("--categories");
-
-    if (weeksIndex !== -1 && args[weeksIndex + 1]) {
-      TARGET_WEEKS = args[weeksIndex + 1].split(",").map((w) => parseInt(w));
-    }
-
-    if (categoriesIndex !== -1 && args[categoriesIndex + 1]) {
-      const catIndices = args[categoriesIndex + 1]
-        .split(",")
-        .map((c) => parseInt(c));
-      if (catIndices.includes(0)) {
-        ACTIVE_CATEGORIES = ALL_TASK_CATEGORIES.map((cat) => cat.notionValue);
-      } else {
-        ACTIVE_CATEGORIES = catIndices
-          .map((idx) => ALL_TASK_CATEGORIES[idx - 1]?.notionValue)
-          .filter(Boolean);
-      }
-    }
-
-    // Add this new section:
-    if (args.includes("--dry-run")) {
-      DRY_RUN = true;
-    }
-
-    return false; // Not interactive
-  }
-
-  // No command line args, run interactive mode
-  return true;
-}
-
-async function runInteractiveMode() {
-  console.log("\n🎯 Notion Week Summary Generator");
-
-  // Format default categories display
-  let categoriesDisplay = "";
-  if (DEFAULT_ACTIVE_CATEGORIES.length === 6) {
-    categoriesDisplay = "All categories";
-  } else {
-    // Show emoji icons for active categories
-    categoriesDisplay = DEFAULT_ACTIVE_CATEGORIES.map(
-      (cat) => cat.split(" ")[0]
-    ).join(" ");
-  }
-
-  console.log(
-    `📌 Defaults: Week ${DEFAULT_TARGET_WEEKS.join(
-      ","
-    )} | ${categoriesDisplay}\n`
-  );
-
-  // Ask for weeks
-  const weeksInput = await askQuestion(
-    "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
-  );
-  if (weeksInput.trim()) {
-    TARGET_WEEKS = weeksInput
-      .split(",")
-      .map((w) => parseInt(w.trim()))
-      .filter((w) => !isNaN(w));
-  }
-
-  // Show category options
-  console.log("\n? Which categories to process?");
-  console.log("  0 - All Categories");
-  ALL_TASK_CATEGORIES.forEach((cat, idx) => {
-    console.log(`  ${idx + 1} - ${cat.notionValue}`);
-  });
-
-  // Ask for categories
-  const catInput = await askQuestion(
-    "\n? Enter numbers (e.g., 1,3 or 0 for all): "
-  );
-  if (catInput.trim()) {
-    const selections = catInput
-      .split(",")
-      .map((c) => parseInt(c.trim()))
-      .filter((c) => !isNaN(c));
-
-    if (selections.includes(0)) {
-      ACTIVE_CATEGORIES = ALL_TASK_CATEGORIES.map((cat) => cat.notionValue);
-    } else {
-      ACTIVE_CATEGORIES = selections
-        .filter((num) => num >= 1 && num <= ALL_TASK_CATEGORIES.length)
-        .map((num) => ALL_TASK_CATEGORIES[num - 1].notionValue);
-    }
-  }
-
-  // Show confirmation
-  console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
-  console.log(
-    `📋 Processing categories: ${
-      ACTIVE_CATEGORIES.length === ALL_TASK_CATEGORIES.length
-        ? "All 6 categories"
-        : ACTIVE_CATEGORIES.join(", ")
-    }`
-  );
-
-  const confirm = await askQuestion("Continue? (y/n): ");
-
-  rl.close();
-
-  if (confirm.toLowerCase() !== "y") {
-    console.log("❌ Cancelled by user");
-    process.exit(0);
-  }
-
-  console.log(""); // Empty line before processing starts
-}
 
 // Filter categories based on ACTIVE_CATEGORIES
 function getActiveCategories() {
@@ -489,13 +356,32 @@ async function updateAllSummaries(pageId, summaryUpdates) {
 
 // Main execution
 async function main() {
-  const isInteractive = await checkInteractiveMode();
+  const args = process.argv.slice(2);
+  const result = await checkInteractiveMode(
+    args,
+    ALL_TASK_CATEGORIES,
+    DEFAULT_TARGET_WEEKS,
+    DEFAULT_ACTIVE_CATEGORIES
+  );
 
-  if (isInteractive) {
-    await runInteractiveMode();
+  if (result.isInteractive) {
+    const interactiveResult = await runInteractiveMode(
+      ALL_TASK_CATEGORIES,
+      DEFAULT_TARGET_WEEKS,
+      DEFAULT_ACTIVE_CATEGORIES,
+      "🎯 Notion Week Summary Generator"
+    );
+    TARGET_WEEKS = interactiveResult.targetWeeks;
+    ACTIVE_CATEGORIES = interactiveResult.activeCategories;
+    DRY_RUN = interactiveResult.dryRun;
+  } else {
+    TARGET_WEEKS = result.targetWeeks;
+    ACTIVE_CATEGORIES = result.activeCategories;
+    DRY_RUN = result.dryRun;
   }
 
   await generateAllWeekSummaries();
+  if (rl && rl.close) rl.close();
 }
 
 // Run the script
