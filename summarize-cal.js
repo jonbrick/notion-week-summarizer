@@ -190,7 +190,7 @@ async function generateWeekSummary(targetWeek) {
       // Generate AI summary
       const eventDescriptions = categoryData.events
         .filter((event) => {
-          const title = event.summary || "";
+          const title = (event.summary || "").trim();
 
           // Filter out working location events
           const locationKeywords = [
@@ -206,25 +206,15 @@ async function generateWeekSummary(targetWeek) {
             "sick",
             "personal day",
           ];
-
           const isLocationEvent = locationKeywords.some((keyword) =>
             title.toLowerCase().includes(keyword)
           );
 
-          // Filter out events where user didn't RSVP or RSVP'd no
-          const attendees = event.attendees || [];
-          const userAttendee = attendees.find(
-            (att) =>
-              att.email === process.env.PERSONAL_EMAIL ||
-              att.email === process.env.WORK_EMAIL
-          );
+          // Filter out the explicit event '🥗 Lunch (Can be moved!)'
+          if (title === "🥗 Lunch (Can be moved!)") return false;
 
-          const didNotRSVP = !userAttendee;
-          const rsvpNo =
-            userAttendee && userAttendee.responseStatus === "declined";
-
-          // Keep event if it's not a location event AND user RSVP'd yes or no RSVP info
-          return !isLocationEvent && !didNotRSVP && !rsvpNo;
+          // Keep event if it's not a location event
+          return !isLocationEvent;
         })
         .map((event) => {
           const title = event.summary || "Untitled event";
@@ -234,16 +224,47 @@ async function generateWeekSummary(targetWeek) {
           if (description) {
             // Remove HTML tags
             description = description.replace(/<[^>]*>/g, "");
+            // Remove URLs
+            description = description.replace(/https?:\/\/[^\s]+/g, "");
             // Remove extra whitespace and newlines
             description = description.replace(/\s+/g, " ").trim();
+
+            // Remove common boilerplate phrases
+            const boilerplatePhrases = [
+              "is inviting you to a scheduled Zoom meeting",
+              "Join Zoom Meeting",
+              "──────────",
+              "Agenda:",
+              "Welcome to our bi-weekly product deep dive!",
+              "The purpose of this meeting is to provide the front-line",
+              "Meeting ID:",
+              "ID:",
+              "Passcode:",
+              "tracker - Q4 2024",
+              "customer teams with a comprehensive update on",
+            ];
+
+            boilerplatePhrases.forEach((phrase) => {
+              description = description.replace(new RegExp(phrase, "gi"), "");
+            });
+
             // Take only the first line (before any line breaks)
             const firstLine = description.split("\n")[0].split("\r")[0];
-            // Truncate if still too long (more than 80 chars)
-            if (firstLine.length > 80) {
-              description = firstLine.substring(0, 80) + "...";
+
+            // Smart truncation: cut at word boundaries, max 50 chars
+            if (firstLine.length > 50) {
+              const truncated = firstLine.substring(0, 50);
+              const lastSpace = truncated.lastIndexOf(" ");
+              if (lastSpace > 30) {
+                // Only cut at word boundary if it's not too early
+                description = truncated.substring(0, lastSpace) + "...";
+              } else {
+                description = truncated + "...";
+              }
             } else {
               description = firstLine;
             }
+
             // Only add description if it's meaningful (not just whitespace)
             if (description && description !== "") {
               description = ` - ${description}`;
@@ -415,7 +436,31 @@ async function fetchCalendarEvents(calendarId, authType, startDate, endDate) {
       orderBy: "startTime",
     });
 
-    return response.data.items || [];
+    const events = response.data.items || [];
+
+    // Filter out events where user didn't RSVP or declined
+    const filteredEvents = events.filter((event) => {
+      // If no attendees, include the event (it's not a meeting with RSVPs)
+      if (!event.attendees || event.attendees.length === 0) {
+        return true;
+      }
+
+      // Find the user's attendance status
+      const userAttendee = event.attendees.find(
+        (attendee) => attendee.email === process.env.GOOGLE_CALENDAR_EMAIL
+      );
+
+      // If user is not in attendees list, include the event
+      if (!userAttendee) {
+        return true;
+      }
+
+      // Include only if user accepted or tentatively accepted
+      const responseStatus = userAttendee.responseStatus;
+      return responseStatus === "accepted" || responseStatus === "tentative";
+    });
+
+    return filteredEvents;
   } catch (error) {
     console.error(
       `❌ Error fetching calendar events from ${calendarId}:`,
