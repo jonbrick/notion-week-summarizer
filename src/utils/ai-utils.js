@@ -69,7 +69,7 @@ async function generateCalendarSummary(eventDescriptions, promptContext) {
 
   const message = await anthropic.messages.create({
     model: "claude-3-haiku-20240307",
-    max_tokens: 80,
+    max_tokens: 200,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -98,7 +98,7 @@ async function generateTaskSummary(taskNames, promptContext) {
 
   const message = await anthropic.messages.create({
     model: "claude-3-haiku-20240307",
-    max_tokens: 80,
+    max_tokens: 200,
     messages: [{ role: "user", content: prompt }],
   });
 
