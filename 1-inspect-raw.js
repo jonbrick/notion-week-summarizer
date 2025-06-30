@@ -79,7 +79,7 @@ async function getWeekDateRange(weekNumber) {
 }
 
 async function inspectRawData() {
-  const weekNumber = 25;
+  const weekNumber = 26;
 
   console.log(`🔍 STEP 1: RAW GOOGLE CALENDAR JSON - Week ${weekNumber}`);
   console.log("=".repeat(60));
@@ -88,51 +88,56 @@ async function inspectRawData() {
     const { startDate, endDate } = await getWeekDateRange(weekNumber);
     console.log(`📅 Week ${weekNumber}: ${startDate} to ${endDate}\n`);
 
-    const rawEvents = await fetchCalendarEvents(
+    // Fetch both work and PR calendar events
+    console.log("📥 Fetching WORK CALENDAR events...");
+    const workEvents = await fetchCalendarEvents(
       process.env.WORK_CALENDAR_ID,
       "work",
       startDate,
       endDate
     );
 
-    console.log(
-      `📥 Found ${rawEvents.length} raw events from Google Calendar API\n`
+    console.log("📥 Fetching WORK PR DATA CALENDAR events...");
+    const prEvents = await fetchCalendarEvents(
+      process.env.WORK_PR_DATA_CALENDAR_ID,
+      "work",
+      startDate,
+      endDate
     );
 
-    // Show first 3 events in detail, then just summaries
-    console.log("🔍 DETAILED VIEW (First 3 events):");
+    console.log(
+      `\n📊 Found ${workEvents.length} work events and ${prEvents.length} PR events\n`
+    );
+
+    // Show PR events first since those are what we need to understand
+    console.log("🔍 PR EVENTS DETAILED VIEW:");
     console.log("=".repeat(40));
 
-    rawEvents.slice(0, 3).forEach((event, index) => {
-      console.log(`\n--- EVENT ${index + 1} ---`);
+    prEvents.forEach((event, index) => {
+      console.log(`\n--- PR EVENT ${index + 1} ---`);
       console.log(JSON.stringify(event, null, 2));
     });
 
     console.log("\n" + "=".repeat(40));
-    console.log("📋 SUMMARY VIEW (All events):");
+    console.log("📋 PR EVENTS SUMMARY:");
     console.log("=".repeat(40));
 
-    rawEvents.forEach((event, index) => {
+    prEvents.forEach((event, index) => {
       const title = event.summary || "Untitled";
+      const description = event.description || "No description";
       const start = event.start?.dateTime || event.start?.date || "No start";
-      const end = event.end?.dateTime || event.end?.date || "No end";
-      const attendeeCount = event.attendees ? event.attendees.length : 0;
-      const eventType = event.eventType || "default";
-      const colorId = event.colorId || "default";
 
       console.log(`${(index + 1).toString().padStart(2)}. ${title}`);
+      console.log(
+        `    Description: ${description.substring(0, 200)}${
+          description.length > 200 ? "..." : ""
+        }`
+      );
       console.log(`    Start: ${start}`);
-      console.log(`    End:   ${end}`);
-      console.log(`    Attendees: ${attendeeCount}`);
-      console.log(`    Type: ${eventType}`);
-      console.log(`    Color: ${colorId}`);
       console.log("");
     });
 
-    console.log(`📊 Total: ${rawEvents.length} events`);
-    console.log(
-      "\n🔄 Next step: Run 'node 2-extract-essentials.js' to see cleaned data"
-    );
+    console.log(`📊 Total PR events: ${prEvents.length}`);
   } catch (error) {
     console.error("❌ Failed:", error.message);
   }

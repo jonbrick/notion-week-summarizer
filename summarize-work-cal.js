@@ -2,6 +2,7 @@ const { Client } = require("@notionhq/client");
 const { google } = require("googleapis");
 const fs = require("fs");
 const readline = require("readline");
+const { processPREvents } = require("./src/utils/pr-processor");
 require("dotenv").config();
 
 // Initialize clients
@@ -343,6 +344,29 @@ function formatEventsForNotion(events, categoryName) {
     return `No ${displayName} events this week.`;
   }
 
+  // Group events by title (after cleaning)
+  const eventGroups = {};
+
+  events.forEach((event) => {
+    const cleanTitle = event.title.trim(); // Remove extra spaces
+
+    if (!eventGroups[cleanTitle]) {
+      eventGroups[cleanTitle] = {
+        title: cleanTitle,
+        totalMinutes: 0,
+        count: 0,
+      };
+    }
+
+    eventGroups[cleanTitle].totalMinutes += event.duration || 0;
+    eventGroups[cleanTitle].count += 1;
+  });
+
+  // Convert to array and sort by total time (descending)
+  const groupedEvents = Object.values(eventGroups).sort(
+    (a, b) => b.totalMinutes - a.totalMinutes
+  );
+
   const totalMinutes = events
     .filter((e) => e.duration)
     .reduce((sum, e) => sum + e.duration, 0);
@@ -354,8 +378,11 @@ function formatEventsForNotion(events, categoryName) {
   } events${timeText}):\n`;
   output += "------\n";
 
-  events.forEach((event) => {
-    output += `• ${event.title} (${event.durationFormatted})\n`;
+  groupedEvents.forEach((group) => {
+    const duration =
+      group.totalMinutes > 0 ? formatDuration(group.totalMinutes) : "unknown";
+    const countText = group.count > 1 ? ` (${group.count}x)` : "";
+    output += `• ${group.title}${countText} (${duration})\n`;
   });
 
   return output;
