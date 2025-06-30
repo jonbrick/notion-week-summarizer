@@ -224,6 +224,7 @@ const WORK_CATEGORY_MAPPING = {
   qa: "Design & Dev QA",
   rituals: "Rituals",
   unknown: "Default Work",
+  pr: "Work PR Summary", // ADD THIS LINE
 };
 
 // Category names for empty messages
@@ -267,6 +268,8 @@ const CALENDAR_OPTIONS = [
 
 let SELECTED_CALENDAR = CALENDAR_OPTIONS[0]; // Default to work
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
+let includeWorkCal = true; // Default to work calendar
+let includePRs = false;
 
 // Check if running in interactive mode
 async function checkInteractiveMode() {
@@ -289,9 +292,28 @@ async function runInteractiveMode() {
   console.log("\n🎯 Work Calendar Summary Generator");
   console.log(`📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
 
+  // Ask what to include first
+  console.log("? What to process?");
+  console.log("  1 - Work Calendar");
+  console.log("  2 - Work PRs");
+
+  const includeInput = await askQuestion(
+    "\n? Enter choice (or press enter for work calendar): "
+  );
+
+  // Reset flags
+  includeWorkCal = false;
+  includePRs = false;
+
+  if (includeInput.trim() === "1" || includeInput.trim() === "") {
+    includeWorkCal = true;
+  } else if (includeInput.trim() === "2") {
+    includePRs = true;
+  }
+
   // Ask for weeks
   const weeksInput = await askQuestion(
-    "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
+    "\n? Which weeks to process? (comma-separated, e.g., 1,2,3): "
   );
   if (weeksInput.trim()) {
     TARGET_WEEKS = weeksInput
@@ -300,29 +322,11 @@ async function runInteractiveMode() {
       .filter((w) => !isNaN(w));
   }
 
-  // Show calendar options
-  console.log("\n? Which calendar to process?");
-  CALENDAR_OPTIONS.forEach((cal) => {
-    console.log(`  ${cal.id} - ${cal.name}`);
-  });
-
-  const calendarInput = await askQuestion(
-    "\n? Enter number (or press enter for work): "
-  );
-
-  if (calendarInput.trim()) {
-    const calendarNumber = parseInt(calendarInput.trim());
-    const selectedCal = CALENDAR_OPTIONS.find(
-      (cal) => cal.id === calendarNumber
-    );
-    if (selectedCal) {
-      SELECTED_CALENDAR = selectedCal;
-    }
-  }
-
   // Show confirmation
+  console.log(
+    `📋 Processing: ${includeWorkCal ? "Work Calendar" : "Work PRs"}`
+  );
   console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
-  console.log(`📅 Using ${SELECTED_CALENDAR.name}`);
 
   const confirm = await askQuestion("Continue? (y/n): ");
 
@@ -413,7 +417,11 @@ async function updateNotionSummaries(pageId, summaryUpdates) {
 }
 
 // Process single week
-async function processWeek(weekNumber) {
+async function processWeek(
+  weekNumber,
+  includeWorkCal = true,
+  includePRs = true
+) {
   try {
     console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
 
@@ -424,83 +432,108 @@ async function processWeek(weekNumber) {
     console.log(`✅ Found Week ${paddedWeek} Recap!`);
     console.log(`📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}`);
 
-    // Fetch calendar events
-    const rawEvents = await fetchCalendarEvents(
-      SELECTED_CALENDAR.calendarId,
-      SELECTED_CALENDAR.authType,
-      startDate,
-      endDate
-    );
-
-    console.log(`📥 Processing ${rawEvents.length} raw events...\n`);
-
-    // Categorize all events
-    const categorizedEvents = rawEvents.map(categorizeEventByColor);
-
-    // Group by category
-    const categories = {
-      default: [],
-      coding: [],
-      design: [],
-      review: [],
-      qa: [],
-      rituals: [],
-      personal: [], // For logging only
-      ignored: [], // For logging only
-    };
-
-    categorizedEvents.forEach((event) => {
-      // Merge unknown into default
-      if (event.category === "unknown") {
-        categories.default.push(event);
-      } else {
-        categories[event.category].push(event);
-      }
-    });
-
-    // Log ignored events (but don't send to Notion)
-    const ignoredEvents = [...categories.personal, ...categories.ignored];
-    if (ignoredEvents.length > 0) {
-      console.log(`🚫 IGNORED (${ignoredEvents.length} events):`);
-      ignoredEvents.forEach((event, index) => {
-        console.log(
-          `   ${index + 1}. "${event.title}" (${event.durationFormatted}) - ${
-            event.categoryName
-          }`
-        );
-      });
-      console.log("");
-    }
-
-    // Prepare Notion updates for work categories only
+    // Initialize notionUpdates object
     const notionUpdates = {};
 
-    // Process work categories (excluding unknown since it merges with default)
-    const workCategories = [
-      "default",
-      "coding",
-      "design",
-      "review",
-      "qa",
-      "rituals",
-    ];
+    // Fetch and process work calendar events
+    if (includeWorkCal) {
+      // Fetch calendar events
+      const rawEvents = await fetchCalendarEvents(
+        SELECTED_CALENDAR.calendarId,
+        SELECTED_CALENDAR.authType,
+        startDate,
+        endDate
+      );
 
-    workCategories.forEach((categoryKey) => {
-      const columnName = WORK_CATEGORY_MAPPING[categoryKey];
-      const events = categories[categoryKey];
-      const formattedContent = formatEventsForNotion(events, categoryKey);
+      console.log(`📥 Processing ${rawEvents.length} raw events...\n`);
 
-      notionUpdates[columnName] = formattedContent;
+      // Categorize all events
+      const categorizedEvents = rawEvents.map(categorizeEventByColor);
 
-      // Log what we're updating
-      const totalMinutes = events
-        .filter((e) => e.duration)
-        .reduce((sum, e) => sum + e.duration, 0);
+      // Group by category
+      const categories = {
+        default: [],
+        coding: [],
+        design: [],
+        review: [],
+        qa: [],
+        rituals: [],
+        personal: [], // For logging only
+        ignored: [], // For logging only
+      };
 
-      const timeText =
-        totalMinutes > 0 ? ` (${formatDuration(totalMinutes)})` : "";
-      console.log(`🔄 ${columnName}: ${events.length} events${timeText}`);
-    });
+      categorizedEvents.forEach((event) => {
+        // Merge unknown into default
+        if (event.category === "unknown") {
+          categories.default.push(event);
+        } else {
+          categories[event.category].push(event);
+        }
+      });
+
+      // Log ignored events (but don't send to Notion)
+      const ignoredEvents = [...categories.personal, ...categories.ignored];
+      if (ignoredEvents.length > 0) {
+        console.log(`🚫 IGNORED (${ignoredEvents.length} events):`);
+        ignoredEvents.forEach((event, index) => {
+          console.log(
+            `   ${index + 1}. "${event.title}" (${event.durationFormatted}) - ${
+              event.categoryName
+            }`
+          );
+        });
+        console.log("");
+      }
+
+      // Process work categories (excluding unknown since it merges with default)
+      const workCategories = [
+        "default",
+        "coding",
+        "design",
+        "review",
+        "qa",
+        "rituals",
+      ];
+
+      workCategories.forEach((categoryKey) => {
+        const columnName = WORK_CATEGORY_MAPPING[categoryKey];
+        const events = categories[categoryKey];
+        const formattedContent = formatEventsForNotion(events, categoryKey);
+
+        notionUpdates[columnName] = formattedContent;
+
+        // Log what we're updating
+        const totalMinutes = events
+          .filter((e) => e.duration)
+          .reduce((sum, e) => sum + e.duration, 0);
+
+        const timeText =
+          totalMinutes > 0 ? ` (${formatDuration(totalMinutes)})` : "";
+        console.log(`🔄 ${columnName}: ${events.length} events${timeText}`);
+      });
+    }
+
+    // Fetch PR events if calendar exists
+    let prSummary = null;
+    if (includePRs && process.env.WORK_PR_DATA_CALENDAR_ID) {
+      console.log("📥 Fetching PR events...");
+      const prEvents = await fetchCalendarEvents(
+        process.env.WORK_PR_DATA_CALENDAR_ID,
+        "work",
+        startDate,
+        endDate
+      );
+
+      if (prEvents.length > 0) {
+        prSummary = await processPREvents(prEvents);
+        console.log(`🔄 Work PR Summary: ${prEvents.length} events`);
+      }
+    }
+
+    // Add PR summary if we have one
+    if (prSummary) {
+      notionUpdates["Work PR Summary"] = prSummary;
+    }
 
     // Update Notion
     console.log("📝 Updating Notion...");
@@ -527,7 +560,7 @@ async function main() {
   console.log(`📊 Processing ${TARGET_WEEKS.length} week(s)...\n`);
 
   for (const weekNumber of TARGET_WEEKS) {
-    const result = await processWeek(weekNumber);
+    const result = await processWeek(weekNumber, includeWorkCal, includePRs);
     if (result) {
       console.log("📝 (Notion update function coming next...)");
     }

@@ -2,6 +2,14 @@
 // Handles PR calendar event processing and formatting
 
 /**
+ * Remove timestamps from commit messages
+ */
+function removeTimestamps(commitText) {
+  // Remove timestamps in format (HH:MM:SS) or (HH:MM)
+  return commitText.replace(/\s*\(\d{1,2}:\d{2}(?::\d{2})?\)/g, "");
+}
+
+/**
  * Extract PR info from a calendar event
  */
 function extractPRInfo(event) {
@@ -76,7 +84,15 @@ function formatPRSummary(prGroups) {
     return "No PR events this week.";
   }
 
-  let output = "";
+  // Calculate totals for header
+  const totalPRs = prArray.length;
+  const totalCommits = prArray.reduce((sum, pr) => sum + pr.totalCommits, 0);
+
+  // Add header
+  let output = `PRs (${totalPRs} PR${
+    totalPRs !== 1 ? "s" : ""
+  }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):\n`;
+  output += "------\n";
 
   prArray.forEach((pr, index) => {
     // Add spacing between PRs (except first one)
@@ -85,9 +101,9 @@ function formatPRSummary(prGroups) {
     }
 
     // PR Header with proper commit count
-    output += `${pr.prTitle} - ${pr.totalCommits} commit${
+    output += `${pr.prTitle} [${pr.totalCommits} commit${
       pr.totalCommits !== 1 ? "s" : ""
-    }`;
+    }]`;
 
     // Add date range if PR spans multiple days
     const uniqueDates = [...new Set(pr.dates)].sort();
@@ -97,12 +113,13 @@ function formatPRSummary(prGroups) {
       })`;
     }
 
-    output += "\n------\n";
+    output += "\n";
 
-    // Commits - display raw text
+    // Commits - display raw text with timestamps removed
     pr.commits.forEach((commitText, idx) => {
       if (idx > 0) output += " ";
-      output += commitText;
+      const cleanCommitText = removeTimestamps(commitText);
+      output += cleanCommitText;
     });
   });
 
