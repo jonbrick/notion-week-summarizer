@@ -23,6 +23,7 @@ const {
   DEFAULT_TARGET_WEEKS,
   DEFAULT_ACTIVE_CATEGORIES,
 } = require("./src/config/task-config");
+const { processCalendarEvents } = require("./src/utils/event-processor");
 require("dotenv").config();
 
 // Configuration - using environment variables
@@ -188,93 +189,7 @@ async function generateWeekSummary(targetWeek) {
       }
 
       // Generate AI summary
-      const eventDescriptions = categoryData.events
-        .filter((event) => {
-          const title = (event.summary || "").trim();
-
-          // Filter out working location events
-          const locationKeywords = [
-            "home",
-            "mc out",
-            "office",
-            "remote",
-            "wfh",
-            "work from home",
-            "out of office",
-            "ooo",
-            "vacation",
-            "sick",
-            "personal day",
-          ];
-          const isLocationEvent = locationKeywords.some((keyword) =>
-            title.toLowerCase().includes(keyword)
-          );
-
-          // Filter out the explicit event '🥗 Lunch (Can be moved!)'
-          if (title === "🥗 Lunch (Can be moved!)") return false;
-
-          // Keep event if it's not a location event
-          return !isLocationEvent;
-        })
-        .map((event) => {
-          const title = event.summary || "Untitled event";
-          let description = event.description || "";
-
-          // Clean up description: strip HTML tags and take only first line
-          if (description) {
-            // Remove HTML tags
-            description = description.replace(/<[^>]*>/g, "");
-            // Remove URLs
-            description = description.replace(/https?:\/\/[^\s]+/g, "");
-            // Remove extra whitespace and newlines
-            description = description.replace(/\s+/g, " ").trim();
-
-            // Remove common boilerplate phrases
-            const boilerplatePhrases = [
-              "is inviting you to a scheduled Zoom meeting",
-              "Join Zoom Meeting",
-              "──────────",
-              "Agenda:",
-              "Welcome to our bi-weekly product deep dive!",
-              "The purpose of this meeting is to provide the front-line",
-              "Meeting ID:",
-              "ID:",
-              "Passcode:",
-              "tracker - Q4 2024",
-              "customer teams with a comprehensive update on",
-            ];
-
-            boilerplatePhrases.forEach((phrase) => {
-              description = description.replace(new RegExp(phrase, "gi"), "");
-            });
-
-            // Take only the first line (before any line breaks)
-            const firstLine = description.split("\n")[0].split("\r")[0];
-
-            // Smart truncation: cut at word boundaries, max 50 chars
-            if (firstLine.length > 50) {
-              const truncated = firstLine.substring(0, 50);
-              const lastSpace = truncated.lastIndexOf(" ");
-              if (lastSpace > 30) {
-                // Only cut at word boundary if it's not too early
-                description = truncated.substring(0, lastSpace) + "...";
-              } else {
-                description = truncated + "...";
-              }
-            } else {
-              description = firstLine;
-            }
-
-            // Only add description if it's meaningful (not just whitespace)
-            if (description && description !== "") {
-              description = ` - ${description}`;
-            } else {
-              description = "";
-            }
-          }
-
-          return `${title}${description}`;
-        });
+      const eventDescriptions = processCalendarEvents(categoryData.events);
 
       console.log(`📝 Events to summarize:`, eventDescriptions);
 
