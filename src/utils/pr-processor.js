@@ -95,9 +95,9 @@ function formatPRSummary(prGroups) {
   output += "------\n";
 
   prArray.forEach((pr, index) => {
-    // Add spacing between PRs (except first one)
+    // Add divider between PRs (except first one)
     if (index > 0) {
-      output += "\n\n";
+      output += "\n---\n";
     }
 
     // PR Header with proper commit count

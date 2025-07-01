@@ -149,9 +149,9 @@ function formatPRSummary(prGroups) {
   let output = "";
 
   prArray.forEach((pr, index) => {
-    // Add spacing between PRs (except first one)
+    // Add divider between PRs (except first one)
     if (index > 0) {
-      output += "\n\n";
+      output += "\n---\n";
     }
 
     // PR Header
@@ -167,7 +167,7 @@ function formatPRSummary(prGroups) {
       })`;
     }
 
-    output += "\n------\n";
+    output += "\n";
 
     // Commits - display raw text
     pr.commits.forEach((commitText) => {

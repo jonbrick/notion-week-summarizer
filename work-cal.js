@@ -324,9 +324,9 @@ async function runInteractiveMode() {
 
   // Show confirmation
   console.log(
-    `📋 Processing: ${includeWorkCal ? "Work Calendar" : "Work PRs"}`
+    `\n📋 Processing: ${includeWorkCal ? "Work Calendar" : "Work PRs"}`
   );
-  console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+  console.log(`📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
 
   const confirm = await askQuestion("Continue? (y/n): ");
 
