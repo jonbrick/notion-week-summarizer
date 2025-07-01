@@ -145,24 +145,43 @@ async function processWeek(weekNumber) {
     // 5. Format tasks for Notion
     let summary = "";
 
-    if (tasksResponse.results.length === 0) {
-      summary = "No work tasks this week.";
-    } else {
-      // Create header
-      summary = `Work Tasks (${tasksResponse.results.length}):\n`;
-      summary += "------";
+    // Define all work categories in custom order
+    const allCategories = [
+      "Research",
+      "Design",
+      "Coding",
+      "Feedback",
+      "QA",
+      "Admin",
+      "Social",
+      "OOO",
+    ];
 
-      // Group tasks by Work Category
-      const tasksByCategory = {};
+    // Create header
+    summary = `Work Tasks (${tasksResponse.results.length}):\n`;
+    summary += "------";
 
-      tasksResponse.results.forEach((task) => {
-        const category =
-          task.properties["Work Category"]?.select?.name || "No Category";
+    // Group tasks by Work Category with smart matching
+    const tasksByCategory = {};
 
-        if (!tasksByCategory[category]) {
-          tasksByCategory[category] = [];
-        }
+    // Initialize all categories with empty arrays
+    allCategories.forEach((category) => {
+      tasksByCategory[category] = [];
+    });
 
+    tasksResponse.results.forEach((task) => {
+      let category =
+        task.properties["Work Category"]?.select?.name || "No Category";
+
+      // Smart matching for Admin and Feedback
+      if (category.includes("Admin")) {
+        category = "Admin";
+      } else if (category.includes("Crit")) {
+        category = "Feedback";
+      }
+
+      // Only add to predefined categories, ignore others
+      if (allCategories.includes(category)) {
         const taskTitle = task.properties.Task.title
           .map((t) => t.plain_text)
           .join("");
@@ -174,36 +193,35 @@ async function processWeek(weekNumber) {
           formattedDate: formattedDate,
           dueDate: dueDate,
         });
+      }
+    });
+
+    // Add each category in custom order with special separators
+    allCategories.forEach((category, categoryIndex) => {
+      const tasks = tasksByCategory[category];
+
+      // Add appropriate separator
+      if (categoryIndex === 0) {
+        // First category (Research) - no separator before
+      } else if (categoryIndex === 5) {
+        // Admin category - major separator
+        summary += "======";
+      } else {
+        // Regular separator for other categories
+        summary += "------";
+      }
+
+      // Category header with count
+      summary += `\n${category} Tasks (${tasks.length}):\n`;
+
+      // Add tasks in this category
+      tasks.forEach((task) => {
+        summary += `• ${task.title} (${task.formattedDate})\n`;
       });
+    });
 
-      // Sort categories alphabetically (but "No Category" goes last)
-      const sortedCategories = Object.keys(tasksByCategory).sort((a, b) => {
-        if (a === "No Category") return 1;
-        if (b === "No Category") return -1;
-        return a.localeCompare(b);
-      });
-
-      // Add each category
-      sortedCategories.forEach((category, categoryIndex) => {
-        const tasks = tasksByCategory[category];
-
-        // Add divider between categories (not before the first one)
-        if (categoryIndex > 0) {
-          summary += "---";
-        }
-
-        // Category header with count
-        summary += `\n${category} (${tasks.length}):\n`;
-
-        // Add tasks in this category
-        tasks.forEach((task) => {
-          summary += `• ${task.title} (${task.formattedDate})\n`;
-        });
-      });
-
-      // Remove trailing newline
-      summary = summary.trim();
-    }
+    // Remove trailing newline
+    summary = summary.trim();
 
     console.log(
       `\n📝 Generated summary with ${tasksResponse.results.length} tasks`
