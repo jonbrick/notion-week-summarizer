@@ -29,7 +29,10 @@ let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 
 // Helper function to format date nicely
 function formatTaskDate(dateString) {
-  const date = new Date(dateString);
+  // Parse the date string as local time to avoid timezone issues
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day); // month is 0-indexed
+
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = [
     "Jan",
@@ -47,11 +50,11 @@ function formatTaskDate(dateString) {
   ];
 
   const dayName = days[date.getDay()];
-  const month = months[date.getMonth()];
-  const day = date.getDate();
-  const year = date.getFullYear();
+  const monthName = months[date.getMonth()];
+  const dateDay = date.getDate();
+  const dateYear = date.getFullYear();
 
-  return `${dayName} ${month} ${day}, ${year}`;
+  return `${dayName} ${monthName} ${dateDay}, ${dateYear}`;
 }
 
 // Process a single week
@@ -147,7 +150,7 @@ async function processWeek(weekNumber) {
     } else {
       // Create header
       summary = `Work Tasks (${tasksResponse.results.length}):\n`;
-      summary += "------\n";
+      summary += "------";
 
       // Group tasks by Work Category
       const tasksByCategory = {};
@@ -186,11 +189,11 @@ async function processWeek(weekNumber) {
 
         // Add divider between categories (not before the first one)
         if (categoryIndex > 0) {
-          summary += "\n---\n";
+          summary += "---";
         }
 
         // Category header with count
-        summary += `${category} (${tasks.length}):\n`;
+        summary += `\n${category} (${tasks.length}):\n`;
 
         // Add tasks in this category
         tasks.forEach((task) => {
