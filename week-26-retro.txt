@@ -1,0 +1,14 @@
+Retrospective for Week 26
+
+What went well?
+- Balanced design and engineering work, completing 3 design tasks and 2 coding tasks.
+- Made good progress on the dashboard building UX, iterating through multiple versions.
+- Actively participated in design and product reviews, providing valuable feedback.
+
+What didn't go so well?
+- The design work was quite time-consuming, taking up 58% of the week's time.
+- There was a high meeting load, with 11 events taking up 11% of the week.
+- No time was spent on QA tasks, which could potentially impact the quality of the work.
+
+Overall?
+This week saw a good balance between design and engineering work, with the design tasks taking up the majority of the time. While the high meeting load and lack of QA time are areas for improvement, the overall progress on the dashboard building UX and active participation in design reviews suggest a productive week.
