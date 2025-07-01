@@ -1,14 +1,15 @@
-Retrospective for Week 26
+What Went Well?
 
-What went well?
-- Balanced design and engineering work, completing 3 design tasks and 2 coding tasks.
-- Made good progress on the dashboard building UX, iterating through multiple versions.
-- Actively participated in design and product reviews, providing valuable feedback.
+- Maintained a good balance between design and engineering tasks, completing a mix of research, design, coding, and QA work.
+- Shipped quality components and improvements, as evidenced by the 3 successful pull requests.
+- Participated actively in design and feedback sessions, providing valuable input and collaborating effectively with the team.
 
-What didn't go so well?
-- The design work was quite time-consuming, taking up 58% of the week's time.
-- There was a high meeting load, with 11 events taking up 11% of the week.
-- No time was spent on QA tasks, which could potentially impact the quality of the work.
+What Didn't Go So Well?
+
+- The design work on the dashboard building UX took up a significant portion of time (25.25 hours), potentially leading to an imbalance in the work.
+- There were no social or out-of-office tasks this week, which could indicate a lack of work-life balance or personal time.
+- The meeting load remained high, with 7 events (5 hours) dedicated to general and meeting-related activities.
 
 Overall?
-This week saw a good balance between design and engineering work, with the design tasks taking up the majority of the time. While the high meeting load and lack of QA time are areas for improvement, the overall progress on the dashboard building UX and active participation in design reviews suggest a productive week.
+
+Overall, the week was productive in terms of shipping quality components and maintaining a balance between design and engineering tasks. However, the high design workload and meeting load may have created some imbalance. Focusing on better time management and prioritizing work-life balance could help improve the overall experience for the next week.

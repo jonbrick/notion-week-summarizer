@@ -1,0 +1,12 @@
+Based on my week's work data below, write a retrospective with three sections:
+
+1. "What went well?" - 3-5 bullet points about positive patterns, accomplishments, or good balance
+2. "What didn't go so well?" - 3-5 bullet points about challenges, imbalances, or areas for improvement
+3. "Overall?" - 1-2 sentences summarizing the key takeaway or theme from the week
+
+Be specific and reference the actual data. Use a reflective but constructive tone.
+
+{{CONTEXT}}
+
+Week Data:
+{{WEEK_DATA}} 

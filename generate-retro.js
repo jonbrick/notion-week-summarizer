@@ -379,7 +379,7 @@ async function generateRetrospective(combinedDoc) {
   console.log("\n🤖 Generating retrospective with AI...");
 
   // Load prompt and context
-  const promptTemplate = loadPrompt("retro-generation");
+  const promptTemplate = loadPrompt("retro-generation-work");
   const context = loadContext("context-work");
 
   // Replace placeholders
