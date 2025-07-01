@@ -61,6 +61,8 @@ async function fetchWeekData(weekNumber) {
       page.properties["Design & Dev QA Cal"]?.rich_text?.[0]?.plain_text || "",
     ritualsCal:
       page.properties["Rituals Cal"]?.rich_text?.[0]?.plain_text || "",
+    researchCal:
+      page.properties["Research Cal"]?.rich_text?.[0]?.plain_text || "",
   };
 
   return weekData;
@@ -186,6 +188,7 @@ function calculateStats(weekData) {
     review: parseCalendarHours(weekData.reviewFeedbackCal),
     qa: parseCalendarHours(weekData.designDevQACal),
     rituals: parseCalendarHours(weekData.ritualsCal),
+    research: parseCalendarHours(weekData.researchCal),
   };
 
   // Calculate totals
@@ -313,6 +316,7 @@ function buildCombinedDocument(weekData, stats) {
     },
     { key: "qa", name: "QA", data: weekData.designDevQACal },
     { key: "rituals", name: "Rituals", data: weekData.ritualsCal },
+    { key: "research", name: "Research", data: weekData.researchCal },
   ];
 
   calendarInfo.forEach((cal) => {

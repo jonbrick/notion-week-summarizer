@@ -139,6 +139,7 @@ function categorizeEventByColor(rawEvent) {
     5: { category: "review", name: "Review, Feedback, Crit Cal" }, // Yellow
     11: { category: "qa", name: "Design & Dev QA Cal" }, // Red
     9: { category: "rituals", name: "Rituals Cal" }, // New color
+    1: { category: "research", name: "Research Cal" }, // Research color
   };
 
   const colorInfo = colorMapping[colorId];
@@ -220,9 +221,10 @@ const WORK_CATEGORY_MAPPING = {
   default: "Default Work Cal",
   coding: "Coding & Tickets Cal",
   design: "Design Work Cal",
-  review: "Review, Feedback, Crit Calendar Cal",
+  review: "Review, Feedback, Crit Cal",
   qa: "Design & Dev QA Cal",
   rituals: "Rituals Cal",
+  research: "Research Cal",
   unknown: "Default Work Cal",
   pr: "Work PR Summary", // ADD THIS LINE
 };
@@ -235,6 +237,7 @@ const CATEGORY_DISPLAY_NAMES = {
   review: "review, feedback, crit",
   qa: "QA",
   rituals: "rituals",
+  research: "research",
 };
 
 // Create readline interface for user input
@@ -458,6 +461,7 @@ async function processWeek(
         review: [],
         qa: [],
         rituals: [],
+        research: [],
         personal: [], // For logging only
         ignored: [], // For logging only
       };
@@ -493,6 +497,7 @@ async function processWeek(
         "review",
         "qa",
         "rituals",
+        "research",
       ];
 
       workCategories.forEach((categoryKey) => {
@@ -567,6 +572,7 @@ async function main() {
   }
 
   console.log(`\n🎉 Processing complete!`);
+  process.exit(0);
 }
 
 // Run the script
