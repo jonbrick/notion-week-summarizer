@@ -1,15 +1,17 @@
-What Went Well?
+Retrospective for Week 26:
 
-- Maintained a good balance between design and engineering tasks, completing a mix of research, design, coding, and QA work.
-- Shipped quality components and improvements, as evidenced by the 3 successful pull requests.
-- Participated actively in design and feedback sessions, providing valuable input and collaborating effectively with the team.
+What went well?
 
-What Didn't Go So Well?
+- Delivered high-quality design work, including 3 design tasks focused on improving the dashboard building experience.
+- Made steady progress on coding tasks, with 2 PRs merged that improved the UI and developer experience.
+- Maintained good work-life balance, with no reported overtime or weekend work.
 
-- The design work on the dashboard building UX took up a significant portion of time (25.25 hours), potentially leading to an imbalance in the work.
-- There were no social or out-of-office tasks this week, which could indicate a lack of work-life balance or personal time.
-- The meeting load remained high, with 7 events (5 hours) dedicated to general and meeting-related activities.
+What didn't go so well?
+
+- The design work was quite intensive, taking up 58% of my time, which could lead to potential burnout if this continues.
+- There was a high meeting load, with 11 meetings/rituals taking up 25% of my time, which could impact focus and productivity.
+- Didn't complete any feedback tasks this week, which is an area for improvement.
 
 Overall?
 
-Overall, the week was productive in terms of shipping quality components and maintaining a balance between design and engineering tasks. However, the high design workload and meeting load may have created some imbalance. Focusing on better time management and prioritizing work-life balance could help improve the overall experience for the next week.
+Overall, it was a productive week with a good balance of design and engineering work. However, the high design workload and meeting load are areas that need to be monitored and addressed to ensure sustainable productivity and work-life balance in the long run.

@@ -406,15 +406,17 @@ async function generateRetrospective(combinedDoc) {
     throw new Error("AI response did not include both sections");
   }
 
-  const wentWell = sections[0]
-    .replace(/what went well\?/i, "")
-    .replace(/retrospective for week \d+/i, "")
-    .replace(
-      /here is a retrospective with three sections based on the provided week's data:/i,
-      ""
+  // Extract only bullet points from "What went well?" section
+  const wentWellSection = sections[0].replace(/what went well\?/i, "");
+  const bulletPoints = wentWellSection
+    .split("\n")
+    .filter(
+      (line) => line.trim().startsWith("-") || line.trim().startsWith("•")
     )
-    .replace(/^[\s\n]+/, "")
-    .trim();
+    .map((line) => line.trim())
+    .join("\n");
+
+  const wentWell = bulletPoints;
 
   // Split the second part to get "didn't go well" and "overall"
   const remainingSections = sections[1].split(/overall\?/i);
