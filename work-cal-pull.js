@@ -133,12 +133,12 @@ function categorizeEventByColor(rawEvent) {
 
   // 4. Color mapping for default eventType events
   const colorMapping = {
-    8: { category: "personal", name: "Personal Event" }, // Gray
-    3: { category: "coding", name: "Coding & Tickets" }, // Purple
-    2: { category: "design", name: "Design Work" }, // Green
-    5: { category: "review", name: "Review, Feedback, Crit" }, // Yellow
-    11: { category: "qa", name: "Design & Dev QA" }, // Red
-    9: { category: "rituals", name: "Rituals" }, // New color
+    8: { category: "personal", name: "Personal Event Cal" }, // Gray
+    3: { category: "coding", name: "Coding & Tickets Cal" }, // Purple
+    2: { category: "design", name: "Design Work Cal" }, // Green
+    5: { category: "review", name: "Review, Feedback, Crit Cal" }, // Yellow
+    11: { category: "qa", name: "Design & Dev QA Cal" }, // Red
+    9: { category: "rituals", name: "Rituals Cal" }, // New color
   };
 
   const colorInfo = colorMapping[colorId];
@@ -217,13 +217,13 @@ async function getWeekDateRange(weekNumber) {
 
 // Column mapping for work categories
 const WORK_CATEGORY_MAPPING = {
-  default: "Default Work",
-  coding: "Coding & Tickets",
-  design: "Design Work",
-  review: "Review, Feedback, Crit Calendar",
-  qa: "Design & Dev QA",
-  rituals: "Rituals",
-  unknown: "Default Work",
+  default: "Default Work Cal",
+  coding: "Coding & Tickets Cal",
+  design: "Design Work Cal",
+  review: "Review, Feedback, Crit Calendar Cal",
+  qa: "Design & Dev QA Cal",
+  rituals: "Rituals Cal",
+  unknown: "Default Work Cal",
   pr: "Work PR Summary", // ADD THIS LINE
 };
 
