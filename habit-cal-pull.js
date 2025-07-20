@@ -221,10 +221,49 @@ async function processWeek(weekNumber, isMultiWeek) {
           startDate,
           endDate
         );
-        const eventCount = events.length;
 
-        console.log(`   ${calendar.displayName}: ${eventCount} events`);
-        summaryUpdates[calendar.notionField] = eventCount;
+        // For habit tracking, count unique days instead of total events
+        const uniqueDays = new Set();
+        events.forEach((event) => {
+          let eventDate;
+
+          // For sleep-related habits, use END time to determine the day
+          if (
+            calendar.envVar === "SLEEP_IN_CALENDAR_ID" ||
+            calendar.envVar === "WAKE_UP_EARLY_CALENDAR_ID"
+          ) {
+            if (event.end && event.end.date) {
+              // All-day event - use end date
+              eventDate = event.end.date;
+            } else if (event.end && event.end.dateTime) {
+              // Timed event - extract date from END time (when you woke up)
+              eventDate = event.end.dateTime.split("T")[0];
+            } else if (event.start && event.start.date) {
+              // Fallback to start date if no end time
+              eventDate = event.start.date;
+            } else if (event.start && event.start.dateTime) {
+              // Fallback to start date if no end time
+              eventDate = event.start.dateTime.split("T")[0];
+            }
+          } else {
+            // For other habits, use START time
+            if (event.start && event.start.date) {
+              eventDate = event.start.date;
+            } else if (event.start && event.start.dateTime) {
+              eventDate = event.start.dateTime.split("T")[0];
+            }
+          }
+
+          if (eventDate) {
+            uniqueDays.add(eventDate);
+          }
+        });
+
+        const habitCount = uniqueDays.size;
+        console.log(
+          `   ${calendar.displayName}: ${habitCount} days (${events.length} events)`
+        );
+        summaryUpdates[calendar.notionField] = habitCount;
       } catch (error) {
         console.error(
           `\n❌ Failed to fetch ${calendar.displayName} calendar: ${error.message}`
