@@ -72,6 +72,7 @@ console.log("🎯 Habit Calendar Summary Generator");
 
 // Script configuration
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
+let SELECTED_CALENDARS = [...HABIT_CALENDARS]; // Default to all
 
 // Google Calendar authentication
 function getGoogleAuth() {
@@ -90,9 +91,9 @@ function getGoogleAuth() {
 async function performPreflightChecks() {
   console.log("\n🔍 Checking configuration...");
 
-  // Check for missing calendar IDs
+  // Check for missing calendar IDs (only for selected calendars)
   const missingIds = [];
-  HABIT_CALENDARS.forEach((calendar) => {
+  SELECTED_CALENDARS.forEach((calendar) => {
     if (!process.env[calendar.envVar]) {
       missingIds.push(calendar.envVar);
     }
@@ -105,7 +106,9 @@ async function performPreflightChecks() {
     process.exit(1);
   }
 
-  console.log("✅ All 8 calendar IDs found");
+  console.log(
+    `✅ All ${SELECTED_CALENDARS.length} selected calendar IDs found`
+  );
 
   // Test Google Calendar API connection
   try {
@@ -197,12 +200,14 @@ async function processWeek(weekNumber, isMultiWeek) {
     const endDate = dateRange.end;
     console.log(`📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}`);
 
-    // 4. Fetch data from all habit calendars
-    console.log(`\n📥 Fetching habit data from 8 calendars...`);
+    // 4. Fetch data from selected habit calendars
+    console.log(
+      `\n📥 Fetching habit data from ${SELECTED_CALENDARS.length} calendar(s)...`
+    );
     const summaryUpdates = {};
 
-    for (let i = 0; i < HABIT_CALENDARS.length; i++) {
-      const calendar = HABIT_CALENDARS[i];
+    for (let i = 0; i < SELECTED_CALENDARS.length; i++) {
+      const calendar = SELECTED_CALENDARS[i];
       const calendarId = process.env[calendar.envVar];
 
       try {
@@ -291,8 +296,41 @@ async function main() {
         .filter((w) => !isNaN(w));
     }
 
+    // Ask which calendars to update
+    console.log("\n? Which calendars to update?");
+    console.log("  1 - All Calendars");
+    HABIT_CALENDARS.forEach((cal, idx) => {
+      console.log(`  ${idx + 2} - ${cal.displayName}`);
+    });
+
+    const calInput = await askQuestion(
+      "\n? Enter numbers (e.g., 1,3,5 or 1 for all): "
+    );
+
+    if (calInput.trim()) {
+      const selections = calInput
+        .split(",")
+        .map((c) => parseInt(c.trim()))
+        .filter((c) => !isNaN(c));
+
+      if (selections.includes(1)) {
+        SELECTED_CALENDARS = [...HABIT_CALENDARS];
+      } else {
+        SELECTED_CALENDARS = selections
+          .filter((num) => num >= 2 && num <= HABIT_CALENDARS.length + 1)
+          .map((num) => HABIT_CALENDARS[num - 2]);
+      }
+    }
+
     // Show confirmation
     console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+    console.log(
+      `📋 Updating calendars: ${
+        SELECTED_CALENDARS.length === HABIT_CALENDARS.length
+          ? "All 8 calendars"
+          : SELECTED_CALENDARS.map((c) => c.displayName).join(", ")
+      }`
+    );
 
     const confirm = await askQuestion("Continue? (y/n): ");
 
@@ -301,7 +339,9 @@ async function main() {
       process.exit(0);
     }
   } else {
+    // Command line mode - default to all calendars
     TARGET_WEEKS = result.targetWeeks;
+    SELECTED_CALENDARS = [...HABIT_CALENDARS];
   }
 
   await processAllWeeks();
