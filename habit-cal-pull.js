@@ -216,14 +216,38 @@ async function processWeek(weekNumber, isMultiWeek) {
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
-        const events = await fetchCalendarEvents(
+        const allEvents = await fetchCalendarEvents(
           calendarId,
           startDate,
           endDate
         );
 
+        // Filter events to only include those in the target week
+        const events = allEvents.filter((event) => {
+          let eventDate;
+
+          // Get the event date (same logic as below, but for filtering)
+          if (
+            calendar.envVar === "SLEEP_IN_CALENDAR_ID" ||
+            calendar.envVar === "WAKE_UP_EARLY_CALENDAR_ID"
+          ) {
+            eventDate =
+              event.end?.date ||
+              event.end?.dateTime?.split("T")[0] ||
+              event.start?.date ||
+              event.start?.dateTime?.split("T")[0];
+          } else {
+            eventDate =
+              event.start?.date || event.start?.dateTime?.split("T")[0];
+          }
+
+          // Check if event date is within the week (inclusive)
+          return eventDate && eventDate >= startDate && eventDate <= endDate;
+        });
+
         // For habit tracking, count unique days instead of total events
         const uniqueDays = new Set();
+
         events.forEach((event) => {
           let eventDate;
 
