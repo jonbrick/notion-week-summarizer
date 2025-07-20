@@ -258,6 +258,302 @@ function formatEventsForNotion(events, categoryKey) {
   return output.trim();
 }
 
+// Build comprehensive personal summary
+async function buildPersonalSummary(personalEvents, startDate, endDate) {
+  let output = "";
+
+  // 1. PERSONAL section (from personal calendar)
+  const validPersonalEvents = personalEvents.filter(
+    (event) => !event.isAllDay && event.duration && event.duration.minutes >= 15
+  );
+
+  if (validPersonalEvents.length > 0) {
+    output += formatEventsForNotion(personalEvents, "personal");
+  } else {
+    output +=
+      "PERSONAL (0 events, 0 hours):\n------\nNo personal calendar events this week.";
+  }
+
+  // 2. VIDEO GAMES section
+  if (process.env.VIDEO_GAMES_CALENDAR_ID) {
+    console.log("   📥 Fetching video game sessions...");
+    const gameEvents = await fetchCalendarEvents(
+      process.env.VIDEO_GAMES_CALENDAR_ID,
+      startDate,
+      endDate
+    );
+
+    output += "\n\n";
+
+    if (gameEvents.length > 0) {
+      const processedGames = gameEvents.map((event) => ({
+        title: event.summary || "Gaming session",
+        duration: extractEventDuration(event),
+        startTime: event.start?.dateTime || event.start?.date,
+        isAllDay: event.start?.date && !event.start?.dateTime,
+      }));
+
+      const validGames = processedGames.filter(
+        (g) => !g.isAllDay && g.duration && g.duration.minutes >= 15
+      );
+
+      if (validGames.length > 0) {
+        const gameGroups = {};
+
+        validGames.forEach((game) => {
+          const cleanTitle = game.title.trim();
+          if (!gameGroups[cleanTitle]) {
+            gameGroups[cleanTitle] = {
+              title: cleanTitle,
+              totalMinutes: 0,
+              count: 0,
+            };
+          }
+          gameGroups[cleanTitle].totalMinutes += game.duration.minutes || 0;
+          gameGroups[cleanTitle].count += 1;
+        });
+
+        const groupedGames = Object.values(gameGroups).sort(
+          (a, b) => b.totalMinutes - a.totalMinutes
+        );
+
+        const totalMinutes = validGames.reduce(
+          (sum, g) => sum + (g.duration.minutes || 0),
+          0
+        );
+        const totalHours = (totalMinutes / 60).toFixed(1);
+
+        output += `VIDEO GAMES (${validGames.length} sessions, ${totalHours} hours):`;
+        groupedGames.forEach((group) => {
+          const { formatDuration } = require("./src/utils/time-utils");
+          const duration = formatDuration(group.totalMinutes);
+          const countText = group.count > 1 ? ` (${group.count}x)` : "";
+          output += `\n• ${group.title}${countText} (${duration})`;
+        });
+      } else {
+        output += "VIDEO GAMES:\nNo gaming sessions this week.";
+      }
+    } else {
+      output += "VIDEO GAMES:\nNo gaming sessions this week.";
+    }
+  }
+
+  // 3. READING section
+  if (process.env.READ_CALENDAR_ID) {
+    console.log("   📥 Fetching reading sessions...");
+    const readEvents = await fetchCalendarEvents(
+      process.env.READ_CALENDAR_ID,
+      startDate,
+      endDate
+    );
+
+    output += "\n\n";
+
+    if (readEvents.length > 0) {
+      const processedReading = readEvents.map((event) => ({
+        title: event.summary || "Reading session",
+        duration: extractEventDuration(event),
+        startTime: event.start?.dateTime || event.start?.date,
+        isAllDay: event.start?.date && !event.start?.dateTime,
+      }));
+
+      const validReading = processedReading.filter(
+        (r) => !r.isAllDay && r.duration && r.duration.minutes >= 15
+      );
+
+      if (validReading.length > 0) {
+        const readGroups = {};
+
+        validReading.forEach((read) => {
+          const cleanTitle = read.title.trim();
+          if (!readGroups[cleanTitle]) {
+            readGroups[cleanTitle] = {
+              title: cleanTitle,
+              totalMinutes: 0,
+              count: 0,
+            };
+          }
+          readGroups[cleanTitle].totalMinutes += read.duration.minutes || 0;
+          readGroups[cleanTitle].count += 1;
+        });
+
+        const groupedReading = Object.values(readGroups).sort(
+          (a, b) => b.totalMinutes - a.totalMinutes
+        );
+
+        const totalMinutes = validReading.reduce(
+          (sum, r) => sum + (r.duration.minutes || 0),
+          0
+        );
+        const totalHours = (totalMinutes / 60).toFixed(1);
+
+        output += `READING (${validReading.length} sessions, ${totalHours} hours):`;
+        groupedReading.forEach((group) => {
+          const { formatDuration } = require("./src/utils/time-utils");
+          const duration = formatDuration(group.totalMinutes);
+          const countText = group.count > 1 ? ` (${group.count}x)` : "";
+          output += `\n• ${group.title}${countText} (${duration})`;
+        });
+      } else {
+        output += "READING:\nNo reading sessions this week.";
+      }
+    } else {
+      output += "READING:\nNo reading sessions this week.";
+    }
+  }
+
+  console.log(`   ✅ Built comprehensive personal summary`);
+  return output;
+}
+
+// Build comprehensive physical health summary
+async function buildPhysicalHealthSummary(
+  physicalHealthEvents,
+  startDate,
+  endDate
+) {
+  let output = "";
+
+  // 1. PHYSICAL HEALTH section (from personal calendar gray events)
+  const validHealthEvents = physicalHealthEvents.filter(
+    (event) => !event.isAllDay && event.duration && event.duration.minutes >= 15
+  );
+
+  if (validHealthEvents.length > 0) {
+    output += formatEventsForNotion(physicalHealthEvents, "physicalHealth");
+  } else {
+    output +=
+      "PHYSICAL HEALTH (0 events, 0 hours):\n------\nNo physical health calendar events this week.";
+  }
+
+  // 2. WORKOUTS section (from workout calendar)
+  if (process.env.WORKOUT_CALENDAR_ID) {
+    console.log("   📥 Fetching workout events...");
+    const workoutEvents = await fetchCalendarEvents(
+      process.env.WORKOUT_CALENDAR_ID,
+      startDate,
+      endDate
+    );
+
+    output += "\n\n";
+
+    if (workoutEvents.length > 0) {
+      // Process workout events
+      const processedWorkouts = workoutEvents.map((event) => ({
+        title: event.summary || "Workout",
+        duration: extractEventDuration(event),
+        startTime: event.start?.dateTime || event.start?.date,
+        isAllDay: event.start?.date && !event.start?.dateTime,
+      }));
+
+      // Filter and group workouts
+      const validWorkouts = processedWorkouts.filter(
+        (w) => !w.isAllDay && w.duration && w.duration.minutes >= 15
+      );
+
+      if (validWorkouts.length > 0) {
+        const workoutGroups = {};
+
+        validWorkouts.forEach((workout) => {
+          const cleanTitle = workout.title.trim();
+          if (!workoutGroups[cleanTitle]) {
+            workoutGroups[cleanTitle] = {
+              title: cleanTitle,
+              totalMinutes: 0,
+              count: 0,
+            };
+          }
+          workoutGroups[cleanTitle].totalMinutes +=
+            workout.duration.minutes || 0;
+          workoutGroups[cleanTitle].count += 1;
+        });
+
+        const groupedWorkouts = Object.values(workoutGroups).sort(
+          (a, b) => b.totalMinutes - a.totalMinutes
+        );
+
+        const totalMinutes = validWorkouts.reduce(
+          (sum, w) => sum + (w.duration.minutes || 0),
+          0
+        );
+        const totalHours = (totalMinutes / 60).toFixed(1);
+
+        output += `WORKOUTS (${validWorkouts.length} sessions, ${totalHours} hours):\n`;
+        groupedWorkouts.forEach((group) => {
+          const { formatDuration } = require("./src/utils/time-utils");
+          const duration = formatDuration(group.totalMinutes);
+          const countText = group.count > 1 ? ` (${group.count}x)` : "";
+          output += `• ${group.title}${countText} (${duration})\n`;
+        });
+      } else {
+        output += "WORKOUTS:\nNo workout sessions this week.";
+      }
+    } else {
+      output += "WORKOUTS:\nNo workout sessions this week.";
+    }
+  }
+
+  // 3. SLEEP TRACKING section
+  output += "\n\nSLEEP TRACKING:";
+
+  let sleepDataFound = false;
+
+  // Count early wake-ups
+  if (process.env.WAKE_UP_EARLY_CALENDAR_ID) {
+    const earlyWakeEvents = await fetchCalendarEvents(
+      process.env.WAKE_UP_EARLY_CALENDAR_ID,
+      startDate,
+      endDate
+    );
+
+    const uniqueEarlyDays = new Set();
+    earlyWakeEvents.forEach((event) => {
+      const eventDate =
+        event.end?.date ||
+        event.end?.dateTime?.split("T")[0] ||
+        event.start?.date ||
+        event.start?.dateTime?.split("T")[0];
+      if (eventDate) uniqueEarlyDays.add(eventDate);
+    });
+
+    if (uniqueEarlyDays.size > 0) {
+      output += `\n• Early wake-ups: ${uniqueEarlyDays.size} days`;
+      sleepDataFound = true;
+    }
+  }
+
+  // Count sleep-ins
+  if (process.env.SLEEP_IN_CALENDAR_ID) {
+    const sleepInEvents = await fetchCalendarEvents(
+      process.env.SLEEP_IN_CALENDAR_ID,
+      startDate,
+      endDate
+    );
+
+    const uniqueSleepInDays = new Set();
+    sleepInEvents.forEach((event) => {
+      const eventDate =
+        event.end?.date ||
+        event.end?.dateTime?.split("T")[0] ||
+        event.start?.date ||
+        event.start?.dateTime?.split("T")[0];
+      if (eventDate) uniqueSleepInDays.add(eventDate);
+    });
+
+    if (uniqueSleepInDays.size > 0) {
+      output += `\n• Sleep-ins: ${uniqueSleepInDays.size} days`;
+      sleepDataFound = true;
+    }
+  }
+
+  if (!sleepDataFound) {
+    output += "\nNo sleep tracking data this week.";
+  }
+
+  console.log(`   ✅ Built comprehensive physical health summary`);
+  return output;
+}
+
 // Process single week
 async function processWeek(weekNumber) {
   try {
@@ -320,16 +616,10 @@ async function processWeek(weekNumber) {
         console.log("");
       }
 
-      // Process personal categories
-      const personalCategories = [
-        "personal",
-        "interpersonal",
-        "home",
-        "mentalHealth",
-        "physicalHealth",
-      ];
+      // Process most personal categories
+      const basicCategories = ["interpersonal", "home", "mentalHealth"];
 
-      personalCategories.forEach((categoryKey) => {
+      basicCategories.forEach((categoryKey) => {
         const columnName = PERSONAL_CATEGORY_MAPPING[categoryKey];
         const events = categories[categoryKey];
         const formattedContent = formatEventsForNotion(events, categoryKey);
@@ -350,6 +640,24 @@ async function processWeek(weekNumber) {
           `🔄 ${columnName}: ${validEvents.length} events${timeText}`
         );
       });
+
+      // Special handling for Personal - combine multiple sources
+      console.log("\n🎮 Processing enhanced Personal data...");
+      const personalSummary = await buildPersonalSummary(
+        categories.personal,
+        startDate,
+        endDate
+      );
+      notionUpdates["Personal Cal"] = personalSummary;
+
+      // Special handling for Physical Health - combine multiple sources
+      console.log("\n🏃 Processing enhanced Physical Health data...");
+      const physicalHealthSummary = await buildPhysicalHealthSummary(
+        categories.physicalHealth,
+        startDate,
+        endDate
+      );
+      notionUpdates["Physical Health Cal"] = physicalHealthSummary;
     }
 
     // Fetch PR events if requested
