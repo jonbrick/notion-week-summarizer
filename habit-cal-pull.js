@@ -1,0 +1,320 @@
+const { Client } = require("@notionhq/client");
+const { google } = require("googleapis");
+const fs = require("fs");
+const {
+  checkInteractiveMode,
+  runInteractiveMode,
+  rl,
+  askQuestion,
+} = require("./src/utils/cli-utils");
+const {
+  updateAllSummaries,
+  findWeekRecapPage,
+} = require("./src/utils/notion-utils");
+const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
+require("dotenv").config();
+
+// Configuration - using environment variables
+const NOTION_TOKEN = process.env.NOTION_TOKEN;
+
+// Initialize clients
+const notion = new Client({ auth: NOTION_TOKEN });
+
+// Database IDs - using environment variables
+const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
+const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
+
+// Habit Calendar Configuration
+const HABIT_CALENDARS = [
+  {
+    envVar: "WAKE_UP_EARLY_CALENDAR_ID",
+    notionField: "Early Wakeup",
+    displayName: "Early Wakeup",
+  },
+  {
+    envVar: "SLEEP_IN_CALENDAR_ID",
+    notionField: "Sleep In",
+    displayName: "Sleep In",
+  },
+  {
+    envVar: "WORKOUT_CALENDAR_ID",
+    notionField: "Workout",
+    displayName: "Workout",
+  },
+  {
+    envVar: "READ_CALENDAR_ID",
+    notionField: "Read",
+    displayName: "Read",
+  },
+  {
+    envVar: "VIDEO_GAMES_CALENDAR_ID",
+    notionField: "Video Games",
+    displayName: "Video Games",
+  },
+  {
+    envVar: "SOBER_DAYS_CALENDAR_ID",
+    notionField: "Sober Days",
+    displayName: "Sober Days",
+  },
+  {
+    envVar: "DRINKING_DAYS_CALENDAR_ID",
+    notionField: "Drinking Days",
+    displayName: "Drinking Days",
+  },
+  {
+    envVar: "BODY_WEIGHT_CALENDAR_ID",
+    notionField: "Body Weight",
+    displayName: "Body Weight",
+  },
+];
+
+console.log("🎯 Habit Calendar Summary Generator");
+
+// Script configuration
+let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
+
+// Google Calendar authentication
+function getGoogleAuth() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.PERSONAL_GOOGLE_CLIENT_ID,
+    process.env.PERSONAL_GOOGLE_CLIENT_SECRET,
+    "urn:ietf:wg:oauth:2.0:oob"
+  );
+  oauth2Client.setCredentials({
+    refresh_token: process.env.PERSONAL_GOOGLE_REFRESH_TOKEN,
+  });
+  return oauth2Client;
+}
+
+// Pre-flight checks
+async function performPreflightChecks() {
+  console.log("\n🔍 Checking configuration...");
+
+  // Check for missing calendar IDs
+  const missingIds = [];
+  HABIT_CALENDARS.forEach((calendar) => {
+    if (!process.env[calendar.envVar]) {
+      missingIds.push(calendar.envVar);
+    }
+  });
+
+  if (missingIds.length > 0) {
+    console.error("❌ Missing calendar IDs:");
+    missingIds.forEach((id) => console.error(`   - ${id}`));
+    console.error("Please check your .env file");
+    process.exit(1);
+  }
+
+  console.log("✅ All 8 calendar IDs found");
+
+  // Test Google Calendar API connection
+  try {
+    const auth = getGoogleAuth();
+    const calendar = google.calendar({ version: "v3", auth });
+
+    // Test with a simple calendar list request
+    await calendar.calendarList.list({ maxResults: 1 });
+    console.log("✅ Google Calendar API connection successful\n");
+  } catch (error) {
+    console.error(
+      "❌ Failed to connect to Google Calendar API:",
+      error.message
+    );
+    console.error("Please check your Google authentication credentials");
+    process.exit(1);
+  }
+}
+
+// Fetch calendar events
+async function fetchCalendarEvents(calendarId, startDate, endDate) {
+  const auth = getGoogleAuth();
+  const calendar = google.calendar({ version: "v3", auth });
+
+  const response = await calendar.events.list({
+    calendarId: calendarId,
+    timeMin: `${startDate}T00:00:00Z`,
+    timeMax: `${endDate}T23:59:59Z`,
+    singleEvents: true,
+    orderBy: "startTime",
+  });
+
+  return response.data.items || [];
+}
+
+// Update Notion with number fields
+async function updateHabitNumbers(notion, pageId, summaryUpdates) {
+  const properties = {};
+
+  // Convert numbers to Notion property format
+  for (const [fieldName, count] of Object.entries(summaryUpdates)) {
+    properties[fieldName] = {
+      number: count,
+    };
+  }
+
+  await notion.pages.update({
+    page_id: pageId,
+    properties: properties,
+  });
+}
+
+// Process a single week
+async function processWeek(weekNumber, isMultiWeek) {
+  try {
+    const paddedWeek = weekNumber.toString().padStart(2, "0");
+    console.log(`🗓️  === PROCESSING WEEK ${weekNumber} ===`);
+
+    // 1. Find the week recap page
+    const targetWeekPage = await findWeekRecapPage(
+      notion,
+      RECAP_DATABASE_ID,
+      weekNumber
+    );
+
+    if (!targetWeekPage) {
+      throw new Error(`Could not find Week ${weekNumber} Recap`);
+    }
+
+    console.log(`✅ Found Week ${paddedWeek} Recap!`);
+
+    // 2. Get the week relation
+    const weekRelation = targetWeekPage.properties["⌛ Weeks"].relation;
+    if (!weekRelation || weekRelation.length === 0) {
+      throw new Error(`Week ${weekNumber} has no week relation`);
+    }
+
+    const weekPageId = weekRelation[0].id;
+
+    // 3. Get the week details for date range
+    const weekPage = await notion.pages.retrieve({ page_id: weekPageId });
+    const dateRange = weekPage.properties["Date Range (SET)"].date;
+
+    if (!dateRange) {
+      throw new Error(`Week ${weekNumber} has no date range`);
+    }
+
+    const startDate = dateRange.start;
+    const endDate = dateRange.end;
+    console.log(`📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}`);
+
+    // 4. Fetch data from all habit calendars
+    console.log(`\n📥 Fetching habit data from 8 calendars...`);
+    const summaryUpdates = {};
+
+    for (let i = 0; i < HABIT_CALENDARS.length; i++) {
+      const calendar = HABIT_CALENDARS[i];
+      const calendarId = process.env[calendar.envVar];
+
+      try {
+        // Add delay if processing multiple weeks (after first calendar)
+        if (isMultiWeek && i > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        const events = await fetchCalendarEvents(
+          calendarId,
+          startDate,
+          endDate
+        );
+        const eventCount = events.length;
+
+        console.log(`   ${calendar.displayName}: ${eventCount} events`);
+        summaryUpdates[calendar.notionField] = eventCount;
+      } catch (error) {
+        console.error(
+          `\n❌ Failed to fetch ${calendar.displayName} calendar: ${error.message}`
+        );
+        console.error("Process aborted to ensure data integrity");
+        process.exit(1);
+      }
+    }
+
+    // 5. Update Notion
+    console.log(`\n📝 Updating Notion...`);
+    await updateHabitNumbers(notion, targetWeekPage.id, summaryUpdates);
+    console.log(`✅ Successfully updated Week ${paddedWeek} recap!`);
+  } catch (error) {
+    console.error(`\n❌ Error processing Week ${weekNumber}: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+// Process all selected weeks
+async function processAllWeeks() {
+  const isMultiWeek = TARGET_WEEKS.length > 1;
+
+  console.log(
+    `\n🚀 Starting habit tracking summary for weeks: ${TARGET_WEEKS.join(", ")}`
+  );
+  console.log(`📊 Processing ${TARGET_WEEKS.length} week(s)...\n`);
+
+  for (const weekNumber of TARGET_WEEKS) {
+    await processWeek(weekNumber, isMultiWeek);
+
+    // Add a newline between weeks for better readability
+    if (TARGET_WEEKS.indexOf(weekNumber) < TARGET_WEEKS.length - 1) {
+      console.log("");
+    }
+  }
+
+  console.log(
+    `\n🎉 Successfully completed all ${TARGET_WEEKS.length} week(s)!`
+  );
+}
+
+// Main execution
+async function main() {
+  // Perform pre-flight checks first
+  await performPreflightChecks();
+
+  const args = process.argv.slice(2);
+
+  // Check if running in interactive mode
+  const result = await checkInteractiveMode(
+    args,
+    [], // No categories for this script
+    DEFAULT_TARGET_WEEKS,
+    [] // No active categories
+  );
+
+  if (result.isInteractive) {
+    console.log(`📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
+
+    const weeksInput = await askQuestion(
+      "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
+    );
+
+    if (weeksInput.trim()) {
+      TARGET_WEEKS = weeksInput
+        .split(",")
+        .map((w) => parseInt(w.trim()))
+        .filter((w) => !isNaN(w));
+    }
+
+    // Show confirmation
+    console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+
+    const confirm = await askQuestion("Continue? (y/n): ");
+
+    if (confirm.toLowerCase() !== "y") {
+      console.log("❌ Cancelled by user");
+      process.exit(0);
+    }
+  } else {
+    TARGET_WEEKS = result.targetWeeks;
+  }
+
+  await processAllWeeks();
+}
+
+// Run the script
+main()
+  .then(() => {
+    rl.close();
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("❌ Unexpected error:", error.message);
+    rl.close();
+    process.exit(1);
+  });
