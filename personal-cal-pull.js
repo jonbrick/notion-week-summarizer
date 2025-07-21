@@ -787,12 +787,12 @@ async function main() {
 
     // Ask what to include first
     console.log("? What to process?");
-    console.log("  1 - Personal Calendar");
-    console.log("  2 - Personal PRs");
-    console.log("  3 - Both");
+    console.log("  1 - Both (Personal Calendar + PRs)");
+    console.log("  2 - Personal Calendar Only");
+    console.log("  3 - Personal PRs Only");
 
     const includeInput = await askQuestion(
-      "\n? Enter choice (or press enter for personal calendar): "
+      "\n? Enter choice (or press enter for both): "
     );
 
     // Reset flags
@@ -801,10 +801,10 @@ async function main() {
 
     if (includeInput.trim() === "1" || includeInput.trim() === "") {
       includePersonalCal = true;
-    } else if (includeInput.trim() === "2") {
       includePRs = true;
-    } else if (includeInput.trim() === "3") {
+    } else if (includeInput.trim() === "2") {
       includePersonalCal = true;
+    } else if (includeInput.trim() === "3") {
       includePRs = true;
     }
 
