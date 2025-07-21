@@ -493,7 +493,49 @@ async function buildPhysicalHealthSummary(
     }
   }
 
-  // 3. SLEEP TRACKING section
+  // 3. BODY WEIGHT section
+  if (process.env.BODY_WEIGHT_CALENDAR_ID) {
+    console.log("   📥 Fetching body weight data...");
+    const weightEvents = await fetchCalendarEvents(
+      process.env.BODY_WEIGHT_CALENDAR_ID,
+      startDate,
+      endDate
+    );
+
+    output += "\n\n";
+
+    if (weightEvents.length > 0) {
+      const weights = [];
+
+      // Parse weights from event titles
+      weightEvents.forEach((event) => {
+        const title = event.summary || "";
+        // Parse weight from event title using regex: "Weight: 202 lbs"
+        const weightMatch = title.match(/Weight:\s*(\d+(?:\.\d+)?)\s*lbs?/i);
+
+        if (weightMatch) {
+          const weight = parseFloat(weightMatch[1]);
+          if (!isNaN(weight)) {
+            weights.push(weight);
+          }
+        }
+      });
+
+      if (weights.length > 0) {
+        const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+        const averageWeight =
+          Math.round((totalWeight / weights.length) * 10) / 10; // Round to 1 decimal
+
+        output += `AVERAGE BODY WEIGHT: ${averageWeight} lbs (${weights.length} measurements)`;
+      } else {
+        output += "AVERAGE BODY WEIGHT:\nNo valid weight measurements found.";
+      }
+    } else {
+      output += "AVERAGE BODY WEIGHT:\nNo weight data this week.";
+    }
+  }
+
+  // 4. SLEEP TRACKING section
   output += "\n\nSLEEP TRACKING:";
 
   let sleepDataFound = false;
