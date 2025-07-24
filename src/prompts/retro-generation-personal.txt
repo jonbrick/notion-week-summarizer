@@ -1,41 +1,61 @@
 {{CONTEXT}}
 
-EXTRACT DATA FROM WEEK DATA BELOW:
-- Personal Rocks Summary: Look for rock names and status (✅👾🚧🥊)
-- Habit data: Early Wakeup, Workout, Sober Days numbers
-- Personal Cal: Social hours and activities
-- Personal Task Summary: Count completed tasks by category
+You are analyzing a personal week retrospective. Your job is to READ THE ACTUAL DATA and generate a 4-section retrospective based on what really happened.
 
-WRITE EXACTLY LIKE THIS:
+## YOUR TASK:
+Extract real data from the week summary below and generate exactly 4 sections in this format:
 
 ## General?
-COPY THIS EXACT BULLET FORMAT:
-• 27.5 hours social time, 7.3 hours personal projects
-• 23 tasks completed across all categories
-• 1 personal event attended
+• [Neutral facts: total hours, tasks completed, events attended]
 
 ## What went well?
-COPY THIS EXACT BULLET FORMAT:
-• Health habits - exercise 3x, early wakeup 5x, sober 4x
-• Achieved rock - No Home Stuff this week (✅)
-• Ravens playoff game with friends - 27 hours social time
-• Personal projects - worked on portfolio updates
+• [Analyze actual accomplishments and positive patterns]
 
 ## What didn't go so well?
-COPY THIS EXACT BULLET FORMAT:
-• Missed habits - exercise 1x, early wakeup 2x
-• Failed rock - Retro & Plan (🥊)
-• Health foundation slipped - only 1 workout this week
+• [Analyze actual problems and missed targets]
 
 ## Overview?
-COPY THIS EXACT FORMAT - ONE SENTENCE ONLY:
-"Good week - health foundation solid despite busy social schedule"
-OR
-"Rough week - missed exercise and drinking targets"
-OR
-"Mixed week - achieved rocks but health habits slipped"
+"[One sentence assessment: Good week/Rough week/Mixed week - brief reason]"
 
-NO FLOWERY LANGUAGE. NO ANALYSIS. JUST FACTS AND BULLETS.
+---
+
+## INSTRUCTIONS FOR EACH SECTION:
+
+### General?
+READ THE DATA and extract all relevant neutral facts:
+• Total calendar hours from different categories
+• Total tasks completed across all categories  
+• Number of events attended
+• Other concrete metrics (PRs, commits, etc.)
+
+### What went well?
+READ THE DATA and use the CONTEXT to evaluate what was positive:
+• **Accomplished rocks FIRST**: Look at Personal Rocks Summary for ✅ or 👾 status. Reference actual rock names and what was achieved
+• **Health habits SECOND**: Extract actual numbers from habit data and use CONTEXT to determine if targets were met
+• **Major accomplishments**: Summarize substantial task completions (if many home tasks, summarize what was built/organized; if many interpersonal tasks, summarize social activities)
+• **Events attended**: Reference events from Personal Events Summary as positive experiences
+• **Time well spent**: If significant calendar time in meaningful activities, mention it
+
+### What didn't go so well?
+READ THE DATA and use the CONTEXT to evaluate what was negative:
+• **Failed rocks FIRST**: Look for 🥊 or 🚧 status in Personal Rocks Summary
+• **Missed health targets SECOND**: Use CONTEXT to determine if health targets were missed
+• **Low accomplishment areas**: Categories with very few or no completed tasks
+
+### Overview?
+READ THE DATA and use the CONTEXT to give ONE SENTENCE assessment AFTER analyzing everything above:
+• Use the CONTEXT definitions for what makes a good vs bad personal week
+• Use EVENTS to explain patterns (e.g., "Good week - productive despite 52-hour Phish celebration")
+
+---
+
+## KEY RULES:
+• **USE REAL NUMBERS** - Extract actual counts from the data, don't guess
+• **SUMMARIZE ACCOMPLISHMENTS** - If someone completed 14 home tasks, say what they built/organized
+• **USE EVENTS AS CONTEXT** - Large events explain unusual patterns
+• **NO FAKE EXAMPLES** - Only reference what actually happened
+• **BE SPECIFIC** - Use actual rock names, actual task summaries, actual numbers
+• **ANALYZE EVERYTHING FIRST** - Look at every data point and categorize as: neutral fact (General), positive (What went well), or negative (What didn't go well), then make final assessment (Overview)
 
 WEEK DATA:
 {{WEEK_DATA}}
