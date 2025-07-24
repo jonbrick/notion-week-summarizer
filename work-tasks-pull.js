@@ -57,6 +57,156 @@ function formatTaskDate(dateString) {
   return `${dayName} ${monthName} ${dateDay}, ${dateYear}`;
 }
 
+// Fetch rocks for the week
+async function fetchWeekRocks(startDate, endDate, weekPageId) {
+  try {
+    const rocksResponse = await notion.databases.query({
+      database_id: process.env.ROCKS_DATABASE_ID, // You'll need to add this to .env
+      filter: {
+        and: [
+          {
+            property: "⌛ Weeks",
+            relation: {
+              contains: weekPageId, // We'll need to pass this in
+            },
+          },
+          {
+            or: [
+              {
+                property: "Type",
+                select: {
+                  equals: "💼 Work",
+                },
+              },
+              {
+                property: "Work Category",
+                select: {
+                  is_not_empty: true,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    return rocksResponse.results;
+  } catch (error) {
+    console.error("Error fetching rocks:", error);
+    return [];
+  }
+}
+
+// Fetch events for the week
+async function fetchWeekEvents(startDate, endDate) {
+  try {
+    const eventsResponse = await notion.databases.query({
+      database_id: process.env.EVENTS_DATABASE_ID, // You'll need to add this to .env
+      filter: {
+        and: [
+          {
+            property: "Date",
+            date: {
+              on_or_after: startDate,
+            },
+          },
+          {
+            property: "Date",
+            date: {
+              on_or_before: endDate,
+            },
+          },
+          {
+            property: "Event Type",
+            select: {
+              equals: "💼 Work",
+            },
+          },
+        ],
+      },
+    });
+
+    return eventsResponse.results;
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    return [];
+  }
+}
+
+// Format rocks for Notion
+function formatRocksForNotion(rocks) {
+  if (rocks.length === 0) {
+    return "No work rocks this week.";
+  }
+
+  let output = `Work Rocks (${rocks.length}):\n`;
+  output += "------\n";
+
+  rocks.forEach((rock) => {
+    const rockTitle =
+      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
+      "Untitled Rock";
+    const status = rock.properties.Status?.status?.name || "No Status";
+    const description =
+      rock.properties.Description?.rich_text
+        ?.map((t) => t.plain_text)
+        .join("") || "";
+    const workCategory = rock.properties["Work Category"]?.select?.name || "";
+
+    output += `${status} ${rockTitle}`;
+    if (workCategory) {
+      output += ` (${workCategory})`;
+    }
+    output += "\n";
+
+    if (description) {
+      output += `  Description: ${description}\n`;
+    }
+    output += "\n";
+  });
+
+  return output.trim();
+}
+
+// Format events for Notion
+function formatEventsForNotion(events) {
+  if (events.length === 0) {
+    return "No work events this week.";
+  }
+
+  let output = `Work Events (${events.length}):\n`;
+  output += "------\n";
+
+  events.forEach((event) => {
+    const eventName =
+      event.properties["Event Name"]?.title
+        ?.map((t) => t.plain_text)
+        .join("") || "Untitled Event";
+    const eventStatus = event.properties["Status"]?.status?.name || "No Status";
+    const eventType = event.properties["Event Type"]?.select?.name || "";
+    const notes =
+      event.properties.Notes?.rich_text?.map((t) => t.plain_text).join("") ||
+      "";
+    const startDate = event.properties["date:Date:start"]?.date?.start || "";
+
+    output += `${eventStatus} ${eventName}`;
+    if (eventType) {
+      output += ` (${eventType})`;
+    }
+    if (startDate) {
+      output += ` - ${formatTaskDate(startDate)}`;
+    }
+    output += "\n";
+
+    if (notes) {
+      output += `  Notes: ${notes}\n`;
+    }
+    output += "\n";
+  });
+
+  return output.trim();
+}
+
 // Process a single week
 async function processWeek(weekNumber) {
   try {
@@ -227,13 +377,26 @@ async function processWeek(weekNumber) {
       `\n📝 Generated summary with ${tasksResponse.results.length} tasks`
     );
 
-    // 6. Update Notion
+    // 6. Fetch rocks and events
+    console.log(`\n🪨 Fetching work rocks...`);
+    const rocks = await fetchWeekRocks(startDate, endDate, weekPageId);
+    const rocksFormated = formatRocksForNotion(rocks);
+
+    console.log(`\n🎟️ Fetching work events...`);
+    const events = await fetchWeekEvents(startDate, endDate);
+    const eventsFormatted = formatEventsForNotion(events);
+
+    // 7. Update Notion
     const summaryUpdates = {
       "Work Task Summary": summary,
+      "Work Rocks Summary": rocksFormated,
+      "Work Events Summary": eventsFormatted,
     };
 
     await updateAllSummaries(notion, targetWeekPage.id, summaryUpdates);
-    console.log(`✅ Successfully updated Week ${paddedWeek} recap!`);
+    console.log(
+      `✅ Successfully updated Week ${paddedWeek} recap with tasks, rocks, and events!`
+    );
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error);
   }

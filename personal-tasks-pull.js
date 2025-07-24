@@ -57,6 +57,146 @@ function formatTaskDate(dateString) {
   return `${dayName} ${monthName} ${dateDay}, ${dateYear}`;
 }
 
+// Fetch rocks for the week
+async function fetchWeekRocks(startDate, endDate, weekPageId) {
+  try {
+    const rocksResponse = await notion.databases.query({
+      database_id: process.env.ROCKS_DATABASE_ID,
+      filter: {
+        and: [
+          {
+            property: "⌛ Weeks",
+            relation: {
+              contains: weekPageId,
+            },
+          },
+          {
+            property: "Type",
+            select: {
+              does_not_equal: "💼 Work",
+            },
+          },
+        ],
+      },
+    });
+
+    return rocksResponse.results;
+  } catch (error) {
+    console.error("Error fetching rocks:", error);
+    return [];
+  }
+}
+
+// Fetch events for the week
+async function fetchWeekEvents(startDate, endDate) {
+  try {
+    const eventsResponse = await notion.databases.query({
+      database_id: process.env.EVENTS_DATABASE_ID,
+      filter: {
+        and: [
+          {
+            property: "Date",
+            date: {
+              on_or_after: startDate,
+            },
+          },
+          {
+            property: "Date",
+            date: {
+              on_or_before: endDate,
+            },
+          },
+          {
+            property: "Event Type",
+            select: {
+              does_not_equal: "💼 Work",
+            },
+          },
+        ],
+      },
+    });
+
+    return eventsResponse.results;
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    return [];
+  }
+}
+
+// Format rocks for Notion (same as work version but "Personal Rocks")
+function formatRocksForNotion(rocks) {
+  if (rocks.length === 0) {
+    return "No personal rocks this week.";
+  }
+
+  let output = `Personal Rocks (${rocks.length}):\n`;
+  output += "------\n";
+
+  rocks.forEach((rock) => {
+    const rockTitle =
+      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
+      "Untitled Rock";
+    const status = rock.properties.Status?.status?.name || "No Status";
+    const description =
+      rock.properties.Description?.rich_text
+        ?.map((t) => t.plain_text)
+        .join("") || "";
+    const type = rock.properties.Type?.select?.name || "";
+
+    output += `${status} ${rockTitle}`;
+    if (type) {
+      output += ` (${type})`;
+    }
+    output += "\n";
+
+    if (description) {
+      output += `  Description: ${description}\n`;
+    }
+    output += "\n";
+  });
+
+  return output.trim();
+}
+
+// Format events for Notion (same as work version but "Personal Events")
+function formatEventsForNotion(events) {
+  if (events.length === 0) {
+    return "No personal events this week.";
+  }
+
+  let output = `Personal Events (${events.length}):\n`;
+  output += "------\n";
+
+  events.forEach((event) => {
+    const eventName =
+      event.properties["Event Name"]?.title
+        ?.map((t) => t.plain_text)
+        .join("") || "Untitled Event";
+    const eventStatus = event.properties["Status"]?.status?.name || "No Status";
+    const eventType = event.properties["Event Type"]?.select?.name || "";
+    const notes =
+      event.properties.Notes?.rich_text?.map((t) => t.plain_text).join("") ||
+      "";
+    const startDate = event.properties["date:Date:start"]?.date?.start || "";
+
+    output += `${eventStatus} ${eventName}`;
+    if (eventType) {
+      output += ` (${eventType})`;
+    }
+    if (startDate) {
+      output += ` - ${formatTaskDate(startDate)}`;
+    }
+    output += "\n";
+
+    if (notes) {
+      output += `  Notes: ${notes}\n`;
+    }
+    output += "\n";
+  });
+
+  return output.trim();
+}
+
 // Process a single week
 async function processWeek(weekNumber) {
   try {
@@ -217,13 +357,26 @@ async function processWeek(weekNumber) {
       `\n📝 Generated summary with ${tasksResponse.results.length} tasks`
     );
 
-    // 6. Update Notion
+    // 6. Fetch rocks and events
+    console.log(`\n🪨 Fetching personal rocks...`);
+    const rocks = await fetchWeekRocks(startDate, endDate, weekPageId);
+    const rocksFormatted = formatRocksForNotion(rocks);
+
+    console.log(`\n🎟️ Fetching personal events...`);
+    const events = await fetchWeekEvents(startDate, endDate);
+    const eventsFormatted = formatEventsForNotion(events);
+
+    // 7. Update Notion
     const summaryUpdates = {
       "Personal Task Summary": summary,
+      "Personal Rocks Summary": rocksFormatted,
+      "Personal Events Summary": eventsFormatted,
     };
 
     await updateAllSummaries(notion, targetWeekPage.id, summaryUpdates);
-    console.log(`✅ Successfully updated Week ${paddedWeek} recap!`);
+    console.log(
+      `✅ Successfully updated Week ${paddedWeek} recap with tasks, rocks, and events!`
+    );
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error);
   }

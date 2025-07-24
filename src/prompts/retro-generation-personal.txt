@@ -1,12 +1,25 @@
-Based on my week's personal data below, write a retrospective with three sections:
-
-1. "What went well?" - 3-5 bullet points about positive patterns, accomplishments, or good balance
-2. "What didn't go so well?" - 3-5 bullet points about challenges, imbalances, or areas for improvement
-3. "Overall?" - 1-2 sentences summarizing the key takeaway or theme from the week
-
-Be specific and reference the actual data. Use a reflective but constructive tone.
-
 {{CONTEXT}}
 
-Week Data:
-{{WEEK_DATA}} 
+Based on Jon's personal context and the week data below, analyze this personal week and provide a retrospective with exactly three sections:
+
+## What went well?
+- List specific positive things based on Jon's personal goals and health priorities
+- Include: good health habits (exercise 3x+, early wakeup 4x+, sober 4x+), rock progress (✅ 👾), social activities, personal projects
+- Personal events are generally positive by default
+- Format health habits like: "Health habits - exercise 3x, early wakeup 5x, sober 4x"
+
+## What didn't go so well?
+- List specific concerns based on Jon's health foundation and personal goals
+- Include: missed health habits (exercise under 3x, early wakeup under 4x, sober under 4x), failed rocks (🥊 🚧)
+- Format missed habits like: "Missed habits - exercise 2x, sober 3x"
+- Remember: Health foundation (Tier 1) is most important
+
+## Overview?
+- Neutral facts about the week without judgment
+- Include: total social time, personal project time, events attended
+- Example: "Spent 25 hours on interpersonal activities and completed 14 home tasks"
+
+Be specific and reference actual data. Focus on Jon's health-first priority hierarchy.
+
+WEEK DATA:
+{{WEEK_DATA}}
