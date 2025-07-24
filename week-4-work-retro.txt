@@ -1,0 +1,14 @@
+Retrospective for Week 04 Recap
+
+What Went Well?
+- Excellent progress on the Engineering Intelligence (Eng Intel) design work, completing wireframes, iterations, and revisions in a timely manner.
+- Delivered high-quality component updates with the Last Month dropdown PR and the SVGs on import entities button PR.
+- Maintained a good balance between design and engineering tasks, allocating 74% of time to design and 8% to coding.
+
+What Didn't Go So Well?
+- The meeting load was a bit higher than desired, taking up 15% of the week's time.
+- There were no research tasks completed, which could be an area for improvement in future weeks.
+- No time was spent on QA or rituals, which are important aspects of the role.
+
+Overall?
+It was a productive week overall, with significant progress made on the Eng Intel design work and several successful component updates. However, there are opportunities to optimize the meeting load and incorporate more research, QA, and ritual activities into the weekly routine. Maintaining a healthy balance between design and engineering tasks will be crucial going forward.

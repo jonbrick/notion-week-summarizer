@@ -1,0 +1,96 @@
+Week Recap: Week 05 Recap
+Date: 
+
+What I did (18 tasks completed):
+======
+------
+Research Tasks (0):
+------
+Design Tasks (0):
+------
+Coding Tasks (15):
+- Badge Wrapping Issue PR (Mon Jan 27, 2025)
+- Global Search magic numbers PR (Tue Jan 28, 2025)
+- Icon color on Birds eye PR (Tue Jan 28, 2025)
+- Caption-sm PR (Tue Jan 28, 2025)
+- CQL builder background PR (Tue Jan 28, 2025)
+- Datepicker Placeholder & Icon PR (Wed Jan 29, 2025)
+- InputwithAddon gap PR (Wed Jan 29, 2025)
+- Twilight theme on Ace-autocomplete PR (Wed Jan 29, 2025)
+- bg-accent PR (Thu Jan 30, 2025)
+- Violet to Brand PR (Thu Jan 30, 2025)
+- Progress bar PR (Thu Jan 30, 2025)
+- Toast cleanup PR (Fri Jan 31, 2025)
+- Settings page cleanup PR (Fri Jan 31, 2025)
+- Configure entities badge & avatar PR (Fri Jan 31, 2025)
+- Checkbox PR (Fri Jan 31, 2025)
+------
+PR Data (5 PRs, 72 commits):
+- CET-16432 [Redesign Polish] Badge wrapping issue (#7519) [7 commits] (• chore(badge, • fix): update the clipping of badges, • Make all badges shrink, • 0 by default, • Add transparent border to unselected spans so no optical jumping, • ... (additional commits truncated))
+- Remove custom tailwind values from Global Search sizing (#7552), CET-16625 [Redesign Polish] Fix icon colors on Birds eye (#7551), CET-16620 [Redesign Polish] Background of Ace Autocomplete (#7549), Add caption-sm to global.css (#7540) [10 commits] (• Remove square brackets from global search, • Fix shrink issue on button, • CET, • 16625 [Redesign Polish] Fix icon colors on Birds eye (#7551), • Update AceAutocomplete sass file to use transparent bg, • ... (additional commits truncated))
+- CET-16034 [Redesign Polish] InputWithAddon & MultiSelectTypeahead gaps (#7572), CET-16663 [Redesign Polish] Apply twilight theme to ace-autocomplete-input (#7579), CET-16630 [Redesign Polish] Edit Scorecard datepicker cleanup (#7569) [14 commits] (• Add gap to inputwithaddonvariants, • Make gap 1.5 for aesthetics, • Add gap 1.5 to TypeaheadMultiFilter... the big typeahead on cards, • Remove mr, • 2 from all InputWithAddons I could find, • ... (additional commits truncated))
+- CET-16651 [Redesign Polish] Remove bg-accent (#7615), CET-16658 [Redesign Polish] Replace violet-300 with bg-500/50 on Catalog icons (#7598), CET-16641 [Redesign Polish] Progress and Distribution bar cleanup (#7596) [28 commits] (• Update buton, • Tweaking brand color, • More tailwind change, • More updates to button, • One more tailwind update, • ... (additional commits truncated))
+Feedback Tasks (1):
+- Demo - Eng Intel (Mon Jan 27, 2025)
+------
+QA Tasks (0):
+======
+Admin Tasks (2):
+- Recap Week 04 (Tue Jan 28, 2025)
+- Plan Week 05 (Tue Jan 28, 2025)
+------
+Social Tasks (0):
+------
+OOO Tasks (0):
+
+Where I spent my time (37.25 hours, 37 events):
+======
+General/Meetings (8 events, 2.25 hours, 6%):
+- Quick sync with Dan (30 minutes)
+- Stormy / Jon :: Badges overflow issue (30 minutes)
+- Jon <> Zac (30 minutes)
+- GET TO BANK (30 minutes)
+- Caption-sm PR (15 minutes)
+- Zac out (unknown)
+- Present Eng Intel at Eng Meeting (unknown)
+- Present Eng Intel at Retro (unknown)
+------
+Coding (24 events, 27.5 hours, 74%):
+- bg-accent PR (4.5 hours)
+- CQL builder background PR (2x) (4 hours)
+- Pair with Zac (2x) (2.75 hours)
+- Progress & Distribution bar PR (2.5 hours)
+- Badges overflow PR (2 hours)
+- Datepicker Placeholder & Icon PR (1.5 hours)
+- Merges (3x) (1.25 hours)
+- InputwithAddon gap PR (1.25 hours)
+- Checkbox PR (1 hour)
+- Configure entities badge & avatar PR (1 hour)
+- Violet to Brand PR (45 minutes)
+- Settings page cleanup PR (45 minutes)
+- Toast cleanup PR (45 minutes)
+- Icon Box PR (30 minutes)
+- Merge Badges PR (30 minutes)
+- Icon color on Birds eye PR (30 minutes)
+- Global Search magic numbers PR (30 minutes)
+- Twilight theme on Ace-autocomplete PR (30 minutes)
+- Merges! (30 minutes)
+- Fix merge conflicts (30 minutes)
+------
+Design (2 events, 5 hours, 13%):
+- Clean Eng Intel (3.5 hours)
+- Eng intel demo cleanup & practice (1.5 hours)
+------
+Review/Feedback (2 events, 1.5 hours, 4%):
+- Today's tickets review (1 hour)
+- Design Sync (30 minutes)
+------
+QA (1 event, 1 hour, 3%):
+- QA & Auditing (1 hour)
+------
+Rituals (0 events, 0 hours, 0%):
+No rituals events this week.
+------
+Research (0 events, 0 hours, 0%):
+No research events this week.
+------

@@ -1,0 +1,14 @@
+Retrospective for Week 05
+
+What went well?
+- Completed a high volume of coding tasks (15 tasks) across various components and features, demonstrating strong engineering productivity.
+- Collaborated effectively with the design team, spending 5 hours on design-related activities like cleaning up the Engineering Intel presentation and practicing the demo.
+- Maintained a good work-life balance, with no reported overtime or weekend work.
+
+What didn't go so well?
+- There were no research tasks completed this week, which could indicate a lack of time spent on exploration, ideation, or investigating new solutions.
+- The meeting load was still relatively high, with 8 events (2.25 hours) dedicated to general/meeting activities, which may impact focus and deep work.
+- There were no social or out-of-office (OOO) tasks reported, which could suggest a need to prioritize networking, learning, or personal development.
+
+Overall?
+This week was focused primarily on engineering output, with a strong delivery of coding tasks and good collaboration with the design team. However, there are opportunities to improve the balance by dedicating more time to research, reducing meeting overhead, and incorporating social and personal development activities. Maintaining a healthy work-life balance will be crucial going forward.

@@ -1,0 +1,14 @@
+Retrospective for Week 03
+
+What went well?
+- Maintained a good balance between design and engineering tasks, with 2 design tasks and 4 coding tasks completed.
+- Shipped several quality components, including the ProgressIcon, Badge 2, and Entity Icon Radius updates.
+- Collaborated effectively with the design and engineering teams, as evidenced by the successful Jam Session on Eng Intel.
+
+What didn't go so well?
+- The meeting load was still high, taking up 44% of the total time (15.25 hours out of 34.75 hours).
+- There were no review/feedback or QA tasks completed this week, which could impact the quality and timely delivery of the components.
+- The documentation on Figma-to-Code labeling could have been prioritized earlier in the week.
+
+Overall?
+This week saw a productive mix of design and engineering tasks, with several high-quality components shipped. However, the meeting load remains a challenge, and the lack of review/feedback and QA tasks could be a concern. The key focus for the next week should be to find ways to reduce the meeting burden and ensure a more balanced approach to the different aspects of the work.
