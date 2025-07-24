@@ -92,6 +92,10 @@ async function fetchWeekData(weekNumber, retroType) {
       page.properties["Work Task Summary"]?.rich_text?.[0]?.plain_text || "";
     weekData.workPRSummary =
       page.properties["Work PR Summary"]?.rich_text?.[0]?.plain_text || "";
+    weekData.workRocksSummary =
+      page.properties["Work Rocks Summary"]?.rich_text?.[0]?.plain_text || "";
+    weekData.workEventsSummary =
+      page.properties["Work Events Summary"]?.rich_text?.[0]?.plain_text || "";
     weekData.defaultWorkCal =
       page.properties["Default Work Cal"]?.rich_text?.[0]?.plain_text || "";
     weekData.codingTicketsCal =
@@ -114,6 +118,12 @@ async function fetchWeekData(weekNumber, retroType) {
       "";
     weekData.personalPRSummary =
       page.properties["Personal PR Summary"]?.rich_text?.[0]?.plain_text || "";
+    weekData.personalRocksSummary =
+      page.properties["Personal Rocks Summary"]?.rich_text?.[0]?.plain_text ||
+      "";
+    weekData.personalEventsSummary =
+      page.properties["Personal Events Summary"]?.rich_text?.[0]?.plain_text ||
+      "";
     weekData.personalCal =
       page.properties["Personal Cal"]?.rich_text?.[0]?.plain_text || "";
     weekData.interpersonalCal =
@@ -392,6 +402,23 @@ function buildCombinedDocument(weekData, stats, retroType) {
 
   doc += "\n";
 
+  // Rocks and Events section
+  if (retroType === "work") {
+    if (weekData.workRocksSummary) {
+      doc += `Work Rocks:\n${weekData.workRocksSummary}\n\n`;
+    }
+    if (weekData.workEventsSummary) {
+      doc += `Work Events:\n${weekData.workEventsSummary}\n\n`;
+    }
+  } else {
+    if (weekData.personalRocksSummary) {
+      doc += `Personal Rocks:\n${weekData.personalRocksSummary}\n\n`;
+    }
+    if (weekData.personalEventsSummary) {
+      doc += `Personal Events:\n${weekData.personalEventsSummary}\n\n`;
+    }
+  }
+
   // Where I spent my time section with totals in header
   doc += `Where I spent my time (${stats.totalHours} hours, ${stats.totalEvents} events):\n`;
   doc += `======\n`;
@@ -526,38 +553,26 @@ async function generateRetrospective(combinedDoc, retroType) {
   const retroText = message.content[0].text.trim();
   console.log("✅ Retrospective generated!");
 
-  // Parse the response to extract the three sections
-  const sections = retroText.split(
-    /what didn't go so well\?|what didn't go well\?/i
+  // Parse the response to extract the four sections
+  const wentWellMatch = retroText.match(
+    /what went well\?(.*?)(?=what didn't go so well\?|what didn't go well\?)/is
   );
+  const didntGoWellMatch = retroText.match(
+    /what didn't go (?:so )?well\?(.*?)(?=overall\?)/is
+  );
+  const overallMatch = retroText.match(/overall\?(.*?)(?=general\?)/is);
+  const generalMatch = retroText.match(/general\?(.*?)$/is);
 
-  if (sections.length < 2) {
-    throw new Error("AI response did not include both sections");
-  }
-
-  // Extract only bullet points from "What went well?" section
-  const wentWellSection = sections[0].replace(/what went well\?/i, "");
-  const bulletPoints = wentWellSection
-    .split("\n")
-    .filter(
-      (line) => line.trim().startsWith("-") || line.trim().startsWith("•")
-    )
-    .map((line) => line.trim())
-    .join("\n");
-
-  const wentWell = bulletPoints;
-
-  // Split the second part to get "didn't go well" and "overall"
-  const remainingSections = sections[1].split(/overall\?/i);
-
-  const didntGoWell = remainingSections[0].trim();
-  const overall =
-    remainingSections.length > 1 ? remainingSections[1].trim() : "";
+  const wentWell = wentWellMatch ? wentWellMatch[1].trim() : "";
+  const didntGoWell = didntGoWellMatch ? didntGoWellMatch[1].trim() : "";
+  const overall = overallMatch ? overallMatch[1].trim() : "";
+  const general = generalMatch ? generalMatch[1].trim() : "";
 
   return {
     wentWell,
     didntGoWell,
     overall,
+    general,
     fullResponse: retroText,
   };
 }
@@ -583,18 +598,21 @@ async function updateNotionRetro(pageId, retro, retroType) {
         },
       ],
     },
-  };
-
-  // Add overall section if it exists
-  if (retro.overall) {
-    properties[`${prefix} - Overall?`] = {
+    [`${prefix} - Overall?`]: {
       rich_text: [
         {
           text: { content: retro.overall },
         },
       ],
-    };
-  }
+    },
+    [`${prefix} - General?`]: {
+      rich_text: [
+        {
+          text: { content: retro.general },
+        },
+      ],
+    },
+  };
 
   await notion.pages.update({
     page_id: pageId,
@@ -646,6 +664,10 @@ async function generateRetro(retroType, weekNumber) {
     if (retro.overall) {
       console.log("\nOverall:");
       console.log(retro.overall.substring(0, 200) + "...");
+    }
+    if (retro.general) {
+      console.log("\nGeneral:");
+      console.log(retro.general.substring(0, 200) + "...");
     }
 
     // Update Notion

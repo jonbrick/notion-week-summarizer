@@ -1,0 +1,17 @@
+## What went well?
+
+This week, Jon made excellent progress on his stated work rock intention of "Back to work" and "front loading" the work for January. He achieved this rock, which is a great sign that he is staying focused on his priorities. 
+
+Additionally, Jon shipped 3 solid PRs this week, including the "Input Cleanup", "Datepicker, Typeahead, Select Height cleanup", and "Avatar & CortexLogo Nav" PRs. This represents meaningful and impactful work being delivered.
+
+Jon also did a great job allocating his time, spending 77% of his 42.75 hours on actual coding and development work. This high ratio of "head down" coding time versus meetings and administrative tasks is very aligned with Jon's preferences for a productive work week.
+
+## What didn't go so well?
+
+There are no major concerns to call out in this work week. Jon did not have any failed rocks (🥊) or rocks with little progress (🚧), which is an excellent sign. Additionally, his meeting time was kept under 23% of his total hours, well within his 20% target.
+
+The only potential area for improvement is that Jon did not log any design or research tasks this week. While this may have been intentional, it's something to keep an eye on to ensure he is not neglecting those important aspects of his role.
+
+## Overview
+
+In summary, this was a very strong and productive work week for Jon. He achieved his primary work rock, shipped meaningful code, and maintained a healthy balance between coding time and meetings. At 42.75 total hours, Jon put in a solid week of focused work that aligns well with his goals as a Design Engineer.
