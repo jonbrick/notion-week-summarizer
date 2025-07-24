@@ -8,6 +8,13 @@ EXTRACT DATA FROM WEEK DATA BELOW:
 
 WRITE EXACTLY LIKE THIS:
 
+## General?
+COPY THIS EXACT BULLET FORMAT:
+• 42.75 total hours worked, 24 events attended
+• 7 tasks completed across all categories
+• 3 PRs shipped, 73 total commits
+• 1 work event attended
+
 ## What went well?
 COPY THIS EXACT BULLET FORMAT:
 • Achieved rock - [Rock Name] ([description from rock])
@@ -30,13 +37,6 @@ OR
 "Rough week - failed main rock despite high output"
 OR
 "Mixed week - strong coding time but missed deliverables"
-
-## General?
-COPY THIS EXACT BULLET FORMAT:
-• 42.75 total hours worked, 24 events attended
-• 7 tasks completed across all categories
-• 3 PRs shipped, 73 total commits
-• 1 work event attended
 
 NO FLOWERY LANGUAGE. NO ANALYSIS. JUST FACTS AND BULLETS.
 

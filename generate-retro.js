@@ -554,25 +554,25 @@ async function generateRetrospective(combinedDoc, retroType) {
   console.log("✅ Retrospective generated!");
 
   // Parse the response to extract the four sections
+  const generalMatch = retroText.match(/general\?(.*?)(?=what went well\?)/is);
   const wentWellMatch = retroText.match(
     /what went well\?(.*?)(?=what didn't go so well\?|what didn't go well\?)/is
   );
   const didntGoWellMatch = retroText.match(
-    /what didn't go (?:so )?well\?(.*?)(?=general\?)/is
+    /what didn't go (?:so )?well\?(.*?)(?=overview\?)/is
   );
-  const generalMatch = retroText.match(/general\?(.*?)(?=overall\?)/is);
-  const overallMatch = retroText.match(/overall\?(.*?)$/is);
+  const overviewMatch = retroText.match(/overview\?(.*?)$/is);
 
+  const general = generalMatch ? generalMatch[1].trim() : "";
   const wentWell = wentWellMatch ? wentWellMatch[1].trim() : "";
   const didntGoWell = didntGoWellMatch ? didntGoWellMatch[1].trim() : "";
-  const general = generalMatch ? generalMatch[1].trim() : "";
-  const overall = overallMatch ? overallMatch[1].trim() : "";
+  const overview = overviewMatch ? overviewMatch[1].trim() : "";
 
   return {
+    general,
     wentWell,
     didntGoWell,
-    general,
-    overall,
+    overview,
     fullResponse: retroText,
   };
 }
@@ -583,6 +583,13 @@ async function updateNotionRetro(pageId, retro, retroType) {
   const prefix = retroType === "personal" ? "Personal" : "Work";
 
   const properties = {
+    [`${prefix} - General?`]: {
+      rich_text: [
+        {
+          text: { content: retro.general },
+        },
+      ],
+    },
     [`${prefix} - What went well?`]: {
       rich_text: [
         {
@@ -597,17 +604,10 @@ async function updateNotionRetro(pageId, retro, retroType) {
         },
       ],
     },
-    [`${prefix} - General?`]: {
+    [`${prefix} - Overview?`]: {
       rich_text: [
         {
-          text: { content: retro.general },
-        },
-      ],
-    },
-    [`${prefix} - Overall?`]: {
-      rich_text: [
-        {
-          text: { content: retro.overall },
+          text: { content: retro.overview },
         },
       ],
     },
@@ -656,17 +656,17 @@ async function generateRetro(retroType, weekNumber) {
     // Show preview
     console.log("\n📄 Retrospective Preview:");
     console.log("================");
-    console.log("What went well:");
+    if (retro.general) {
+      console.log("General:");
+      console.log(retro.general.substring(0, 200) + "...");
+    }
+    console.log("\nWhat went well:");
     console.log(retro.wentWell.substring(0, 200) + "...");
     console.log("\nWhat didn't go well:");
     console.log(retro.didntGoWell.substring(0, 200) + "...");
-    if (retro.overall) {
-      console.log("\nOverall:");
-      console.log(retro.overall.substring(0, 200) + "...");
-    }
-    if (retro.general) {
-      console.log("\nGeneral:");
-      console.log(retro.general.substring(0, 200) + "...");
+    if (retro.overview) {
+      console.log("\nOverview:");
+      console.log(retro.overview.substring(0, 200) + "...");
     }
 
     // Update Notion

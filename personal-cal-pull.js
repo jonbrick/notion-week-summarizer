@@ -493,7 +493,72 @@ async function buildPhysicalHealthSummary(
     }
   }
 
-  // 3. BODY WEIGHT section
+  // 3. ALCOHOL section
+  output += "\n\n";
+
+  if (
+    process.env.SOBER_DAYS_CALENDAR_ID ||
+    process.env.DRINKING_DAYS_CALENDAR_ID
+  ) {
+    console.log("   📥 Fetching alcohol tracking data...");
+
+    let soberDays = 0;
+    let drinkingDays = 0;
+
+    // Fetch sober days
+    if (process.env.SOBER_DAYS_CALENDAR_ID) {
+      const allSoberEvents = await fetchCalendarEvents(
+        process.env.SOBER_DAYS_CALENDAR_ID,
+        startDate,
+        endDate
+      );
+
+      // Filter events to only include those in the target week
+      const soberEvents = allSoberEvents.filter((event) => {
+        const eventDate =
+          event.start?.date || event.start?.dateTime?.split("T")[0];
+        return eventDate && eventDate >= startDate && eventDate <= endDate;
+      });
+
+      const uniqueSoberDays = new Set();
+      soberEvents.forEach((event) => {
+        const eventDate =
+          event.start?.date || event.start?.dateTime?.split("T")[0];
+        if (eventDate) uniqueSoberDays.add(eventDate);
+      });
+      soberDays = uniqueSoberDays.size;
+    }
+
+    // Fetch drinking days
+    if (process.env.DRINKING_DAYS_CALENDAR_ID) {
+      const allDrinkingEvents = await fetchCalendarEvents(
+        process.env.DRINKING_DAYS_CALENDAR_ID,
+        startDate,
+        endDate
+      );
+
+      // Filter events to only include those in the target week
+      const drinkingEvents = allDrinkingEvents.filter((event) => {
+        const eventDate =
+          event.start?.date || event.start?.dateTime?.split("T")[0];
+        return eventDate && eventDate >= startDate && eventDate <= endDate;
+      });
+
+      const uniqueDrinkingDays = new Set();
+      drinkingEvents.forEach((event) => {
+        const eventDate =
+          event.start?.date || event.start?.dateTime?.split("T")[0];
+        if (eventDate) uniqueDrinkingDays.add(eventDate);
+      });
+      drinkingDays = uniqueDrinkingDays.size;
+    }
+
+    output += `ALCOHOL:\n• Days sober: ${soberDays}\n• Days drinking: ${drinkingDays}`;
+  } else {
+    output += "ALCOHOL:\n• Days sober: N/A\n• Days drinking: N/A";
+  }
+
+  // 4. BODY WEIGHT section
   if (process.env.BODY_WEIGHT_CALENDAR_ID) {
     console.log("   📥 Fetching body weight data...");
     const weightEvents = await fetchCalendarEvents(
@@ -535,7 +600,7 @@ async function buildPhysicalHealthSummary(
     }
   }
 
-  // 4. SLEEP TRACKING section
+  // 5. SLEEP TRACKING section
   output += "\n\nSLEEP TRACKING:";
 
   let sleepDataFound = false;

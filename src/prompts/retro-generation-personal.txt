@@ -1,16 +1,4 @@
-## Overview?
-COPY THIS EXACT FORMAT - ONE SENTENCE ONLY:
-"Good week - health foundation solid despite busy social schedule"
-OR
-"Rough week - missed exercise and drinking targets"
-OR
-"Mixed week - achieved rocks but health habits slipped"
-
-## General?
-COPY THIS EXACT BULLET FORMAT:
-• 27.5 hours social time, 7.3 hours personal projects
-• 23 tasks completed across all categories
-• 1 personal{{CONTEXT}}
+{{CONTEXT}}
 
 EXTRACT DATA FROM WEEK DATA BELOW:
 - Personal Rocks Summary: Look for rock names and status (✅👾🚧🥊)
@@ -19,6 +7,12 @@ EXTRACT DATA FROM WEEK DATA BELOW:
 - Personal Task Summary: Count completed tasks by category
 
 WRITE EXACTLY LIKE THIS:
+
+## General?
+COPY THIS EXACT BULLET FORMAT:
+• 27.5 hours social time, 7.3 hours personal projects
+• 23 tasks completed across all categories
+• 1 personal event attended
 
 ## What went well?
 COPY THIS EXACT BULLET FORMAT:
