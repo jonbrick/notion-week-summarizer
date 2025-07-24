@@ -1,0 +1,14 @@
+Retrospective for Week 02 Recap
+
+What went well?
+- Focused on shipping quality components, as evidenced by the 5 coding tasks completed and 3 successful PRs merged.
+- Maintained a good balance between design and engineering work, with a healthy mix of coding and administrative tasks.
+- Effectively collaborated with the design and engineering teams, as seen in the various sync meetings and pairing sessions.
+
+What didn't go so well?
+- The high number of coding tasks and PR work (32.75 hours, 77% of time) may have led to an imbalance, leaving little time for design, research, or feedback activities.
+- The large number of commits (73) and the complexity of some of the PRs, such as the Datepicker, Typeahead, and Select Height cleanup, suggest a potential need for better task planning or scope management.
+- The meeting load (10 hours, 23% of time) could be an area for improvement, as it may have impacted the time available for focused work.
+
+Overall?
+This week was primarily focused on shipping high-quality components and maintaining a good balance between design and engineering work. While the coding efforts were successful, the high time spent on coding and meetings may have led to an imbalance in the workload. Going forward, it might be beneficial to revisit the task planning and meeting load to ensure a more sustainable and balanced work routine.

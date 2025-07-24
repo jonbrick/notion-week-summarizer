@@ -1,6 +1,7 @@
 const { Client } = require("@notionhq/client");
 const Anthropic = require("@anthropic-ai/sdk");
 const fs = require("fs");
+const { askQuestion, rl } = require("./src/utils/cli-utils");
 require("dotenv").config();
 
 // Initialize clients
@@ -10,12 +11,51 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // Database IDs
 const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 
-console.log("🎯 Week 26 Retro Generator\n");
+// Default week (will be overridden by user input)
+let TARGET_WEEK = 1;
 
-// For now, hardcode Week 26
-const TARGET_WEEK = 26;
+// Interactive mode function
+async function runInteractiveMode() {
+  console.log("\n🎯 Retrospective Generator");
 
-async function fetchWeekData(weekNumber) {
+  // Ask for retro type
+  console.log("\n? Which retrospective to generate?");
+  console.log("  1 - Work Retrospective");
+  console.log("  2 - Personal Retrospective");
+
+  const typeInput = await askQuestion("\n? Enter choice (1 or 2): ");
+  const retroType = typeInput.trim() === "2" ? "personal" : "work";
+
+  // Ask for weeks
+  const weekInput = await askQuestion(
+    "? Which weeks to process? (comma-separated, e.g., 26,27,28): "
+  );
+  let targetWeeks = [TARGET_WEEK]; // default
+  if (weekInput.trim()) {
+    targetWeeks = weekInput
+      .split(",")
+      .map((w) => parseInt(w.trim()))
+      .filter((w) => !isNaN(w));
+  }
+
+  console.log(
+    `\n📊 Generating ${retroType} retrospective for Week${
+      targetWeeks.length > 1 ? "s" : ""
+    }: ${targetWeeks.join(", ")}`
+  );
+  const confirm = await askQuestion("Continue? (y/n): ");
+
+  if (confirm.toLowerCase() !== "y") {
+    console.log("❌ Cancelled by user");
+    rl.close();
+    process.exit(0);
+  }
+
+  rl.close();
+  return { retroType, targetWeeks };
+}
+
+async function fetchWeekData(weekNumber, retroType) {
   const paddedWeek = weekNumber.toString().padStart(2, "0");
 
   // Query for the specific week
@@ -35,7 +75,7 @@ async function fetchWeekData(weekNumber) {
 
   const page = response.results[0];
 
-  // Extract all the data we need with safe property access
+  // Extract common data
   const weekData = {
     id: page.id,
     weekRecap: page.properties["Week Recap"]?.title?.[0]?.plain_text || "",
@@ -44,26 +84,49 @@ async function fetchWeekData(weekNumber) {
       page.properties["Date"]?.rich_text?.[0]?.plain_text ||
       page.properties["Date"]?.date?.start ||
       "",
-    workTaskSummary:
-      page.properties["Work Task Summary"]?.rich_text?.[0]?.plain_text || "",
-    workPRSummary:
-      page.properties["Work PR Summary"]?.rich_text?.[0]?.plain_text || "",
-    defaultWorkCal:
-      page.properties["Default Work Cal"]?.rich_text?.[0]?.plain_text || "",
-    codingTicketsCal:
-      page.properties["Coding & Tickets Cal"]?.rich_text?.[0]?.plain_text || "",
-    designWorkCal:
-      page.properties["Design Work Cal"]?.rich_text?.[0]?.plain_text || "",
-    reviewFeedbackCal:
-      page.properties["Review, Feedback, Crit Cal"]?.rich_text?.[0]
-        ?.plain_text || "",
-    designDevQACal:
-      page.properties["Design & Dev QA Cal"]?.rich_text?.[0]?.plain_text || "",
-    ritualsCal:
-      page.properties["Rituals Cal"]?.rich_text?.[0]?.plain_text || "",
-    researchCal:
-      page.properties["Research Cal"]?.rich_text?.[0]?.plain_text || "",
   };
+
+  // Add type-specific fields
+  if (retroType === "work") {
+    weekData.workTaskSummary =
+      page.properties["Work Task Summary"]?.rich_text?.[0]?.plain_text || "";
+    weekData.workPRSummary =
+      page.properties["Work PR Summary"]?.rich_text?.[0]?.plain_text || "";
+    weekData.defaultWorkCal =
+      page.properties["Default Work Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.codingTicketsCal =
+      page.properties["Coding & Tickets Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.designWorkCal =
+      page.properties["Design Work Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.reviewFeedbackCal =
+      page.properties["Review, Feedback, Crit Cal"]?.rich_text?.[0]
+        ?.plain_text || "";
+    weekData.designDevQACal =
+      page.properties["Design & Dev QA Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.ritualsCal =
+      page.properties["Rituals Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.researchCal =
+      page.properties["Research Cal"]?.rich_text?.[0]?.plain_text || "";
+  } else {
+    // Personal retro fields
+    weekData.personalTaskSummary =
+      page.properties["Personal Task Summary"]?.rich_text?.[0]?.plain_text ||
+      "";
+    weekData.personalPRSummary =
+      page.properties["Personal PR Summary"]?.rich_text?.[0]?.plain_text || "";
+    weekData.personalCal =
+      page.properties["Personal Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.interpersonalCal =
+      page.properties["Interpersonal Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.familyCal =
+      page.properties["Family Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.developmentCal =
+      page.properties["Development Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.hobbiesCal =
+      page.properties["Hobbies Cal"]?.rich_text?.[0]?.plain_text || "";
+    weekData.exerciseCal =
+      page.properties["Exercise Cal"]?.rich_text?.[0]?.plain_text || "";
+  }
 
   return weekData;
 }
@@ -179,17 +242,37 @@ function parsePRHeader(prSummary) {
 }
 
 // Calculate all statistics
-function calculateStats(weekData) {
-  // Parse all calendar data
-  const calendars = {
-    default: parseCalendarHours(weekData.defaultWorkCal),
-    coding: parseCalendarHours(weekData.codingTicketsCal),
-    design: parseCalendarHours(weekData.designWorkCal),
-    review: parseCalendarHours(weekData.reviewFeedbackCal),
-    qa: parseCalendarHours(weekData.designDevQACal),
-    rituals: parseCalendarHours(weekData.ritualsCal),
-    research: parseCalendarHours(weekData.researchCal),
-  };
+function calculateStats(weekData, retroType) {
+  let calendars;
+  let taskSummary;
+  let prSummary;
+
+  if (retroType === "work") {
+    // Parse all work calendar data
+    calendars = {
+      default: parseCalendarHours(weekData.defaultWorkCal),
+      coding: parseCalendarHours(weekData.codingTicketsCal),
+      design: parseCalendarHours(weekData.designWorkCal),
+      review: parseCalendarHours(weekData.reviewFeedbackCal),
+      qa: parseCalendarHours(weekData.designDevQACal),
+      rituals: parseCalendarHours(weekData.ritualsCal),
+      research: parseCalendarHours(weekData.researchCal),
+    };
+    taskSummary = weekData.workTaskSummary;
+    prSummary = weekData.workPRSummary;
+  } else {
+    // Parse all personal calendar data
+    calendars = {
+      personal: parseCalendarHours(weekData.personalCal),
+      interpersonal: parseCalendarHours(weekData.interpersonalCal),
+      family: parseCalendarHours(weekData.familyCal),
+      development: parseCalendarHours(weekData.developmentCal),
+      hobbies: parseCalendarHours(weekData.hobbiesCal),
+      exercise: parseCalendarHours(weekData.exerciseCal),
+    };
+    taskSummary = weekData.personalTaskSummary;
+    prSummary = weekData.personalPRSummary;
+  }
 
   // Calculate totals
   const totalHours = Object.values(calendars).reduce(
@@ -209,10 +292,10 @@ function calculateStats(weekData) {
   });
 
   // Parse task counts
-  const taskCounts = parseTaskCounts(weekData.workTaskSummary);
+  const taskCounts = parseTaskCounts(taskSummary);
 
   // Parse PR data
-  const prData = parsePRHeader(weekData.workPRSummary);
+  const prData = parsePRHeader(prSummary);
 
   return {
     totalHours,
@@ -225,7 +308,7 @@ function calculateStats(weekData) {
   };
 }
 
-function buildCombinedDocument(weekData, stats) {
+function buildCombinedDocument(weekData, stats, retroType) {
   let doc = "";
 
   // Header
@@ -236,8 +319,16 @@ function buildCombinedDocument(weekData, stats) {
   doc += `What I did (${stats.totalTasks} tasks completed):\n`;
   doc += `======\n`;
 
+  // Get the appropriate task summary and PR summary based on retro type
+  const taskSummary =
+    retroType === "work"
+      ? weekData.workTaskSummary
+      : weekData.personalTaskSummary;
+  const prSummary =
+    retroType === "work" ? weekData.workPRSummary : weekData.personalPRSummary;
+
   // Process task summary with PR insertion
-  const taskLines = weekData.workTaskSummary.split("\n");
+  const taskLines = taskSummary.split("\n");
   let skipNext = false;
   let foundCodingTasks = false;
 
@@ -245,7 +336,8 @@ function buildCombinedDocument(weekData, stats) {
     const line = taskLines[i];
 
     // Skip the main header line
-    if (line.startsWith("Work Tasks")) continue;
+    if (line.startsWith("Work Tasks") || line.startsWith("Personal Tasks"))
+      continue;
 
     // Convert bullets to dashes
     let processedLine = line.replace(/•/g, "-");
@@ -267,10 +359,10 @@ function buildCombinedDocument(weekData, stats) {
       // Add the divider
       doc += "------\n";
 
-      // Now add PR Data section
-      if (weekData.workPRSummary) {
-        const prs = parsePRSummary(weekData.workPRSummary);
-        const prHeader = parsePRHeader(weekData.workPRSummary);
+      // Now add PR Data section if we have PR summary
+      if (prSummary) {
+        const prs = parsePRSummary(prSummary);
+        const prHeader = parsePRHeader(prSummary);
 
         doc += `PR Data (${prHeader.prCount} PRs, ${prHeader.commitCount} commits):\n`;
 
@@ -290,7 +382,7 @@ function buildCombinedDocument(weekData, stats) {
       continue;
     }
 
-    // Skip the Work Tasks header section
+    // Skip the header section
     if (line.includes("======") && i < 5) {
       continue;
     }
@@ -304,20 +396,45 @@ function buildCombinedDocument(weekData, stats) {
   doc += `Where I spent my time (${stats.totalHours} hours, ${stats.totalEvents} events):\n`;
   doc += `======\n`;
 
-  // Calendar data with better formatting
-  const calendarInfo = [
-    { key: "default", name: "General/Meetings", data: weekData.defaultWorkCal },
-    { key: "coding", name: "Coding", data: weekData.codingTicketsCal },
-    { key: "design", name: "Design", data: weekData.designWorkCal },
-    {
-      key: "review",
-      name: "Review/Feedback",
-      data: weekData.reviewFeedbackCal,
-    },
-    { key: "qa", name: "QA", data: weekData.designDevQACal },
-    { key: "rituals", name: "Rituals", data: weekData.ritualsCal },
-    { key: "research", name: "Research", data: weekData.researchCal },
-  ];
+  // Calendar data with different structures based on retro type
+  let calendarInfo;
+
+  if (retroType === "work") {
+    calendarInfo = [
+      {
+        key: "default",
+        name: "General/Meetings",
+        data: weekData.defaultWorkCal,
+      },
+      { key: "coding", name: "Coding", data: weekData.codingTicketsCal },
+      { key: "design", name: "Design", data: weekData.designWorkCal },
+      {
+        key: "review",
+        name: "Review/Feedback",
+        data: weekData.reviewFeedbackCal,
+      },
+      { key: "qa", name: "QA", data: weekData.designDevQACal },
+      { key: "rituals", name: "Rituals", data: weekData.ritualsCal },
+      { key: "research", name: "Research", data: weekData.researchCal },
+    ];
+  } else {
+    calendarInfo = [
+      { key: "personal", name: "Personal", data: weekData.personalCal },
+      {
+        key: "interpersonal",
+        name: "Interpersonal",
+        data: weekData.interpersonalCal,
+      },
+      { key: "family", name: "Family", data: weekData.familyCal },
+      {
+        key: "development",
+        name: "Development",
+        data: weekData.developmentCal,
+      },
+      { key: "hobbies", name: "Hobbies", data: weekData.hobbiesCal },
+      { key: "exercise", name: "Exercise", data: weekData.exerciseCal },
+    ];
+  }
 
   calendarInfo.forEach((cal) => {
     const calStats = stats.calendars[cal.key];
@@ -379,12 +496,20 @@ function loadContext(contextFile) {
 }
 
 // Generate retrospective using AI
-async function generateRetrospective(combinedDoc) {
+async function generateRetrospective(combinedDoc, retroType) {
   console.log("\n🤖 Generating retrospective with AI...");
 
-  // Load prompt and context
-  const promptTemplate = loadPrompt("retro-generation-work");
-  const context = loadContext("context-work");
+  // Load prompt and context based on retro type
+  const promptName =
+    retroType === "personal"
+      ? "retro-generation-personal"
+      : "retro-generation-work";
+
+  const contextFile =
+    retroType === "personal" ? "context-personal" : "context-work";
+
+  const promptTemplate = loadPrompt(promptName);
+  const context = loadContext(contextFile);
 
   // Replace placeholders
   let prompt = promptTemplate
@@ -438,18 +563,20 @@ async function generateRetrospective(combinedDoc) {
 }
 
 // Update Notion with retrospective
-async function updateNotionRetro(pageId, retro) {
+async function updateNotionRetro(pageId, retro, retroType) {
   console.log("\n📝 Updating Notion with retrospective...");
 
+  const prefix = retroType === "personal" ? "Personal" : "Work";
+
   const properties = {
-    "What went well? Work": {
+    [`${prefix} - What went well?`]: {
       rich_text: [
         {
           text: { content: retro.wentWell },
         },
       ],
     },
-    "What didn't go so well? Work": {
+    [`${prefix} - What didn't go so well?`]: {
       rich_text: [
         {
           text: { content: retro.didntGoWell },
@@ -460,7 +587,7 @@ async function updateNotionRetro(pageId, retro) {
 
   // Add overall section if it exists
   if (retro.overall) {
-    properties["Overall? Work"] = {
+    properties[`${prefix} - Overall?`] = {
       rich_text: [
         {
           text: { content: retro.overall },
@@ -477,35 +604,35 @@ async function updateNotionRetro(pageId, retro) {
   console.log("✅ Notion updated successfully!");
 }
 
-async function generateRetro() {
+async function generateRetro(retroType, weekNumber) {
   try {
-    console.log("📥 Fetching Week 26 data...");
+    console.log(`📥 Fetching Week ${weekNumber} data...`);
 
     // Fetch the week data
-    const weekData = await fetchWeekData(TARGET_WEEK);
-    console.log("✅ Found Week 26 data!");
+    const weekData = await fetchWeekData(weekNumber, retroType);
+    console.log(`✅ Found Week ${weekNumber} data!`);
 
     // Calculate statistics
     console.log("📊 Calculating statistics...");
-    const stats = calculateStats(weekData);
+    const stats = calculateStats(weekData, retroType);
     console.log(`   Total hours: ${stats.totalHours}`);
     console.log(`   Total events: ${stats.totalEvents}`);
     console.log(`   Total tasks: ${stats.totalTasks}`);
 
     // Build the combined document
     console.log("📝 Building combined document...");
-    const combinedDoc = buildCombinedDocument(weekData, stats);
+    const combinedDoc = buildCombinedDocument(weekData, stats, retroType);
 
     // Save to file for review
-    const filename = `week-26-combined.txt`;
+    const filename = `week-${weekNumber}-${retroType}-combined.txt`;
     fs.writeFileSync(filename, combinedDoc);
     console.log(`\n✅ Combined document saved to ${filename}`);
 
     // Generate retrospective with AI
-    const retro = await generateRetrospective(combinedDoc);
+    const retro = await generateRetrospective(combinedDoc, retroType);
 
     // Save retro to file for review
-    const retroFilename = `week-26-retro.txt`;
+    const retroFilename = `week-${weekNumber}-${retroType}-retro.txt`;
     fs.writeFileSync(retroFilename, retro.fullResponse);
     console.log(`\n✅ Retrospective saved to ${retroFilename}`);
 
@@ -522,14 +649,75 @@ async function generateRetro() {
     }
 
     // Update Notion
-    await updateNotionRetro(weekData.id, retro);
+    await updateNotionRetro(weekData.id, retro, retroType);
 
-    console.log("\n🎉 Week 26 retrospective complete!");
+    console.log(`\n🎉 Week ${weekNumber} ${retroType} retrospective complete!`);
   } catch (error) {
     console.error("❌ Error:", error.message);
     console.error(error.stack);
   }
 }
 
+// Main function with CLI support
+async function main() {
+  const args = process.argv.slice(2);
+  let retroType = "work";
+  let targetWeeks = [TARGET_WEEK]; // default
+
+  // Check for command line args
+  if (args.includes("--personal")) {
+    retroType = "personal";
+  }
+
+  // Check for --week or --weeks argument
+  const weekIndex =
+    args.indexOf("--week") !== -1
+      ? args.indexOf("--week")
+      : args.indexOf("--weeks");
+  if (weekIndex !== -1 && args[weekIndex + 1]) {
+    targetWeeks = args[weekIndex + 1]
+      .split(",")
+      .map((w) => parseInt(w.trim()))
+      .filter((w) => !isNaN(w));
+  }
+
+  // If no args, run interactive mode
+  if (args.length === 0) {
+    const result = await runInteractiveMode();
+    retroType = result.retroType;
+    targetWeeks = result.targetWeeks;
+  }
+
+  // Run the retrospective generation for each week
+  console.log(
+    `\n🚀 Processing ${targetWeeks.length} week${
+      targetWeeks.length > 1 ? "s" : ""
+    }...\n`
+  );
+
+  for (let i = 0; i < targetWeeks.length; i++) {
+    const week = targetWeeks[i];
+    console.log(`📍 [${i + 1}/${targetWeeks.length}] Starting Week ${week}...`);
+    await generateRetro(retroType, week);
+
+    // Add a separator between weeks (except for the last one)
+    if (i < targetWeeks.length - 1) {
+      console.log("\n" + "=".repeat(50) + "\n");
+    }
+  }
+
+  console.log(
+    `\n🎉 All ${targetWeeks.length} week${
+      targetWeeks.length > 1 ? "s" : ""
+    } completed!`
+  );
+
+  // Explicitly exit the process to ensure clean shutdown
+  process.exit(0);
+}
+
 // Run it
-generateRetro();
+main().catch((error) => {
+  console.error("❌ Unhandled error:", error);
+  process.exit(1);
+});
