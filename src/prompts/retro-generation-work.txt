@@ -1,44 +1,64 @@
 {{CONTEXT}}
 
-EXTRACT DATA FROM WEEK DATA BELOW:
-- Work Rocks Summary: Look for rock names and status (✅👾🚧🥊)
-- Work PR Summary: Count PRs and list specific names
-- Calendar data: Calculate coding % vs meeting % from hours
-- Work Task Summary: Count completed tasks by category
+You are analyzing a work week retrospective. Your job is to READ THE ACTUAL DATA and generate a 4-section retrospective based on what really happened.
 
-WRITE EXACTLY LIKE THIS:
+## YOUR TASK:
+Extract real data from the week summary below and generate exactly 4 sections in this format:
 
 ## General?
-COPY THIS EXACT BULLET FORMAT:
-• 42.75 total hours worked, 24 events attended
-• 7 tasks completed across all categories
-• 3 PRs shipped, 73 total commits
-• 1 work event attended
+• [Neutral facts: total hours, tasks completed, PRs shipped, events attended]
 
 ## What went well?
-COPY THIS EXACT BULLET FORMAT:
-• Achieved rock - [Rock Name] ([description from rock])
-• 3 PRs shipped - Input Cleanup, Datepicker fixes, Avatar updates
-• 77% coding time, 23% meetings - excellent ratio
-• Eng Intel kickoff with Madison and Zac's help
-• Nice review from Doug on circle progress work
+• [Analyze actual accomplishments and positive patterns]
 
 ## What didn't go so well?
-COPY THIS EXACT BULLET FORMAT:
-• Failed rock - [Rock Name] (🥊)
-• 31% meeting time - too much overhead
-• No PRs shipped this week
-• Time misaligned - spent on admin vs coding priorities
+• [Analyze actual problems and missed targets]
 
 ## Overview?
-COPY THIS EXACT FORMAT - ONE SENTENCE ONLY:
-"Good week - achieved rocks and shipped solid PRs"
-OR
-"Rough week - failed main rock despite high output"
-OR
-"Mixed week - strong coding time but missed deliverables"
+"[One sentence assessment: Good week/Rough week/Mixed week - brief reason]"
 
-NO FLOWERY LANGUAGE. NO ANALYSIS. JUST FACTS AND BULLETS.
+---
+
+## INSTRUCTIONS FOR EACH SECTION:
+
+### General?
+READ THE DATA and extract all relevant neutral facts:
+• Total calendar hours from different categories
+• Total tasks completed across all categories  
+• Number of PRs shipped and total commits
+• Number of events attended
+• Time ratios (coding vs meetings vs other work)
+
+### What went well?
+READ THE DATA and use the CONTEXT to evaluate what was positive:
+• **Accomplished rocks FIRST**: Look at Work Rocks Summary for ✅ or 👾 status. Reference actual rock names and what was achieved
+• **PRs shipped**: List actual PR names/titles from Work PR Summary (all PRs are positive accomplishments)
+• **Good time allocation**: Use CONTEXT to evaluate if time was spent on meaningful work vs meetings
+• **Major work accomplishments**: Summarize substantial task completions across work categories
+• **Events attended**: Reference events from Work Events Summary as positive experiences
+• **Team collaboration**: Highlight successful collaborative work
+
+### What didn't go so well?
+READ THE DATA and use the CONTEXT to evaluate what was negative:
+• **Failed rocks FIRST**: Look for 🥊 or 🚧 status in Work Rocks Summary
+• **Poor time allocation**: Use CONTEXT to identify if too much time spent in meetings/overhead
+• **Low output**: Few or no PRs shipped, low task completion without clear reason
+• **Misaligned priorities**: Time spent not matching stated rock intentions
+
+### Overview?
+READ THE DATA and use the CONTEXT to give ONE SENTENCE assessment AFTER analyzing everything above:
+• Use the CONTEXT definitions for what makes a good vs bad work week
+• Use EVENTS to explain patterns (e.g., "Good week - strong output despite conference attendance")
+
+---
+
+## KEY RULES:
+• **USE REAL NUMBERS** - Extract actual counts from the data, don't guess
+• **LIST ACTUAL PRS** - Reference specific PR names/titles from the data
+• **USE EVENTS AS CONTEXT** - Work events explain unusual patterns or priorities
+• **NO FAKE EXAMPLES** - Only reference what actually happened
+• **BE SPECIFIC** - Use actual rock names, actual PR titles, actual time percentages
+• **ANALYZE EVERYTHING FIRST** - Look at every data point and categorize as: neutral fact (General), positive (What went well), or negative (What didn't go well), then make final assessment (Overview)
 
 WEEK DATA:
 {{WEEK_DATA}}
