@@ -297,11 +297,12 @@ async function runInteractiveMode() {
 
   // Ask what to include first
   console.log("? What to process?");
-  console.log("  1 - Work Calendar");
-  console.log("  2 - Work PRs");
+  console.log("  1 - Both (Work Calendar + PRs)");
+  console.log("  2 - Work Calendar Only");
+  console.log("  3 - Work PRs Only");
 
   const includeInput = await askQuestion(
-    "\n? Enter choice (or press enter for work calendar): "
+    "\n? Enter choice (or press enter for both): "
   );
 
   // Reset flags
@@ -310,7 +311,10 @@ async function runInteractiveMode() {
 
   if (includeInput.trim() === "1" || includeInput.trim() === "") {
     includeWorkCal = true;
+    includePRs = true;
   } else if (includeInput.trim() === "2") {
+    includeWorkCal = true;
+  } else if (includeInput.trim() === "3") {
     includePRs = true;
   }
 
@@ -327,7 +331,13 @@ async function runInteractiveMode() {
 
   // Show confirmation
   console.log(
-    `\n📋 Processing: ${includeWorkCal ? "Work Calendar" : "Work PRs"}`
+    `\n📋 Processing: ${
+      includeWorkCal && includePRs
+        ? "Work Calendar + PRs"
+        : includeWorkCal
+        ? "Work Calendar"
+        : "Work PRs"
+    }`
   );
   console.log(`📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
 
@@ -519,7 +529,6 @@ async function processWeek(
     }
 
     // Fetch PR events if calendar exists
-    let prSummary = null;
     if (includePRs && process.env.WORK_PR_DATA_CALENDAR_ID) {
       console.log("📥 Fetching PR events...");
       const prEvents = await fetchCalendarEvents(
@@ -530,14 +539,13 @@ async function processWeek(
       );
 
       if (prEvents.length > 0) {
-        prSummary = await processPREvents(prEvents);
+        const prSummary = await processPREvents(prEvents);
+        notionUpdates["Work PR Summary"] = prSummary;
         console.log(`🔄 Work PR Summary: ${prEvents.length} events`);
+      } else {
+        notionUpdates["Work PR Summary"] = "No work commits this week.";
+        console.log(`🔄 Work PR Summary: No events`);
       }
-    }
-
-    // Add PR summary if we have one
-    if (prSummary) {
-      notionUpdates["Work PR Summary"] = prSummary;
     }
 
     // Update Notion
@@ -557,6 +565,16 @@ async function main() {
 
   if (isInteractive) {
     await runInteractiveMode();
+  } else {
+    // Command line mode - check for flags
+    const args = process.argv.slice(2);
+    if (args.includes("--prs")) {
+      includePRs = true;
+      includeWorkCal = false;
+    } else if (args.includes("--both")) {
+      includePRs = true;
+      includeWorkCal = true;
+    }
   }
 
   console.log(
@@ -565,10 +583,7 @@ async function main() {
   console.log(`📊 Processing ${TARGET_WEEKS.length} week(s)...\n`);
 
   for (const weekNumber of TARGET_WEEKS) {
-    const result = await processWeek(weekNumber, includeWorkCal, includePRs);
-    if (result) {
-      console.log("📝 (Notion update function coming next...)");
-    }
+    await processWeek(weekNumber, includeWorkCal, includePRs);
   }
 
   console.log(`\n🎉 Processing complete!`);

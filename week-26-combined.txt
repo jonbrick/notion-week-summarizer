@@ -1,0 +1,81 @@
+Week Recap: Week 26 Recap
+Date: 
+
+What I did (9 tasks completed):
+======
+------
+Research Tasks (1):
+- Map Eng Intel flows (Mon Jun 23, 2025)
+------
+Design Tasks (3):
+- Dashboard building ux V0 (Tue Jun 24, 2025)
+- Dashboard building UX V1 (Wed Jun 25, 2025)
+- Creating, editing, saving modules UX V1 (Wed Jun 25, 2025)
+------
+Coding Tasks (2):
+- [PR] Update operator icon colors on Velocity dashboard (Mon Jun 23, 2025)
+- [PR] Update Eng Intel command palette icons (Mon Jun 23, 2025)
+------
+PR Data (3 PRs, 9 commits):
+- Update Eng Intel command palette icons (#10090) [3 commits] (Add proper class, Fix types, Add proper icon class and udpate tailwind classes for dark mode)
+- Update operator icon colors on Velocity dashboard (#10099) [1 commit] (Update operator icon colors on Velocity dashboard (#10099))
+- [DSGN-381] Create a11y-brand-subtle and apply to Switch (#10158) [5 commits] (Get demo working - need to update colors, Update symbol-neutral-muted to be similar to icon token in figma, Update switch, Add hover and active states, More contrast between default and hover on brand light mode)
+Feedback Tasks (0):
+------
+QA Tasks (2):
+- Feedback on Nested Forms spike (Mon Jun 23, 2025)
+- Feedback on slide deck for Cristina (Tue Jun 24, 2025)
+======
+Admin Tasks (1):
+- Upgrade Claude with new budget  (Fri Jun 27, 2025)
+------
+Social Tasks (0):
+------
+OOO Tasks (0):
+
+Where I spent my time (43.5 hours, 37 events):
+======
+General/Meetings (7 events, 5 hours, 11%):
+- Product Spec Reviews (1 hour)
+- Customer Spotlight:  Skyscanner (1 hour)
+- ER Reporting Review (1 hour)
+- Chelsea / Madison / Jon sync (30 minutes)
+- Synapse Sync (30 minutes)
+- FE Platform Sync (30 minutes)
+- Jon / Madison Weekly (30 minutes)
+------
+Coding (1 event, 1.5 hours, 3%):
+- Switch ticket (1.5 hours)
+------
+Design (8 events, 25.25 hours, 58%):
+- Dashboard building ux (6x) (21.25 hours)
+- Summary card building (3 hours)
+- Prototype cleanup (1 hour)
+------
+Review/Feedback (6 events, 5.5 hours, 13%):
+- Product Design Crit: US<>EU (2x) (2 hours)
+- Sync with Jake (1 hour)
+- Product Design Crit: US (1 hour)
+- Marketing Design Crit: US <> EU (1 hour)
+- Building, editing, saving dashboards & metrics (modules??) (30 minutes)
+------
+QA (0 events, 0 hours, 0%):
+No qa events this week.
+------
+Rituals (15 events, 6.25 hours, 14%):
+- Weekly retro (1 hour)
+- Standup: Insights (3x) (45 minutes)
+- UX Platform Standup & Planning (30 minutes)
+- Sprint Planning: Insights (30 minutes)
+- Engineering Demo Meeting (30 minutes)
+- Scrum of scrums (30 minutes)
+- UX Platform Standup (2x) (30 minutes)
+- UX Platform Standup & Refinement (30 minutes)
+- Design team retro (30 minutes)
+- Collect showcase examples (30 minutes)
+- Refinement: Insights (15 minutes)
+- UX Platform Retro (15 minutes)
+------
+Research (0 events, 0 hours, 0%):
+No research events this week.
+------
