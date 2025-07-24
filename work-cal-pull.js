@@ -539,7 +539,28 @@ async function processWeek(
       );
 
       if (prEvents.length > 0) {
-        const prSummary = await processPREvents(prEvents);
+        let prSummary = await processPREvents(prEvents);
+
+        // Check if summary exceeds Notion's 2000 character limit
+        if (prSummary.length > 2000) {
+          console.log(
+            `⚠️  PR summary too long (${prSummary.length} chars), truncating...`
+          );
+
+          // Find a good breaking point before 1950 chars (leaving room for "...")
+          const maxLength = 1950;
+          let truncateAt = prSummary.lastIndexOf("\n", maxLength);
+
+          // If no newline found, just cut at maxLength
+          if (truncateAt === -1 || truncateAt < maxLength - 200) {
+            truncateAt = maxLength;
+          }
+
+          prSummary =
+            prSummary.substring(0, truncateAt) +
+            "\n\n... (truncated due to length)";
+        }
+
         notionUpdates["Work PR Summary"] = prSummary;
         console.log(`🔄 Work PR Summary: ${prEvents.length} events`);
       } else {

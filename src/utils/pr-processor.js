@@ -115,11 +115,49 @@ function formatPRSummary(prGroups) {
 
     output += "\n";
 
-    // Commits - display raw text with timestamps removed
+    // Commits - display raw text with timestamps removed (limit to first 5)
     pr.commits.forEach((commitText, idx) => {
       if (idx > 0) output += " ";
-      const cleanCommitText = removeTimestamps(commitText);
-      output += cleanCommitText;
+      let cleanCommitText = removeTimestamps(commitText);
+
+      // Use regex to extract first 5 commits regardless of format (comma, newline, bullet)
+      // Match patterns like: "• commit", "- commit", "commit,", "commit\n", etc.
+      const commitRegex =
+        /(?:^|[•\-*]\s*|,\s*|\n\s*)([^•\-*,\n]+?)(?=\s*[•\-*,\n]|$)/g;
+      const matches = [];
+      let match;
+
+      while (
+        (match = commitRegex.exec(cleanCommitText)) !== null &&
+        matches.length < 5
+      ) {
+        const commit = match[1].trim();
+        if (commit && commit.length > 0) {
+          matches.push(commit);
+        }
+      }
+
+      // If regex doesn't work well, fallback to simple splitting
+      if (matches.length === 0) {
+        const splits = cleanCommitText
+          .split(/[,\n]/)
+          .map((c) => c.replace(/^[•\-*\s]+/, "").trim())
+          .filter((c) => c);
+        matches.push(...splits.slice(0, 5));
+      }
+
+      // Add truncation notice if original text suggests more commits
+      const hasMore =
+        cleanCommitText.split(/[,\n•\-*]/).filter((c) => c.trim()).length > 5;
+
+      output += matches
+        .slice(0, 5)
+        .map((commit) => `• ${commit}`)
+        .join("\n");
+
+      if (hasMore) {
+        output += "\n• ... (additional commits truncated)";
+      }
     });
   });
 

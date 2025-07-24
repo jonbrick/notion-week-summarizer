@@ -138,15 +138,43 @@ function formatPersonalProjectSummary(projectGroups) {
       project.totalCommits === 1 ? "commit" : "commits"
     }):\n`;
 
-    // Show first 5 commits, then summarize the rest
-    const commitsToShow = project.commits.slice(0, 5);
-    commitsToShow.forEach((commit) => {
-      output += `• ${commit}\n`;
-    });
+    // Show first 5 commits using regex to handle any format
+    let allCommitsText = project.commits.join(" ");
 
-    // If there are more commits, indicate how many
-    if (project.commits.length > 5) {
-      output += `• ... (${project.commits.length - 5} more)\n`;
+    // Use regex to extract first 5 commits regardless of format
+    const commitRegex =
+      /(?:^|[•\-*]\s*|,\s*|\n\s*)([^•\-*,\n]+?)(?=\s*[•\-*,\n]|$)/g;
+    const matches = [];
+    let match;
+
+    while (
+      (match = commitRegex.exec(allCommitsText)) !== null &&
+      matches.length < 5
+    ) {
+      const commit = match[1].trim();
+      if (commit && commit.length > 0) {
+        matches.push(commit);
+      }
+    }
+
+    // If regex doesn't work well, fallback to existing logic
+    if (matches.length === 0) {
+      const commitsToShow = project.commits.slice(0, 5);
+      commitsToShow.forEach((commit) => {
+        output += `• ${commit}\n`;
+      });
+    } else {
+      matches.forEach((commit) => {
+        output += `• ${commit}\n`;
+      });
+    }
+
+    // If there are more commits, indicate truncation
+    if (
+      project.commits.length > 5 ||
+      allCommitsText.split(/[,\n•\-*]/).filter((c) => c.trim()).length > 5
+    ) {
+      output += `• ... (additional commits truncated)\n`;
     }
   });
 
