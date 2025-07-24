@@ -1,17 +1,15 @@
 ## What went well?
 
-This week, Jon made excellent progress on his stated work rock intention of "Back to work" and "front loading" the work for January. He achieved this rock, which is a great sign that he is staying focused on his priorities. 
-
-Additionally, Jon shipped 3 solid PRs this week, including the "Input Cleanup", "Datepicker, Typeahead, Select Height cleanup", and "Avatar & CortexLogo Nav" PRs. This represents meaningful and impactful work being delivered.
-
-Jon also did a great job allocating his time, spending 77% of his 42.75 hours on actual coding and development work. This high ratio of "head down" coding time versus meetings and administrative tasks is very aligned with Jon's preferences for a productive work week.
+This week was a strong one for Jon. He shipped 3 PRs, including several major updates like the Input Cleanup, Datepicker/Typeahead/Select Height fixes, and improvements to the Avatar and CortexLogo. He also achieved his stated work rock of "Back to work" by really focusing on "front loading" the critical work this month. His time allocation was well-aligned, with 77% of his time spent on actual coding work, which is right in his sweet spot.
 
 ## What didn't go so well?
 
-There are no major concerns to call out in this work week. Jon did not have any failed rocks (🥊) or rocks with little progress (🚧), which is an excellent sign. Additionally, his meeting time was kept under 23% of his total hours, well within his 20% target.
+There don't seem to be any major concerns this week. Jon didn't have any failed work rocks, and his meeting time of 23% is within the ideal 20% range. The only potential hiccup was that he didn't complete any design or research tasks, but given his focus on shipping those big coding PRs, that's understandable.
 
-The only potential area for improvement is that Jon did not log any design or research tasks this week. While this may have been intentional, it's something to keep an eye on to ensure he is not neglecting those important aspects of his role.
+## General?
 
-## Overview
+This was a fairly typical work week for Jon. No major company events or social activities occurred that would have disrupted his normal workflow. The weather and other external factors don't appear to have played a significant role. It was simply a solid, heads-down week of knocking out important engineering work.
 
-In summary, this was a very strong and productive work week for Jon. He achieved his primary work rock, shipped meaningful code, and maintained a healthy balance between coding time and meetings. At 42.75 total hours, Jon put in a solid week of focused work that aligns well with his goals as a Design Engineer.
+## Overall?
+
+Good week - Jon achieved his main work rock, shipped several meaningful PRs, and maintained a healthy work-life balance with his time allocation.

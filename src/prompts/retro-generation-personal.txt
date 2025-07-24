@@ -1,25 +1,47 @@
-{{CONTEXT}}
+## Overview?
+COPY THIS EXACT FORMAT - ONE SENTENCE ONLY:
+"Good week - health foundation solid despite busy social schedule"
+OR
+"Rough week - missed exercise and drinking targets"
+OR
+"Mixed week - achieved rocks but health habits slipped"
 
-Based on Jon's personal context and the week data below, analyze this personal week and provide a retrospective with exactly three sections:
+## General?
+COPY THIS EXACT BULLET FORMAT:
+• 27.5 hours social time, 7.3 hours personal projects
+• 23 tasks completed across all categories
+• 1 personal{{CONTEXT}}
+
+EXTRACT DATA FROM WEEK DATA BELOW:
+- Personal Rocks Summary: Look for rock names and status (✅👾🚧🥊)
+- Habit data: Early Wakeup, Workout, Sober Days numbers
+- Personal Cal: Social hours and activities
+- Personal Task Summary: Count completed tasks by category
+
+WRITE EXACTLY LIKE THIS:
 
 ## What went well?
-- List specific positive things based on Jon's personal goals and health priorities
-- Include: good health habits (exercise 3x+, early wakeup 4x+, sober 4x+), rock progress (✅ 👾), social activities, personal projects
-- Personal events are generally positive by default
-- Format health habits like: "Health habits - exercise 3x, early wakeup 5x, sober 4x"
+COPY THIS EXACT BULLET FORMAT:
+• Health habits - exercise 3x, early wakeup 5x, sober 4x
+• Achieved rock - No Home Stuff this week (✅)
+• Ravens playoff game with friends - 27 hours social time
+• Personal projects - worked on portfolio updates
 
 ## What didn't go so well?
-- List specific concerns based on Jon's health foundation and personal goals
-- Include: missed health habits (exercise under 3x, early wakeup under 4x, sober under 4x), failed rocks (🥊 🚧)
-- Format missed habits like: "Missed habits - exercise 2x, sober 3x"
-- Remember: Health foundation (Tier 1) is most important
+COPY THIS EXACT BULLET FORMAT:
+• Missed habits - exercise 1x, early wakeup 2x
+• Failed rock - Retro & Plan (🥊)
+• Health foundation slipped - only 1 workout this week
 
 ## Overview?
-- Neutral facts about the week without judgment
-- Include: total social time, personal project time, events attended
-- Example: "Spent 25 hours on interpersonal activities and completed 14 home tasks"
+COPY THIS EXACT FORMAT - ONE SENTENCE ONLY:
+"Good week - health foundation solid despite busy social schedule"
+OR
+"Rough week - missed exercise and drinking targets"
+OR
+"Mixed week - achieved rocks but health habits slipped"
 
-Be specific and reference actual data. Focus on Jon's health-first priority hierarchy.
+NO FLOWERY LANGUAGE. NO ANALYSIS. JUST FACTS AND BULLETS.
 
 WEEK DATA:
 {{WEEK_DATA}}

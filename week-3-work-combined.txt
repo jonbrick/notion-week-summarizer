@@ -1,0 +1,95 @@
+Week Recap: Week 03 Recap
+Date: 
+
+What I did (9 tasks completed):
+======
+------
+Research Tasks (0):
+------
+Design Tasks (2):
+- Eng Intel intro session (Wed Jan 15, 2025)
+- Eng Intel Jam Session  (Thu Jan 16, 2025)
+------
+Coding Tasks (4):
+- ProgressIcon PR (Mon Jan 13, 2025)
+- Badge 2 PR (Tue Jan 14, 2025)
+- Icons in dark mode PR (Wed Jan 15, 2025)
+- Entity Icon Radius PR (Fri Jan 17, 2025)
+------
+PR Data (4 PRs, 34 commits):
+- CET-16334 [Redesign Polish] Remove caption class from Label (#7314), CET-16294 [Redesign Polish] ProgressIcon sizing update (#7306) [9 commits] (• Remove caption class and make leading, • 5, • Remove leading, • Use CVA to create variants for CircleProgress, • Use proper tailwind classes on LevelIcon and ProgressIcon, • ... (additional commits truncated))
+- CET-15008 [Redesign Polish] Brand Icons in dark mode on Settings Pages (#7331), Fix CircularProgress on Birds eye table (#7325) [5 commits] (• Use IntegrationIcon in settings sidebar, • Setup variant so grayscale only applied to non, • default, • Remove CVA, • Remove redundant breadcumb icon on settings pages, • ... (additional commits truncated))
+- Set sizes of missing CircularProgress (#7349), CET-15056 [Redesign Polish] Badge update round 2 (#7309) [11 commits] (• Remove extra div on Entities table row, • Set PollingProgressCircle size to size, • 4, • Add size, • 4 to CircularProgress on scorecard, • ... (additional commits truncated))
+- CET-16428 [Redesign polish] EntityImageIcon Border radius (#7351) [9 commits] (• Remove extra div on Entities table row, • Added border radius to EntityImageIcon, • Add radius to search as well, • Remove extra rounded class, • Add radius in entities accordian pane, • ... (additional commits truncated))
+Feedback Tasks (0):
+------
+QA Tasks (0):
+======
+Admin Tasks (3):
+- Recap Week 02 (Mon Jan 13, 2025)
+- Mail Cortex Laptop 1 back (Wed Jan 15, 2025)
+- Documentation on Figma<>Code labeling (Thu Jan 16, 2025)
+------
+Social Tasks (0):
+------
+OOO Tasks (0):
+
+Work Rocks:
+Work Rocks (1):
+------
+👾 Made Good Progress 03. Icons & Borders
+  Description: I want to knock out the next big thing for me based on last week’s convo - borders & icons looking good
+
+Work Events:
+No work events this week.
+
+Where I spent my time (34.75 hours, 33 events):
+======
+General/Meetings (23 events, 15.25 hours, 44%):
+- Document Figma<>Code & Discussion items for MC (1.5 hours)
+- Sync with Zac (2x) (1.5 hours)
+- Page Header sync (1 hour)
+- Zac <> Jon (1 hour)
+- Garden Code>Figma tasks (1 hour)
+- Design Talks: Advanced Search (1 hour)
+- Tech Leadership Sync (45 minutes)
+- Engineering enablement (45 minutes)
+- Eng Q&A (45 minutes)
+- Retro Week 02 & Plan Week 3 (30 minutes)
+- Merge ProgressIcon PR (30 minutes)
+- Merge Badge PR (30 minutes)
+- Fix Circle on Birds Eye PR (30 minutes)
+- Jon <> Zac :: Ent Intel intro (30 minutes)
+- Pre-working session sync (30 minutes)
+- CircularProgress Fix PR (30 minutes)
+- Cortex <> Meta Carbon Weekly Sync (30 minutes)
+- Entity Icon Radius PR (30 minutes)
+- Chat with Zac about Reviews (30 minutes)
+- Further documentation sync (30 minutes)
+- Merge Fix Circle on Birds Eye PR (15 minutes)
+- Merge Brand icons in dark mode PR (15 minutes)
+------
+Coding (9 events, 17.5 hours, 50%):
+- Brand icons in dark mode PR (2x) (5 hours)
+- ProgressIcon PR (3.75 hours)
+- Badge 2 PR (3.5 hours)
+- Entity Icon Radius PR (2x) (3.25 hours)
+- Icons & Icon Borders audit (45 minutes)
+- Form Labels PR (45 minutes)
+- Merge Entity Icon Radius PR (30 minutes)
+------
+Design (1 event, 2 hours, 6%):
+- Jam Session Eng Intel (2 hours)
+------
+Review/Feedback (0 events, 0 hours, 0%):
+No review/feedback events this week.
+------
+QA (0 events, 0 hours, 0%):
+No qa events this week.
+------
+Rituals (0 events, 0 hours, 0%):
+No rituals events this week.
+------
+Research (0 events, 0 hours, 0%):
+No research events this week.
+------

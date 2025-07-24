@@ -1,0 +1,87 @@
+Week Recap: Week 04 Recap
+Date: 
+
+What I did (9 tasks completed):
+======
+------
+Research Tasks (0):
+------
+Design Tasks (4):
+- Start Eng Intel Wires (Mon Jan 20, 2025)
+- Finish Eng Intel Wires (Tue Jan 21, 2025)
+- Clean Eng Intel Wires (Wed Jan 22, 2025)
+- Eng Intel Revision (Fri Jan 24, 2025)
+------
+Coding Tasks (3):
+- Last Month dropdown PR (Thu Jan 23, 2025)
+- SVGs on import entities button PR (Thu Jan 23, 2025)
+- Favicon (Fri Jan 24, 2025)
+------
+PR Data (1 PRs, 4 commits):
+- Small Select styling tweaks (#7466), CET-16015 [Redesign Polish] Add integration icons to import entities button background (#7464) [4 commits] (• Use colors tokens and remove bg from select, • Fix heights and hover states for period dropdown, • Add integration group svgs and apply to import entity button, • Adjust SVG colros and add manual entry svg)
+Feedback Tasks (2):
+- Send Eng Intel Loom to Zac & Madison  (Wed Jan 22, 2025)
+- Eng Intel demo plan with Madison & Aaron (Fri Jan 24, 2025)
+------
+QA Tasks (0):
+======
+Admin Tasks (0):
+------
+Social Tasks (0):
+------
+OOO Tasks (0):
+
+Work Rocks:
+Work Rocks (2):
+------
+✅ Achieved 04. Continue knocking out polish tickets
+  Description: I want to continue contributing to the code base on the redesign polish
+
+✅ Achieved 04. Eng Intel MVP out the door
+  Description: I really want to get some good looking Eng Intel stuff to Madison so we can tweak before CKO
+
+Work Events:
+No work events this week.
+
+Where I spent my time (37.75 hours, 24 events):
+======
+General/Meetings (13 events, 5.5 hours, 15%):
+- Zac <> Jon (2x) (1.5 hours)
+- Eng Intel sketches & thoughts (30 minutes)
+- MetaCarbon <> Cortex Marketing Sync (30 minutes)
+- Record Loom (30 minutes)
+- App layout structure review (30 minutes)
+- Redesign sprint planning (30 minutes)
+- Zac / Madison Weekly (+Jon) (30 minutes)
+- Cortex <> Meta Carbon Weekly Sync (30 minutes)
+- Jon <> Stormy ::: Sync (15 minutes)
+- Quick sync on eng intel demo monday (15 minutes)
+- MLK (unknown)
+- Zac out (unknown)
+------
+Coding (3 events, 3 hours, 8%):
+- SVGs on import entities button PR (1 hour)
+- Last Month dropdown PR (1 hour)
+- Favicon (1 hour)
+------
+Design (6 events, 27.75 hours, 74%):
+- Eng Intel Wires (12 hours)
+- Sketches, LoFi, ideation - send to Zac for feedback (4 hours)
+- Clean Up Eng Intel (3.5 hours)
+- Eng Intel Revision (3.5 hours)
+- Iterate (3 hours)
+- Eng Intel Cleanup (1.75 hours)
+------
+Review/Feedback (2 events, 1.5 hours, 4%):
+- Sync with Zac (1 hour)
+- Design Sync (30 minutes)
+------
+QA (0 events, 0 hours, 0%):
+No qa events this week.
+------
+Rituals (0 events, 0 hours, 0%):
+No rituals events this week.
+------
+Research (0 events, 0 hours, 0%):
+No research events this week.
+------

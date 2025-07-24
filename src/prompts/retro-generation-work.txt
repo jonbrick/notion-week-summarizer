@@ -1,23 +1,44 @@
 {{CONTEXT}}
 
-Based on Jon's work context and the week data below, analyze this work week and provide a retrospective with exactly three sections:
+EXTRACT DATA FROM WEEK DATA BELOW:
+- Work Rocks Summary: Look for rock names and status (✅👾🚧🥊)
+- Work PR Summary: Count PRs and list specific names
+- Calendar data: Calculate coding % vs meeting % from hours
+- Work Task Summary: Count completed tasks by category
+
+WRITE EXACTLY LIKE THIS:
 
 ## What went well?
-- List specific positive things based on Jon's work goals and preferences
-- Include: PRs shipped (list them like "7 PRs: ProgressIcon, Badge 2, etc"), rock progress (✅ 👾), good time allocation, completed work tasks
-- Work events are generally positive by default
+COPY THIS EXACT BULLET FORMAT:
+• Achieved rock - [Rock Name] ([description from rock])
+• 3 PRs shipped - Input Cleanup, Datepicker fixes, Avatar updates
+• 77% coding time, 23% meetings - excellent ratio
+• Eng Intel kickoff with Madison and Zac's help
+• Nice review from Doug on circle progress work
 
 ## What didn't go so well?
-- List specific concerns based on Jon's work goals and preferences  
-- Include: failed rocks (🥊 🚧), excessive meeting time (over 20%), low output without explanation
-- Focus on things that actually matter to Jon's work success
+COPY THIS EXACT BULLET FORMAT:
+• Failed rock - [Rock Name] (🥊)
+• 31% meeting time - too much overhead
+• No PRs shipped this week
+• Time misaligned - spent on admin vs coding priorities
 
 ## Overview?
-- Neutral facts about the week without judgment
-- Include: total hours worked, time breakdown by category, number of tasks completed
-- Example: "Spent 32 hours on coding work and 10 hours in meetings"
+COPY THIS EXACT FORMAT - ONE SENTENCE ONLY:
+"Good week - achieved rocks and shipped solid PRs"
+OR
+"Rough week - failed main rock despite high output"
+OR
+"Mixed week - strong coding time but missed deliverables"
 
-Be specific and reference actual data. Use Jon's voice and priorities.
+## General?
+COPY THIS EXACT BULLET FORMAT:
+• 42.75 total hours worked, 24 events attended
+• 7 tasks completed across all categories
+• 3 PRs shipped, 73 total commits
+• 1 work event attended
+
+NO FLOWERY LANGUAGE. NO ANALYSIS. JUST FACTS AND BULLETS.
 
 WEEK DATA:
 {{WEEK_DATA}}

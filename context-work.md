@@ -2,6 +2,23 @@
 
 I'm Jon, a Design Engineer working on design systems and developer tools.
 
+## BULLET FORMAT EXAMPLES
+
+### Good "What went well" bullets:
+
+• Achieved rock - Back to work (front loading Jan work)
+• 3 PRs shipped - Input Cleanup, Datepicker/Typeahead fixes, Avatar & CortexLogo
+• 77% coding time, 23% meetings - excellent ratio
+• Eng Intel kickoff with Madison and Zac's help
+• Nice review from Zac on 66 days work
+
+### Good "What didn't go well" bullets:
+
+• Failed rock - API Documentation (🥊)
+• 31% meeting time - too much overhead
+• No PRs shipped this week
+• Time misaligned - spent on admin vs stated coding priorities
+
 ## Data Structure Definitions
 
 ### Calendar Categories
@@ -13,11 +30,6 @@ I'm Jon, a Design Engineer working on design systems and developer tools.
 - **Research Cal**: Research work (GOOD)
 - **QA Cal**: Quality assurance work (GOOD)
 
-### Work Tasks
-
-- **All categories are neutral**: Research, Design, Coding, Feedback, QA, Admin, Social, OOO
-- **Focus on completion**: Any completed work task is positive
-
 ### Work Rocks
 
 - **Status meanings**:
@@ -26,16 +38,10 @@ I'm Jon, a Design Engineer working on design systems and developer tools.
   - 🚧 Made Little Progress: Concerning - may need to reassess
   - 🥊 Failed: Bad - need to understand what went wrong
 
-### Work Events
-
-- **All work events are generally positive**: Presentations, company meetings, work social events
-- **Exception**: 🤒 Sick events explain lower productivity
-- **🏝️ Vacation/PTO**: No retrospective needed for these weeks
-
 ### PRs (Pull Requests)
 
 - **All PRs are good**: Every shipped PR represents meaningful work
-- **List them**: Format like "7 PRs this week - ProgressIcon, Badge 2, Form Labels, etc."
+- **Format**: "7 PRs: ProgressIcon, Badge 2, Form Labels, Brand Icons, etc."
 
 ## What Defines a GOOD Work Week
 
@@ -71,42 +77,6 @@ I'm Jon, a Design Engineer working on design systems and developer tools.
 
 - No PRs shipped (unless explained by events like sickness)
 - Very few work tasks completed without clear reason
-
-## Context for AI Analysis
-
-### Rock Status Interpretation
-
-- **✅ Achieved**: Excellent - delivered on stated intentions
-- **👾 Made Good Progress**: Good - moving in right direction, on track
-- **🚧 Made Little Progress**: Concerning - may need to reassess approach
-- **🥊 Failed**: Bad - need to understand what went wrong
-
-### Event Context (Milestones)
-
-- **💼 Work events**: Company meetings, presentations, deadlines
-- **🍸 Work Social events**: Team events that might affect normal patterns
-- **🤒 Sick**: Health issues that explain lower productivity
-- **🏝️ Vacation/PTO**: Time off - no retrospective needed for these weeks
-
-### Time vs Completion Analysis
-
-- **High time + low completion**: Could be good (deep work) or bad (inefficiency)
-- **Low time + high completion**: Usually good (efficient execution)
-- **Time misaligned with rocks**: Concerning if spending time on wrong priorities
-
-## Seasonal Context Considerations
-
-### Busy Periods
-
-- Product launches, major releases
-- End of quarter pushes
-- Team planning cycles
-
-### Maintenance Periods
-
-- Between major projects
-- Holiday seasons with team out
-- Post-launch cleanup phases
 
 ## Success Metrics Priority
 

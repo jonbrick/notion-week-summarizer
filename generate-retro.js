@@ -558,26 +558,25 @@ async function generateRetrospective(combinedDoc, retroType) {
     /what went well\?(.*?)(?=what didn't go so well\?|what didn't go well\?)/is
   );
   const didntGoWellMatch = retroText.match(
-    /what didn't go (?:so )?well\?(.*?)(?=overall\?)/is
+    /what didn't go (?:so )?well\?(.*?)(?=general\?)/is
   );
-  const overallMatch = retroText.match(/overall\?(.*?)(?=general\?)/is);
-  const generalMatch = retroText.match(/general\?(.*?)$/is);
+  const generalMatch = retroText.match(/general\?(.*?)(?=overall\?)/is);
+  const overallMatch = retroText.match(/overall\?(.*?)$/is);
 
   const wentWell = wentWellMatch ? wentWellMatch[1].trim() : "";
   const didntGoWell = didntGoWellMatch ? didntGoWellMatch[1].trim() : "";
-  const overall = overallMatch ? overallMatch[1].trim() : "";
   const general = generalMatch ? generalMatch[1].trim() : "";
+  const overall = overallMatch ? overallMatch[1].trim() : "";
 
   return {
     wentWell,
     didntGoWell,
-    overall,
     general,
+    overall,
     fullResponse: retroText,
   };
 }
 
-// Update Notion with retrospective
 async function updateNotionRetro(pageId, retro, retroType) {
   console.log("\n📝 Updating Notion with retrospective...");
 
@@ -598,17 +597,17 @@ async function updateNotionRetro(pageId, retro, retroType) {
         },
       ],
     },
-    [`${prefix} - Overall?`]: {
-      rich_text: [
-        {
-          text: { content: retro.overall },
-        },
-      ],
-    },
     [`${prefix} - General?`]: {
       rich_text: [
         {
           text: { content: retro.general },
+        },
+      ],
+    },
+    [`${prefix} - Overall?`]: {
+      rich_text: [
+        {
+          text: { content: retro.overall },
         },
       ],
     },
