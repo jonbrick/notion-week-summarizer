@@ -478,12 +478,12 @@ async function buildPhysicalHealthSummary(
         );
         const totalHours = (totalMinutes / 60).toFixed(1);
 
-        output += `WORKOUTS (${validWorkouts.length} sessions, ${totalHours} hours):\n`;
+        output += `WORKOUTS (${validWorkouts.length} sessions, ${totalHours} hours):`;
         groupedWorkouts.forEach((group) => {
           const { formatDuration } = require("./src/utils/time-utils");
           const duration = formatDuration(group.totalMinutes);
           const countText = group.count > 1 ? ` (${group.count}x)` : "";
-          output += `• ${group.title}${countText} (${duration})\n`;
+          output += `\n• ${group.title}${countText} (${duration})`;
         });
       } else {
         output += "WORKOUTS:\nNo workout sessions this week.";
