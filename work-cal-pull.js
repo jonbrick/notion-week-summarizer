@@ -256,6 +256,155 @@ function askQuestion(question) {
   });
 }
 
+// Function to parse PR summary and extract evaluation data
+function parsePRSummaryForEval(prSummary) {
+  if (
+    !prSummary ||
+    prSummary.includes("No work commits") ||
+    prSummary.includes("No PR events")
+  ) {
+    return { count: 0, names: [] };
+  }
+
+  // Extract PR count from header like "PRs (4 PRs, 74 commits):"
+  const headerMatch = prSummary.match(/PRs \((\d+) PRs?, \d+ commits?\):/);
+  const count = headerMatch ? parseInt(headerMatch[1]) : 0;
+
+  // Extract PR names - look for lines that have PR titles
+  const names = [];
+  const lines = prSummary.split("\n");
+
+  for (const line of lines) {
+    // Skip header, dividers, and commit details
+    if (
+      line.includes("PRs (") ||
+      line.includes("------") ||
+      line.includes("---") ||
+      line.trim() === "" ||
+      line.includes("commits truncated") ||
+      line.includes("Change ") ||
+      line.includes("Apply ") ||
+      line.includes("Updated ") ||
+      line.includes("Use ") ||
+      line.includes("Add ") ||
+      line.includes("Make ") ||
+      line.includes("Merge ")
+    ) {
+      continue;
+    }
+
+    // Look for PR title lines (they contain [X commits] or (#number))
+    if (
+      (line.includes("[") && line.includes("commits]")) ||
+      line.includes("(#")
+    ) {
+      // Extract just the PR title part before [commits] or clean it up
+      let title = line.split("[")[0].trim();
+      if (title.includes("#")) {
+        // For titles like "CET-15007 [Redesign polish] Input Cleanup (#7211)"
+        // Extract the descriptive part
+        const parts = title.split("] ");
+        if (parts.length > 1) {
+          title = parts[1].split(" (#")[0];
+        }
+      }
+      if (title && title.length > 5) {
+        // Avoid capturing short fragments
+        names.push(title);
+      }
+    }
+  }
+
+  return { count, names: names.slice(0, 4) }; // Limit to first 4
+}
+
+// Function to parse calendar hours from existing formatted calendar text
+function parseExistingCalendarHours(calendarText) {
+  if (!calendarText || calendarText.includes("No ")) {
+    return 0;
+  }
+
+  // Extract hours from format like "CODING (9 events, 32.75 hours, 77%):"
+  const hoursMatch = calendarText.match(/\(.*?(\d+(?:\.\d+)?)\s*hours?.*?\)/);
+  if (hoursMatch) {
+    return parseFloat(hoursMatch[1]);
+  }
+
+  // Extract hours from Work Cal Summary format like "- Coding: 32.8 hours (62%)"
+  const summaryHoursMatch = calendarText.match(
+    /- \w+: (\d+(?:\.\d+)?)\s*hours?/
+  );
+  if (summaryHoursMatch) {
+    return parseFloat(summaryHoursMatch[1]);
+  }
+
+  return 0;
+}
+
+// Function to generate work calendar evaluation
+function generateWorkCalEvaluation(existingCalSummary, prSummary) {
+  const evaluations = [];
+
+  // Parse PR data
+  const prData = parsePRSummaryForEval(prSummary);
+
+  // Parse hours from Work Cal Summary format
+  let defaultHours = 0;
+  let ritualsHours = 0;
+  let codingHours = 0;
+  let designHours = 0;
+
+  // Look for each line and extract hours from Work Cal Summary format
+  const lines = existingCalSummary.split("\n");
+  lines.forEach((line) => {
+    if (line.includes("- Meetings:")) {
+      defaultHours = parseExistingCalendarHours(line);
+    } else if (line.includes("- Coding:")) {
+      codingHours = parseExistingCalendarHours(line);
+    } else if (line.includes("- Design:")) {
+      designHours = parseExistingCalendarHours(line);
+    }
+  });
+
+  const totalHours = defaultHours + ritualsHours + codingHours + designHours;
+  const meetingHours = defaultHours + ritualsHours;
+  const meetingPercent =
+    totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
+
+  // Good evaluations first
+  if (prData.count > 0) {
+    const prNames =
+      prData.names.length > 0 ? prData.names.join(", ") : "PRs shipped";
+    evaluations.push(
+      `✅ ${prData.count} PRs SHIPPED: (${prNames}${
+        prData.names.length >= 4 ? ", ..." : ""
+      })`
+    );
+  }
+
+  // Warning evaluations
+  if (meetingPercent >= 20) {
+    evaluations.push(
+      `⚠️ MEETING TIME: ${meetingPercent}% (above 20% threshold, spent ${meetingHours} hours in meetings)`
+    );
+  }
+
+  // Bad evaluations
+  if (prData.count === 0) {
+    evaluations.push(`❌ NO PRs SHIPPED: 0 PRs this week`);
+  }
+
+  if (designHours === 0) {
+    evaluations.push(`❌ NO DESIGN TIME: 0 hours`);
+  }
+
+  if (codingHours === 0) {
+    evaluations.push(`❌ NO CODING TIME: 0 hours`);
+  }
+
+  return evaluations;
+}
+
 // Default configuration
 const DEFAULT_TARGET_WEEKS = [1];
 
@@ -592,37 +741,26 @@ async function processWeek(weekNumber) {
     )}%)\n`;
     workCalSummary += `- PRs: ${prCount} shipped, ${commitCount} commits\n`;
 
-    workCalSummary += `\n===== EVALUATION =====\n`;
-
-    // Productive time evaluation
-    if (productivePercent >= 60) {
-      workCalSummary += `✅ HIGH PRODUCTIVE TIME: ${productivePercent}% coding + design\n`;
-    }
-
-    // Meeting time evaluation
-    if (meetingPercent > 20) {
-      workCalSummary += `⚠️ MEETING TIME: ${meetingPercent}% (above 20% threshold)\n`;
-    }
-
-    // Design time evaluation
-    if (categoryStats.design.hours === 0) {
-      workCalSummary += `❌ NO DESIGN TIME: 0 hours this week\n`;
-    }
-
-    // Coding time evaluation
-    if (categoryStats.coding.hours === 0) {
-      workCalSummary += `❌ NO CODING TIME: 0 hours this week\n`;
-    }
-
-    // PR evaluation
-    if (prCount > 0) {
-      workCalSummary += `✅ ${prCount} PRs shipped this week\n`;
-    } else {
-      workCalSummary += `❌ NO PRs shipped this week\n`;
-    }
-
     notionUpdates["Work Cal Summary"] = workCalSummary;
-    console.log(`🔄 Work Cal Summary: Created with evaluations`);
+    console.log(`🔄 Work Cal Summary: Created`);
+
+    // Generate evaluation for Work Cal Summary
+    if (notionUpdates["Work Cal Summary"]) {
+      const existingCalSummary = notionUpdates["Work Cal Summary"];
+      const prSummary = notionUpdates["Work PR Summary"] || "";
+
+      const calEvaluations = generateWorkCalEvaluation(
+        existingCalSummary,
+        prSummary
+      );
+
+      if (calEvaluations.length > 0) {
+        notionUpdates["Work Cal Summary"] =
+          existingCalSummary +
+          "\n\n===== EVALUATION =====\n" +
+          calEvaluations.join("\n");
+      }
+    }
 
     // Update Notion
     console.log("📝 Updating Notion...");
