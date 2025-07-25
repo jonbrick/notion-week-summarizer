@@ -581,6 +581,8 @@ async function generateRetrospective(combinedDoc, retroType) {
 
 async function updateNotionRetro(pageId, retro, retroType) {
   console.log("\n📝 Updating Notion with retrospective...");
+  console.log("Page ID:", pageId);
+  console.log("Retro type:", retroType);
 
   const prefix = retroType === "personal" ? "Personal" : "Work";
 
@@ -615,12 +617,31 @@ async function updateNotionRetro(pageId, retro, retroType) {
     },
   };
 
-  await notion.pages.update({
-    page_id: pageId,
-    properties: properties,
+  console.log("Properties being updated:", Object.keys(properties));
+  console.log("Property values:", {
+    general: retro.general ? retro.general.substring(0, 50) + "..." : "empty",
+    wentWell: retro.wentWell
+      ? retro.wentWell.substring(0, 50) + "..."
+      : "empty",
+    didntGoWell: retro.didntGoWell
+      ? retro.didntGoWell.substring(0, 50) + "..."
+      : "empty",
+    overview: retro.overview
+      ? retro.overview.substring(0, 50) + "..."
+      : "empty",
   });
 
-  console.log("✅ Notion updated successfully!");
+  try {
+    await notion.pages.update({
+      page_id: pageId,
+      properties: properties,
+    });
+    console.log("✅ Notion updated successfully!");
+  } catch (error) {
+    console.error("❌ Error updating Notion:", error.message);
+    console.error("Full error:", error);
+    throw error;
+  }
 }
 
 async function generateRetro(retroType, weekNumber) {

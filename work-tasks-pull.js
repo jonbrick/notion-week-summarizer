@@ -133,7 +133,7 @@ async function fetchWeekEvents(startDate, endDate) {
   }
 }
 
-// Format rocks for Notion
+// Format rocks for Notion with evaluation-style format
 function formatRocksForNotion(rocks) {
   if (rocks.length === 0) {
     return "No work rocks this week.";
@@ -143,26 +143,37 @@ function formatRocksForNotion(rocks) {
   output += "------\n";
 
   rocks.forEach((rock) => {
-    const rockTitle =
+    let rockTitle =
       rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
       "Untitled Rock";
+
+    // Remove number prefixes like "02. " from rock titles
+    rockTitle = rockTitle.replace(/^\d+\.\s*/, "");
+
     const status = rock.properties.Status?.status?.name || "No Status";
     const description =
       rock.properties.Description?.rich_text
         ?.map((t) => t.plain_text)
         .join("") || "";
-    const workCategory = rock.properties["Work Category"]?.select?.name || "";
 
-    output += `${status} ${rockTitle}`;
-    if (workCategory) {
-      output += ` (${workCategory})`;
+    // Map status to evaluation format
+    if (status.includes("Achieved")) {
+      output += `✅ ROCK ACHIEVED: ${rockTitle}${
+        description ? ` (${description})` : ""
+      }\n`;
+    } else if (status.includes("Good Progress")) {
+      output += `✅ ROCK PROGRESS: ${rockTitle}${
+        description ? ` (${description})` : ""
+      }\n`;
+    } else if (status.includes("Failed")) {
+      output += `❌ ROCK FAILED: ${rockTitle}${
+        description ? ` (${description})` : ""
+      }\n`;
+    } else if (status.includes("Little Progress")) {
+      output += `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
+        description ? ` (${description})` : ""
+      }\n`;
     }
-    output += "\n";
-
-    if (description) {
-      output += `  Description: ${description}\n`;
-    }
-    output += "\n";
   });
 
   return output.trim();
@@ -205,6 +216,154 @@ function formatEventsForNotion(events) {
   });
 
   return output.trim();
+}
+
+// Parse rocks data directly to extract rock evaluations
+function parseRockEvaluations(rocks) {
+  const evaluations = [];
+
+  rocks.forEach((rock) => {
+    let rockTitle =
+      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
+      "Untitled Rock";
+    // Remove number prefixes like "02. " from rock titles
+    rockTitle = rockTitle.replace(/^\d+\.\s*/, "");
+
+    const status = rock.properties.Status?.status?.name || "No Status";
+    const description =
+      rock.properties.Description?.rich_text
+        ?.map((t) => t.plain_text)
+        .join("") || "";
+
+    if (status.includes("Achieved")) {
+      evaluations.push({
+        type: "good",
+        text: `✅ ROCK ACHIEVED: ${rockTitle}${
+          description ? ` (${description})` : ""
+        }`,
+      });
+    } else if (status.includes("Good Progress")) {
+      evaluations.push({
+        type: "good",
+        text: `✅ ROCK PROGRESS: ${rockTitle}${
+          description ? ` (${description})` : ""
+        }`,
+      });
+    } else if (status.includes("Failed")) {
+      evaluations.push({
+        type: "bad",
+        text: `❌ ROCK FAILED: ${rockTitle}${
+          description ? ` (${description})` : ""
+        }`,
+      });
+    } else if (status.includes("Little Progress")) {
+      evaluations.push({
+        type: "bad",
+        text: `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
+          description ? ` (${description})` : ""
+        }`,
+      });
+    }
+  });
+
+  return evaluations;
+}
+
+// Generate task evaluation
+function generateTaskEvaluation(tasksByType, rocks, eventsFormatted) {
+  const evaluations = [];
+
+  // Parse rock evaluations first (they go at top) - only if rocks are provided
+  if (rocks.length > 0) {
+    const rockEvals = parseRockEvaluations(rocks);
+
+    // Add good evaluations first
+    rockEvals
+      .filter((r) => r.type === "good")
+      .forEach((r) => evaluations.push(r.text));
+  }
+
+  // Check for research tasks (good when present, not bad when absent)
+  const researchCount = tasksByType["Research"]?.length || 0;
+  if (researchCount > 0) {
+    const taskNames = tasksByType["Research"].map((t) => t.title).join(", ");
+    evaluations.push(
+      `✅ RESEARCH TASKS: ${researchCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for QA tasks (good when present, not bad when absent)
+  const qaCount = tasksByType["QA"]?.length || 0;
+  if (qaCount > 0) {
+    const taskNames = tasksByType["QA"].map((t) => t.title).join(", ");
+    evaluations.push(`✅ QA TASKS: ${qaCount} completed (${taskNames})`);
+  }
+
+  // Check for feedback tasks (good when present, not bad when absent)
+  const feedbackCount = tasksByType["Feedback"]?.length || 0;
+  if (feedbackCount > 0) {
+    const taskNames = tasksByType["Feedback"].map((t) => t.title).join(", ");
+    evaluations.push(
+      `✅ FEEDBACK TASKS: ${feedbackCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for coding tasks (good when present)
+  const codingTasksCount = tasksByType["Coding"]?.length || 0;
+  if (codingTasksCount > 0) {
+    const taskNames = tasksByType["Coding"].map((t) => t.title).join(", ");
+    evaluations.push(
+      `✅ CODING TASKS: ${codingTasksCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for design tasks (good when present)
+  const designTasksCount = tasksByType["Design"]?.length || 0;
+  if (designTasksCount > 0) {
+    const taskNames = tasksByType["Design"].map((t) => t.title).join(", ");
+    evaluations.push(
+      `✅ DESIGN TASKS: ${designTasksCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for work events (good when present)
+  if (eventsFormatted && !eventsFormatted.includes("No work events")) {
+    const eventLines = eventsFormatted
+      .split("\n")
+      .filter(
+        (line) =>
+          line.includes("✅") ||
+          line.includes("👾") ||
+          line.includes("🚧") ||
+          line.includes("🥊")
+      );
+    if (eventLines.length > 0) {
+      const eventCount = eventLines.length;
+      evaluations.push(`✅ WORK EVENTS: ${eventCount} attended`);
+    }
+  }
+
+  // Add bad rock evaluations - only if rocks are provided
+  if (rocks.length > 0) {
+    const rockEvals = parseRockEvaluations(rocks);
+    rockEvals
+      .filter((r) => r.type === "bad")
+      .forEach((r) => evaluations.push(r.text));
+  }
+
+  // Check for missing design tasks (always bad when 0)
+  const designCount = tasksByType["Design"]?.length || 0;
+  if (designCount === 0) {
+    evaluations.push(`❌ NO DESIGN TASKS: 0 completed`);
+  }
+
+  // Check for missing coding tasks (always bad when 0)
+  const codingCount = tasksByType["Coding"]?.length || 0;
+  if (codingCount === 0) {
+    evaluations.push(`❌ NO CODING TASKS: 0 completed`);
+  }
+
+  return evaluations;
 }
 
 // Process a single week
@@ -292,7 +451,7 @@ async function processWeek(weekNumber) {
 
     console.log(`📋 Found ${tasksResponse.results.length} work tasks`);
 
-    // 5. Format tasks for Notion
+    // 5. Format tasks for Notion with new format
     let summary = "";
 
     // Define all work categories in custom order
@@ -319,6 +478,9 @@ async function processWeek(weekNumber) {
       tasksByCategory[category] = [];
     });
 
+    // First, group tasks by title to deduplicate
+    const taskGroups = {};
+
     tasksResponse.results.forEach((task) => {
       let category =
         task.properties["Work Category"]?.select?.name || "No Category";
@@ -338,37 +500,85 @@ async function processWeek(weekNumber) {
         const dueDate = task.properties["Due Date"].date.start;
         const formattedDate = formatTaskDate(dueDate);
 
-        tasksByCategory[category].push({
-          title: taskTitle,
-          formattedDate: formattedDate,
-          dueDate: dueDate,
-        });
+        // Create a unique key for each task title + category combination
+        const taskKey = `${category}:${taskTitle}`;
+
+        if (!taskGroups[taskKey]) {
+          taskGroups[taskKey] = {
+            title: taskTitle,
+            category: category,
+            dates: [],
+            formattedDates: [],
+          };
+        }
+
+        taskGroups[taskKey].dates.push(dueDate);
+        taskGroups[taskKey].formattedDates.push(formattedDate);
       }
     });
 
-    // Add each category in custom order with special separators
-    allCategories.forEach((category, categoryIndex) => {
+    // Now organize deduplicated tasks by category
+    Object.values(taskGroups).forEach((taskGroup) => {
+      const category = taskGroup.category;
+      const title = taskGroup.title;
+
+      // Sort dates chronologically
+      const sortedDates = taskGroup.dates.sort();
+      const sortedFormattedDates = taskGroup.formattedDates.sort();
+
+      // Create date range string
+      let dateString;
+      if (sortedFormattedDates.length === 1) {
+        dateString = sortedFormattedDates[0];
+      } else {
+        dateString = `${sortedFormattedDates[0]} - ${
+          sortedFormattedDates[sortedFormattedDates.length - 1]
+        }`;
+      }
+
+      tasksByCategory[category].push({
+        title: title,
+        formattedDate: dateString,
+        dueDate: sortedDates[0], // Use first date for sorting
+        count: sortedDates.length, // Track how many instances
+      });
+    });
+
+    // Add categories that have tasks (not empty ones)
+    const categoriesWithTasks = [];
+    const categoriesWithoutTasks = [];
+
+    allCategories.forEach((category) => {
+      const tasks = tasksByCategory[category];
+      if (tasks.length > 0) {
+        categoriesWithTasks.push(category);
+      } else {
+        categoriesWithoutTasks.push(category);
+      }
+    });
+
+    // Add categories with tasks
+    categoriesWithTasks.forEach((category, index) => {
       const tasks = tasksByCategory[category];
 
-      // Add appropriate separator
-      if (categoryIndex === 0) {
-        // First category (Research) - no separator before
-      } else if (categoryIndex === 5) {
-        // Admin category - major separator
-        summary += "======";
-      } else {
-        // Regular separator for other categories
+      // Add separator (except for first category)
+      if (index > 0) {
         summary += "------";
       }
 
-      // Category header with count
       summary += `\n${category} Tasks (${tasks.length}):\n`;
 
-      // Add tasks in this category
       tasks.forEach((task) => {
-        summary += `• ${task.title} (${task.formattedDate})\n`;
+        const countText = task.count > 1 ? ` (${task.count} days)` : "";
+        summary += `• ${task.title} (${task.formattedDate})${countText}\n`;
       });
     });
+
+    // Add "No tasks" summary line for empty categories
+    if (categoriesWithoutTasks.length > 0) {
+      summary += "------\n";
+      summary += `No tasks (${categoriesWithoutTasks.join(", ")} Tasks)\n`;
+    }
 
     // Remove trailing newline
     summary = summary.trim();
@@ -380,16 +590,43 @@ async function processWeek(weekNumber) {
     // 6. Fetch rocks and events
     console.log(`\n🪨 Fetching work rocks...`);
     const rocks = await fetchWeekRocks(startDate, endDate, weekPageId);
-    const rocksFormated = formatRocksForNotion(rocks);
+    const rocksFormatted = formatRocksForNotion(rocks);
 
     console.log(`\n🎟️ Fetching work events...`);
     const events = await fetchWeekEvents(startDate, endDate);
     const eventsFormatted = formatEventsForNotion(events);
 
-    // 7. Update Notion
+    // 7. Generate evaluation (excluding rocks since they're in their own summary)
+    const evaluations = generateTaskEvaluation(
+      tasksByCategory,
+      [], // Empty array since rocks are handled separately
+      eventsFormatted
+    );
+
+    // Add evaluation section to summary
+    summary += "\n\n===== EVALUATION =====\n";
+
+    // Add rocks content to evaluation first (excluding header)
+    if (rocksFormatted && !rocksFormatted.includes("No work rocks")) {
+      // Extract content after the "------" line
+      const rocksContent = rocksFormatted.split("------\n")[1];
+      if (rocksContent) {
+        summary += rocksContent;
+      }
+    }
+
+    // Add task evaluations after rocks
+    if (evaluations.length > 0) {
+      if (rocksFormatted && !rocksFormatted.includes("No work rocks")) {
+        summary += "\n"; // Add separator between rocks and task evaluations
+      }
+      summary += evaluations.join("\n");
+    }
+
+    // 8. Update Notion
     const summaryUpdates = {
       "Work Task Summary": summary,
-      "Work Rocks Summary": rocksFormated,
+      "Work Rocks Summary": rocksFormatted,
       "Work Events Summary": eventsFormatted,
     };
 

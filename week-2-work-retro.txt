@@ -8,9 +8,11 @@
 ## What went well?
 • 4 PRs shipped
 • ✅ Achieved 02. Back to work
+• Meeting percentage < 20%
+• High productive percentage (> 60%)
 
 ## What didn't go well?
-• No rocks with 🥊 or 🚧 status
+• No design tasks completed
 
 ## Overview
-"Good week - High productive percentage and multiple PRs shipped."
+Good week - Productive coding work and shipping PRs, while keeping meeting time below 20%.

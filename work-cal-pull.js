@@ -226,7 +226,8 @@ const WORK_CATEGORY_MAPPING = {
   rituals: "Rituals Cal",
   research: "Research Cal",
   unknown: "Default Work Cal",
-  pr: "Work PR Summary", // ADD THIS LINE
+  pr: "Work PR Summary",
+  summary: "Work Cal Summary", // ADD THIS LINE
 };
 
 // Category names for empty messages
@@ -271,8 +272,6 @@ const CALENDAR_OPTIONS = [
 
 let SELECTED_CALENDAR = CALENDAR_OPTIONS[0]; // Default to work
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
-let includeWorkCal = true; // Default to work calendar
-let includePRs = false;
 
 // Check if running in interactive mode
 async function checkInteractiveMode() {
@@ -290,37 +289,13 @@ async function checkInteractiveMode() {
   return true; // Interactive mode
 }
 
-// Interactive mode
+// Interactive mode - now only asks for weeks
 async function runInteractiveMode() {
   console.log("\n🎯 Work Calendar Summary Generator");
   console.log(`📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
 
-  // Ask what to include first
-  console.log("? What to process?");
-  console.log("  1 - Both (Work Calendar + PRs)");
-  console.log("  2 - Work Calendar Only");
-  console.log("  3 - Work PRs Only");
-
-  const includeInput = await askQuestion(
-    "\n? Enter choice (or press enter for both): "
-  );
-
-  // Reset flags
-  includeWorkCal = false;
-  includePRs = false;
-
-  if (includeInput.trim() === "1" || includeInput.trim() === "") {
-    includeWorkCal = true;
-    includePRs = true;
-  } else if (includeInput.trim() === "2") {
-    includeWorkCal = true;
-  } else if (includeInput.trim() === "3") {
-    includePRs = true;
-  }
-
-  // Ask for weeks
   const weeksInput = await askQuestion(
-    "\n? Which weeks to process? (comma-separated, e.g., 1,2,3): "
+    "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
   );
   if (weeksInput.trim()) {
     TARGET_WEEKS = weeksInput
@@ -329,17 +304,7 @@ async function runInteractiveMode() {
       .filter((w) => !isNaN(w));
   }
 
-  // Show confirmation
-  console.log(
-    `\n📋 Processing: ${
-      includeWorkCal && includePRs
-        ? "Work Calendar + PRs"
-        : includeWorkCal
-        ? "Work Calendar"
-        : "Work PRs"
-    }`
-  );
-  console.log(`📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+  console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
 
   const confirm = await askQuestion("Continue? (y/n): ");
 
@@ -430,11 +395,7 @@ async function updateNotionSummaries(pageId, summaryUpdates) {
 }
 
 // Process single week
-async function processWeek(
-  weekNumber,
-  includeWorkCal = true,
-  includePRs = true
-) {
+async function processWeek(weekNumber) {
   try {
     console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
 
@@ -448,88 +409,102 @@ async function processWeek(
     // Initialize notionUpdates object
     const notionUpdates = {};
 
-    // Fetch and process work calendar events
-    if (includeWorkCal) {
-      // Fetch calendar events
-      const rawEvents = await fetchCalendarEvents(
-        SELECTED_CALENDAR.calendarId,
-        SELECTED_CALENDAR.authType,
-        startDate,
-        endDate
-      );
+    // ALWAYS fetch and process work calendar events
+    const rawEvents = await fetchCalendarEvents(
+      SELECTED_CALENDAR.calendarId,
+      SELECTED_CALENDAR.authType,
+      startDate,
+      endDate
+    );
 
-      console.log(`📥 Processing ${rawEvents.length} raw events...\n`);
+    console.log(`📥 Processing ${rawEvents.length} raw events...\n`);
 
-      // Categorize all events
-      const categorizedEvents = rawEvents.map(categorizeEventByColor);
+    // Categorize all events
+    const categorizedEvents = rawEvents.map(categorizeEventByColor);
 
-      // Group by category
-      const categories = {
-        default: [],
-        coding: [],
-        design: [],
-        review: [],
-        qa: [],
-        rituals: [],
-        research: [],
-        personal: [], // For logging only
-        ignored: [], // For logging only
-      };
+    // Group by category
+    const categories = {
+      default: [],
+      coding: [],
+      design: [],
+      review: [],
+      qa: [],
+      rituals: [],
+      research: [],
+      personal: [], // For logging only
+      ignored: [], // For logging only
+    };
 
-      categorizedEvents.forEach((event) => {
-        // Merge unknown into default
-        if (event.category === "unknown") {
-          categories.default.push(event);
-        } else {
-          categories[event.category].push(event);
-        }
-      });
-
-      // Log ignored events (but don't send to Notion)
-      const ignoredEvents = [...categories.personal, ...categories.ignored];
-      if (ignoredEvents.length > 0) {
-        console.log(`🚫 IGNORED (${ignoredEvents.length} events):`);
-        ignoredEvents.forEach((event, index) => {
-          console.log(
-            `   ${index + 1}. "${event.title}" (${event.durationFormatted}) - ${
-              event.categoryName
-            }`
-          );
-        });
-        console.log("");
+    categorizedEvents.forEach((event) => {
+      if (event.category === "unknown") {
+        categories.default.push(event);
+      } else {
+        categories[event.category].push(event);
       }
+    });
 
-      // Process work categories (excluding unknown since it merges with default)
-      const workCategories = [
-        "default",
-        "coding",
-        "design",
-        "review",
-        "qa",
-        "rituals",
-        "research",
-      ];
-
-      workCategories.forEach((categoryKey) => {
-        const columnName = WORK_CATEGORY_MAPPING[categoryKey];
-        const events = categories[categoryKey];
-        const formattedContent = formatEventsForNotion(events, categoryKey);
-
-        notionUpdates[columnName] = formattedContent;
-
-        // Log what we're updating
-        const totalMinutes = events
-          .filter((e) => e.duration)
-          .reduce((sum, e) => sum + e.duration, 0);
-
-        const timeText =
-          totalMinutes > 0 ? ` (${formatDuration(totalMinutes)})` : "";
-        console.log(`🔄 ${columnName}: ${events.length} events${timeText}`);
+    // Log ignored events (but don't send to Notion)
+    const ignoredEvents = [...categories.personal, ...categories.ignored];
+    if (ignoredEvents.length > 0) {
+      console.log(`🚫 IGNORED (${ignoredEvents.length} events):`);
+      ignoredEvents.forEach((event, index) => {
+        console.log(
+          `   ${index + 1}. "${event.title}" (${event.durationFormatted}) - ${
+            event.categoryName
+          }`
+        );
       });
+      console.log("");
     }
 
-    // Fetch PR events if calendar exists
-    if (includePRs && process.env.WORK_PR_DATA_CALENDAR_ID) {
+    // Process work categories
+    const workCategories = [
+      "default",
+      "coding",
+      "design",
+      "review",
+      "qa",
+      "rituals",
+      "research",
+    ];
+
+    // Calculate totals for Work Cal Summary
+    let totalMinutes = 0;
+    let totalEvents = 0;
+    const categoryStats = {};
+
+    workCategories.forEach((categoryKey) => {
+      const columnName = WORK_CATEGORY_MAPPING[categoryKey];
+      const events = categories[categoryKey];
+      const formattedContent = formatEventsForNotion(events, categoryKey);
+
+      notionUpdates[columnName] = formattedContent;
+
+      // Calculate stats
+      const categoryMinutes = events
+        .filter((e) => e.duration)
+        .reduce((sum, e) => sum + e.duration, 0);
+
+      categoryStats[categoryKey] = {
+        minutes: categoryMinutes,
+        hours: categoryMinutes / 60,
+        events: events.length,
+      };
+
+      totalMinutes += categoryMinutes;
+      totalEvents += events.length;
+
+      // Log what we're updating
+      const timeText =
+        categoryMinutes > 0 ? ` (${formatDuration(categoryMinutes)})` : "";
+      console.log(`🔄 ${columnName}: ${events.length} events${timeText}`);
+    });
+
+    // ALWAYS fetch PR events
+    let prCount = 0;
+    let commitCount = 0;
+
+    if (process.env.WORK_PR_DATA_CALENDAR_ID) {
       console.log("📥 Fetching PR events...");
       const prEvents = await fetchCalendarEvents(
         process.env.WORK_PR_DATA_CALENDAR_ID,
@@ -541,21 +516,23 @@ async function processWeek(
       if (prEvents.length > 0) {
         let prSummary = await processPREvents(prEvents);
 
+        // Extract PR count from summary
+        const prMatch = prSummary.match(/PRs \((\d+) PRs?, (\d+) commits?\)/);
+        if (prMatch) {
+          prCount = parseInt(prMatch[1]);
+          commitCount = parseInt(prMatch[2]);
+        }
+
         // Check if summary exceeds Notion's 2000 character limit
         if (prSummary.length > 2000) {
           console.log(
             `⚠️  PR summary too long (${prSummary.length} chars), truncating...`
           );
-
-          // Find a good breaking point before 1950 chars (leaving room for "...")
           const maxLength = 1950;
           let truncateAt = prSummary.lastIndexOf("\n", maxLength);
-
-          // If no newline found, just cut at maxLength
           if (truncateAt === -1 || truncateAt < maxLength - 200) {
             truncateAt = maxLength;
           }
-
           prSummary =
             prSummary.substring(0, truncateAt) +
             "\n\n... (truncated due to length)";
@@ -568,6 +545,84 @@ async function processWeek(
         console.log(`🔄 Work PR Summary: No events`);
       }
     }
+
+    // CREATE WORK CAL SUMMARY
+    const totalHours = totalMinutes / 60;
+    const meetingMinutes =
+      categoryStats.default.minutes + categoryStats.rituals.minutes;
+    const meetingHours = meetingMinutes / 60;
+    const meetingPercent =
+      totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
+
+    const productiveMinutes =
+      categoryStats.coding.minutes + categoryStats.design.minutes;
+    const productiveHours = productiveMinutes / 60;
+    const productivePercent =
+      totalHours > 0 ? Math.round((productiveHours / totalHours) * 100) : 0;
+
+    let workCalSummary = `WORK CAL SUMMARY:\n`;
+    workCalSummary += `Total: ${totalHours.toFixed(
+      1
+    )} hours (${totalEvents} events)\n`;
+    workCalSummary += `- Meetings: ${meetingHours.toFixed(
+      1
+    )} hours (${meetingPercent}%) [Default + Rituals]\n`;
+    workCalSummary += `- Coding: ${categoryStats.coding.hours.toFixed(
+      1
+    )} hours (${Math.round(
+      (categoryStats.coding.hours / totalHours) * 100
+    )}%)\n`;
+    workCalSummary += `- Design: ${categoryStats.design.hours.toFixed(
+      1
+    )} hours (${Math.round(
+      (categoryStats.design.hours / totalHours) * 100
+    )}%)\n`;
+    workCalSummary += `- Review: ${categoryStats.review.hours.toFixed(
+      1
+    )} hours (${Math.round(
+      (categoryStats.review.hours / totalHours) * 100
+    )}%)\n`;
+    workCalSummary += `- QA: ${categoryStats.qa.hours.toFixed(
+      1
+    )} hours (${Math.round((categoryStats.qa.hours / totalHours) * 100)}%)\n`;
+    workCalSummary += `- Research: ${categoryStats.research.hours.toFixed(
+      1
+    )} hours (${Math.round(
+      (categoryStats.research.hours / totalHours) * 100
+    )}%)\n`;
+    workCalSummary += `- PRs: ${prCount} shipped, ${commitCount} commits\n`;
+
+    workCalSummary += `\n===== EVALUATION =====\n`;
+
+    // Productive time evaluation
+    if (productivePercent >= 60) {
+      workCalSummary += `✅ HIGH PRODUCTIVE TIME: ${productivePercent}% coding + design\n`;
+    }
+
+    // Meeting time evaluation
+    if (meetingPercent > 20) {
+      workCalSummary += `⚠️ MEETING TIME: ${meetingPercent}% (above 20% threshold)\n`;
+    }
+
+    // Design time evaluation
+    if (categoryStats.design.hours === 0) {
+      workCalSummary += `❌ NO DESIGN TIME: 0 hours this week\n`;
+    }
+
+    // Coding time evaluation
+    if (categoryStats.coding.hours === 0) {
+      workCalSummary += `❌ NO CODING TIME: 0 hours this week\n`;
+    }
+
+    // PR evaluation
+    if (prCount > 0) {
+      workCalSummary += `✅ ${prCount} PRs shipped this week\n`;
+    } else {
+      workCalSummary += `❌ NO PRs shipped this week\n`;
+    }
+
+    notionUpdates["Work Cal Summary"] = workCalSummary;
+    console.log(`🔄 Work Cal Summary: Created with evaluations`);
 
     // Update Notion
     console.log("📝 Updating Notion...");
@@ -586,16 +641,6 @@ async function main() {
 
   if (isInteractive) {
     await runInteractiveMode();
-  } else {
-    // Command line mode - check for flags
-    const args = process.argv.slice(2);
-    if (args.includes("--prs")) {
-      includePRs = true;
-      includeWorkCal = false;
-    } else if (args.includes("--both")) {
-      includePRs = true;
-      includeWorkCal = true;
-    }
   }
 
   console.log(
@@ -604,7 +649,7 @@ async function main() {
   console.log(`📊 Processing ${TARGET_WEEKS.length} week(s)...\n`);
 
   for (const weekNumber of TARGET_WEEKS) {
-    await processWeek(weekNumber, includeWorkCal, includePRs);
+    await processWeek(weekNumber);
   }
 
   console.log(`\n🎉 Processing complete!`);
