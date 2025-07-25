@@ -125,10 +125,17 @@ function categorizeEventByColor(rawEvent) {
     return createEventObject(rawEvent, "ignored", "Declined Meeting");
   }
 
-  // 3. OOO filter - events with "OOO" in title go to ignored
+  // 3. JB OOO/PTO filter - track all-day JB OOO/PTO events
   const eventTitle = rawEvent.summary || "";
-  if (eventTitle.includes("OOO")) {
-    return createEventObject(rawEvent, "ignored", "Out of Office");
+  const isAllDay =
+    rawEvent.start && rawEvent.start.date && !rawEvent.start.dateTime;
+
+  if (
+    isAllDay &&
+    eventTitle.includes("JB") &&
+    (eventTitle.includes("OOO") || eventTitle.includes("PTO"))
+  ) {
+    return createEventObject(rawEvent, "ooo", "JB OOO/PTO");
   }
 
   // 4. Color mapping for default eventType events
@@ -171,6 +178,8 @@ function createEventObject(rawEvent, category, categoryName) {
     category: category,
     categoryName: categoryName,
     startTime: rawEvent.start?.dateTime || rawEvent.start?.date,
+    endTime: rawEvent.end?.dateTime || rawEvent.end?.date,
+    isAllDay: isAllDay,
     attendeeCount: rawEvent.attendees ? rawEvent.attendees.length : 0,
     eventType: rawEvent.eventType || "default",
     responseStatus: getMyResponseStatus(rawEvent.attendees),
@@ -270,52 +279,25 @@ function parsePRSummaryForEval(prSummary) {
   const headerMatch = prSummary.match(/PRs \((\d+) PRs?, \d+ commits?\):/);
   const count = headerMatch ? parseInt(headerMatch[1]) : 0;
 
-  // Extract PR names - look for lines that have PR titles
+  // Extract PR names from lines that start with PR titles
   const names = [];
   const lines = prSummary.split("\n");
 
   for (const line of lines) {
-    // Skip header, dividers, and commit details
+    // Look for lines that contain [X commit] or [X commits] - these are PR title lines
     if (
-      line.includes("PRs (") ||
-      line.includes("------") ||
-      line.includes("---") ||
-      line.trim() === "" ||
-      line.includes("commits truncated") ||
-      line.includes("Change ") ||
-      line.includes("Apply ") ||
-      line.includes("Updated ") ||
-      line.includes("Use ") ||
-      line.includes("Add ") ||
-      line.includes("Make ") ||
-      line.includes("Merge ")
+      line.includes("[") &&
+      (line.includes("commit]") || line.includes("commits]"))
     ) {
-      continue;
-    }
-
-    // Look for PR title lines (they contain [X commits] or (#number))
-    if (
-      (line.includes("[") && line.includes("commits]")) ||
-      line.includes("(#")
-    ) {
-      // Extract just the PR title part before [commits] or clean it up
-      let title = line.split("[")[0].trim();
-      if (title.includes("#")) {
-        // For titles like "CET-15007 [Redesign polish] Input Cleanup (#7211)"
-        // Extract the descriptive part
-        const parts = title.split("] ");
-        if (parts.length > 1) {
-          title = parts[1].split(" (#")[0];
-        }
-      }
+      // Extract the full PR title by removing the [X commits] part at the end
+      const title = line.replace(/\s*\[\d+\s+commits?\]$/, "").trim();
       if (title && title.length > 5) {
-        // Avoid capturing short fragments
         names.push(title);
       }
     }
   }
 
-  return { count, names: names.slice(0, 4) }; // Limit to first 4
+  return { count, names: names }; // Return all names, no truncation
 }
 
 // Function to parse calendar hours from existing formatted calendar text
@@ -353,6 +335,7 @@ function generateWorkCalEvaluation(existingCalSummary, prSummary) {
   let ritualsHours = 0;
   let codingHours = 0;
   let designHours = 0;
+  let oooDays = 0;
 
   // Look for each line and extract hours from Work Cal Summary format
   const lines = existingCalSummary.split("\n");
@@ -363,6 +346,12 @@ function generateWorkCalEvaluation(existingCalSummary, prSummary) {
       codingHours = parseExistingCalendarHours(line);
     } else if (line.includes("- Design:")) {
       designHours = parseExistingCalendarHours(line);
+    } else if (line.includes("- OOO:")) {
+      // Extract OOO days from format like "- OOO: 5 Days"
+      const oooMatch = line.match(/- OOO: (\d+) Day/);
+      if (oooMatch) {
+        oooDays = parseInt(oooMatch[1]);
+      }
     }
   });
 
@@ -371,21 +360,34 @@ function generateWorkCalEvaluation(existingCalSummary, prSummary) {
   const meetingPercent =
     totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
 
-  // Good evaluations first
+  // OOO evaluation (TOP priority)
+  if (oooDays > 0) {
+    evaluations.push(`🏝️ OOO: ${oooDays} Day${oooDays === 1 ? "" : "s"}`);
+  }
+
+  // Good evaluations
   if (prData.count > 0) {
-    const prNames =
-      prData.names.length > 0 ? prData.names.join(", ") : "PRs shipped";
+    evaluations.push(`✅ ${prData.count} PRs SHIPPED:`);
+    // Add each PR as a bullet point
+    prData.names.forEach((prName) => {
+      evaluations.push(`  • ${prName}`);
+    });
+  }
+
+  if (codingHours > 0) {
     evaluations.push(
-      `✅ ${prData.count} PRs SHIPPED: (${prNames}${
-        prData.names.length >= 4 ? ", ..." : ""
-      })`
+      `✅ CODING TIME: ${codingHours.toFixed(1)} hours (${Math.round(
+        (codingHours / totalHours) * 100
+      )}%)`
     );
   }
 
   // Warning evaluations
   if (meetingPercent >= 20) {
     evaluations.push(
-      `⚠️ MEETING TIME: ${meetingPercent}% (above 20% threshold, spent ${meetingHours} hours in meetings)`
+      `⚠️ MEETING TIME: ${meetingHours.toFixed(
+        1
+      )} hours (${meetingPercent}%) [above 20% threshold]`
     );
   }
 
@@ -395,7 +397,7 @@ function generateWorkCalEvaluation(existingCalSummary, prSummary) {
   }
 
   if (designHours === 0) {
-    evaluations.push(`❌ NO DESIGN TIME: 0 hours`);
+    evaluations.push(`❌ NO DESIGN TIME: 0 hours (0%)`);
   }
 
   if (codingHours === 0) {
@@ -580,6 +582,7 @@ async function processWeek(weekNumber) {
       qa: [],
       rituals: [],
       research: [],
+      ooo: [], // JB OOO/PTO events
       personal: [], // For logging only
       ignored: [], // For logging only
     };
@@ -709,6 +712,21 @@ async function processWeek(weekNumber) {
     const productivePercent =
       totalHours > 0 ? Math.round((productiveHours / totalHours) * 100) : 0;
 
+    // Calculate OOO days - count actual days for all-day events
+    const oooDays = categories.ooo.reduce((totalDays, event) => {
+      if (!event.isAllDay) {
+        // Time-specific event, count as 1 day
+        return totalDays + 1;
+      } else {
+        // All-day event, calculate days between start and end
+        const startDate = new Date(event.startTime);
+        const endDate = new Date(event.endTime);
+        const diffTime = endDate.getTime() - startDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return totalDays + diffDays;
+      }
+    }, 0);
+
     let workCalSummary = `WORK CAL SUMMARY:\n`;
     workCalSummary += `Total: ${totalHours.toFixed(
       1
@@ -718,28 +736,41 @@ async function processWeek(weekNumber) {
     )} hours (${meetingPercent}%) [Default + Rituals]\n`;
     workCalSummary += `- Coding: ${categoryStats.coding.hours.toFixed(
       1
-    )} hours (${Math.round(
-      (categoryStats.coding.hours / totalHours) * 100
-    )}%)\n`;
+    )} hours (${
+      totalHours > 0
+        ? Math.round((categoryStats.coding.hours / totalHours) * 100)
+        : 0
+    }%)\n`;
     workCalSummary += `- Design: ${categoryStats.design.hours.toFixed(
       1
-    )} hours (${Math.round(
-      (categoryStats.design.hours / totalHours) * 100
-    )}%)\n`;
+    )} hours (${
+      totalHours > 0
+        ? Math.round((categoryStats.design.hours / totalHours) * 100)
+        : 0
+    }%)\n`;
     workCalSummary += `- Review: ${categoryStats.review.hours.toFixed(
       1
-    )} hours (${Math.round(
-      (categoryStats.review.hours / totalHours) * 100
-    )}%)\n`;
-    workCalSummary += `- QA: ${categoryStats.qa.hours.toFixed(
-      1
-    )} hours (${Math.round((categoryStats.qa.hours / totalHours) * 100)}%)\n`;
+    )} hours (${
+      totalHours > 0
+        ? Math.round((categoryStats.review.hours / totalHours) * 100)
+        : 0
+    }%)\n`;
+    workCalSummary += `- QA: ${categoryStats.qa.hours.toFixed(1)} hours (${
+      totalHours > 0
+        ? Math.round((categoryStats.qa.hours / totalHours) * 100)
+        : 0
+    }%)\n`;
     workCalSummary += `- Research: ${categoryStats.research.hours.toFixed(
       1
-    )} hours (${Math.round(
-      (categoryStats.research.hours / totalHours) * 100
-    )}%)\n`;
+    )} hours (${
+      totalHours > 0
+        ? Math.round((categoryStats.research.hours / totalHours) * 100)
+        : 0
+    }%)\n`;
     workCalSummary += `- PRs: ${prCount} shipped, ${commitCount} commits\n`;
+    if (oooDays > 0) {
+      workCalSummary += `- OOO: ${oooDays} Day${oooDays === 1 ? "" : "s"}\n`;
+    }
 
     notionUpdates["Work Cal Summary"] = workCalSummary;
     console.log(`🔄 Work Cal Summary: Created`);
@@ -757,7 +788,7 @@ async function processWeek(weekNumber) {
       if (calEvaluations.length > 0) {
         notionUpdates["Work Cal Summary"] =
           existingCalSummary +
-          "\n\n===== EVALUATION =====\n" +
+          "\n===== EVALUATION =====\n" +
           calEvaluations.join("\n");
       }
     }
