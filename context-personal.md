@@ -1,96 +1,85 @@
-# Personal Context - Enhanced
+# PERSONAL EXTRACTION GUIDE
 
-I'm Jon, and I want to maintain a healthy, balanced personal life.
+## STEP 1: FIND THESE NUMBERS
 
-## BULLET FORMAT EXAMPLES
+### From Habit Columns:
 
-### Good "What went well" bullets:
+- **Early Wakeup**: Number from "Early Wakeup" column
+- **Sleep In**: Number from "Sleep In" column
+- **Workout**: Number from "Workout" column
+- **Sober Days**: Number from "Sober Days" column
+- **Drinking Days**: Number from "Drinking Days" column
+- **Body Weight**: Number from "Body Weight" column (if present)
 
-• Health habits - exercise 3x, early wakeup 5x, sober 4x
-• Achieved rock - No Home Stuff this week (✅)
-• Ravens playoff game with friends - 5 hours social time
-• Progress on personal coding projects
+### From Calendar Columns:
 
-### Good "What didn't go well" bullets:
+- **Personal hours**: Extract from "Personal Cal"
+- **Interpersonal hours**: Extract from "Interpersonal Cal"
+- **Home hours**: Extract from "Home Cal"
+- **Mental Health hours**: Extract from "Mental Health Cal"
+- **Physical Health hours**: Extract from "Physical Health Cal"
 
-• Missed habits - exercise 2x, sober 3x
-• Failed rock - Retro & Plan (🥊)
-• Health foundation slipped - only 1 workout this week
+### From Summary Columns:
 
-## Personal Priority Hierarchy
+- **Task count**: Look for "(X)" in "Personal Task Summary" header
+- **Personal PR count**: Look for "X apps" or "X commits" in "Personal PR Summary"
+- **Event count**: Count events in "Personal Events Summary"
 
-### Tier 1: Health Foundation (MOST IMPORTANT)
+## STEP 2: FIND THESE STATUSES
 
-- Exercise consistency (3+ times per week)
-- Healthy sleep patterns (4+ early weekday wakeups)
-- Moderate drinking (4+ sober days per week)
-- Mental health maintenance
+### Rock Status (from "Personal Rocks Summary"):
 
-**Format for habits:**
+- **Achieved rocks**: Look for "✅ Achieved" - extract rock name and type
+- **Good progress rocks**: Look for "👾 Made Good Progress" - extract rock name
+- **Little progress rocks**: Look for "🚧 Made Little Progress" - extract rock name
+- **Failed rocks**: Look for "🥊 Failed" - extract rock name and type
 
-- When targets met: "Health habits - exercise 3x, early wakeup 5x, sober 4x"
-- When targets missed: "Missed habits - exercise 2x, sober 3x"
+### Event Details (from "Personal Events Summary"):
 
-**Rule**: If Tier 1 is failing, the week is fundamentally compromised.
+- Extract event names and types
+- Note if it says "No personal events"
 
-### Tier 2: Life Management (IMPORTANT BUT SECONDARY)
+### Task Breakdown (from "Personal Task Summary"):
 
-- Home organization and apartment projects
-- Personal projects and goal progress
-- Social relationships and interpersonal time
+- Count tasks by category: Physical Health, Personal, Interpersonal, Mental Health, Home
 
-### Tier 3: Maintenance (DON'T EVALUATE)
+## STEP 3: EVALUATE HEALTH TARGETS
 
-- Laundry, groceries, routine errands
-- These are necessary but not important for week evaluation
+### Health Foundation (MOST IMPORTANT):
 
-## Personal Rocks
+- **Exercise target**: 3+ days = MET, less than 3 = MISSED
+- **Early wakeup target**: 4+ weekdays = MET, less than 4 = MISSED
+- **Sober target**: 4+ days = MET, less than 4 = MISSED
 
-- **Status meanings**:
-  - ✅ Achieved: Excellent progress on personal intentions
-  - 👾 Made Good Progress: Good momentum, building positive habits
-  - 🚧 Made Little Progress: Concerning, may need to reassess
-  - 🥊 Failed: Bad, especially if health-related
+### Format for summary:
 
-## What Defines a GOOD Personal Week
+- If all targets MET: "Health habits - exercise [X]x, early wakeup [X]x, sober [X]x"
+- If any MISSED: "Missed habits - exercise [X]x, sober [X]x"
 
-### Health Foundation Success
+## STEP 4: APPLY CLASSIFICATION RULES
 
-- Meeting exercise targets (3+ sessions)
-- Good sleep patterns (4+ early wakeups)
-- Moderate drinking (4+ sober days)
-- Positive mental health activities
+### Goes in "What went well":
 
-### Rock Progress
+- Rocks with ✅ or 👾 status (list rock names)
+- Health targets MET (use formatted summary)
+- Any events attended (list event names)
+- High interpersonal time with events
+- Personal project commits
 
-- Achieving (✅) or progressing (👾) on personal rock intentions
-- Making meaningful progress on personal goals
+### Goes in "What didn't go well":
 
-### Life Balance
+- Rocks with 🥊 or 🚧 status (list rock names)
+- Health targets MISSED (use formatted summary)
+- Very low task completion without context
 
-- Social time with friends and family (all amounts are good)
-- Progress on home projects or personal interests
-- Participating in meaningful events and activities
+### Goes in "General":
 
-## What Defines a BAD Personal Week
+- Total calendar hours (sum of all personal calendars)
+- Total tasks completed
+- Events attended count
 
-### Health Foundation Failure
+### Overview Decision:
 
-- Missing exercise targets (under 3 sessions)
-- Poor sleep patterns (under 4 early wakeups)
-- Excessive drinking (under 4 sober days)
-- Neglecting mental health needs
-
-### Rock Failure
-
-- Failing (🥊) on important personal rocks
-- Making little progress (🚧) on stated intentions
-
-## Success Evaluation Order
-
-1. **Health Foundation** (Tier 1 - non-negotiable)
-2. **Rock Progress** (Am I achieving my stated personal intentions?)
-3. **Life Balance** (Appropriate mix of social, solo, and project time)
-4. **Context Appropriateness** (Do patterns match planned events/energy?)
-
-**Key Rule**: A week where health is maintained but home is messy = GOOD week. A week where home is perfect but health is neglected = BAD week.
+- **Good week**: Health foundation maintained + rock progress
+- **Rough week**: Health foundation failed
+- **Mixed week**: Some health targets met but others missed, or good health but failed rocks

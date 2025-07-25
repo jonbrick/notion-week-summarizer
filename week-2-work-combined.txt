@@ -15,10 +15,11 @@ Coding Tasks (5):
 - Level-icons PR (Thu Jan 9, 2025)
 - Avatar & CortexLogo Nav PR (Fri Jan 10, 2025)
 ------
-PR Data (3 PRs, 73 commits):
-- CET-15007 [Redesign polish] Input Cleanup (#7211) [8 commits] (• Change label and description to text, • xs to match design, • Change size of input to be consistent with design, • Update input color tokens and states, • Change order of classes, • ... (additional commits truncated))
-- CET-15386 & CET-15958 [Redesign polish] Typeahead, Search, Select, Card-search, Datepicker height fixes (#7219) [30 commits] (• Change height of default datepicker to match input, • Merge remote, • tracking branch 'origin/master' into jbrick/CET, • 15958/datepicker, • consistency, • ... (additional commits truncated))
-- [Redesign Polish] AvatarFallback & CortexLogo color update (#7280), [CET-15125] LevelIcon size, color, implementation updates (#7258) [35 commits] (• Apply bg and text color to AvatarFallback, • Updated colors and text tokens, • Use tokens on Avatar and Logomark, • Add color changes based on brand color Cortex Logo, • Make Avatar BG transparent on darkmode, • ... (additional commits truncated))
+PR Data (4 PRs, 74 commits):
+- CET-15007 [Redesign polish] Input Cleanup (#7211) [8 commits] (Change label and description to text, xs to match design, Change size of input to be consistent with design, Update input color tokens and states, Change order of classes, ... (additional commits truncated))
+- CET-15386 & CET-15958 [Redesign polish] Typeahead, Search, Select, Card-search, Datepicker height fixes (#7219) [30 commits] (Change height of default datepicker to match input, Merge remote, tracking branch 'origin/master' into jbrick/CET, 15958/datepicker, consistency, ... (additional commits truncated))
+- implementation updates (#7258) [18 commits] (Apply bg and text color to AvatarFallback, Updated colors and text tokens, Use tokens on Avatar and Logomark, Add color changes based on brand color Cortex Logo, Make Avatar BG transparent on darkmode, ... (additional commits truncated))
+- [Redesign Polish] AvatarFallback & CortexLogo color update (#7280) [18 commits] (Apply bg and text color to AvatarFallback, Updated colors and text tokens, Use tokens on Avatar and Logomark, Add color changes based on brand color Cortex Logo, Make Avatar BG transparent on darkmode, ... (additional commits truncated))
 Feedback Tasks (0):
 ------
 QA Tasks (0):

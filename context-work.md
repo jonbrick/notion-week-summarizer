@@ -1,88 +1,70 @@
-# Work Context - Enhanced
+# WORK EXTRACTION GUIDE
 
-I'm Jon, a Design Engineer working on design systems and developer tools.
+## STEP 1: FIND THESE NUMBERS
 
-## BULLET FORMAT EXAMPLES
+### From Calendar Columns:
 
-### Good "What went well" bullets:
+- **Total work hours**: Sum hours from all work calendars
+- **Meeting hours**: Extract hours from "Default Work Cal" + "Rituals Cal"
+- **Coding hours**: Extract hours from "Coding & Tickets Cal"
+- **Design hours**: Extract hours from "Design Work Cal"
 
-• Achieved rock - Back to work (front loading Jan work)
-• 3 PRs shipped - Input Cleanup, Datepicker/Typeahead fixes, Avatar & CortexLogo
-• 77% coding time, 23% meetings - excellent ratio
-• Eng Intel kickoff with Madison and Zac's help
-• Nice review from Zac on 66 days work
+### From Summary Columns:
 
-### Good "What didn't go well" bullets:
+- **PR count**: Look for "X PRs" in "Work PR Summary" header
+- **Commit count**: Look for "X commits" in "Work PR Summary" header
+- **Task count**: Look for "(X)" in "Work Task Summary" header
+- **Event count**: Count events in "Work Events Summary"
 
-• Failed rock - API Documentation (🥊)
-• 31% meeting time - too much overhead
-• No PRs shipped this week
-• Time misaligned - spent on admin vs stated coding priorities
+## STEP 2: FIND THESE STATUSES
 
-## Data Structure Definitions
+### Rock Status (from "Work Rocks Summary"):
 
-### Calendar Categories
+- **Achieved rocks**: Look for "✅ Achieved" - extract rock name
+- **Good progress rocks**: Look for "👾 Made Good Progress" - extract rock name
+- **Little progress rocks**: Look for "🚧 Made Little Progress" - extract rock name
+- **Failed rocks**: Look for "🥊 Failed" - extract rock name
 
-- **Default Work Cal + Rituals Cal**: Meetings and overhead (BAD when high - over 20% of time)
-- **Coding & Tickets Cal**: Actual coding work (GOOD)
-- **Design Work Cal**: Actual design work (GOOD)
-- **Review, Feedback, Crit Cal**: Collaborative work (NEUTRAL/GOOD)
-- **Research Cal**: Research work (GOOD)
-- **QA Cal**: Quality assurance work (GOOD)
+### PR Details (from "Work PR Summary"):
 
-### Work Rocks
+- Extract PR titles (text before "[X commits]")
+- Note if it says "No PR events this week"
 
-- **Status meanings**:
-  - ✅ Achieved: Excellent - delivered on stated intentions
-  - 👾 Made Good Progress: Good - moving in right direction
-  - 🚧 Made Little Progress: Concerning - may need to reassess
-  - 🥊 Failed: Bad - need to understand what went wrong
+### Task Categories (from "Work Task Summary"):
 
-### PRs (Pull Requests)
+- Count tasks in each category section
+- Categories: Research, Design, Coding, Feedback, QA, Admin, Social, OOO
 
-- **All PRs are good**: Every shipped PR represents meaningful work
-- **Format**: "7 PRs: ProgressIcon, Badge 2, Form Labels, Brand Icons, etc."
+## STEP 3: CALCULATE KEY METRICS
 
-## What Defines a GOOD Work Week
+- **Meeting percentage** = (Meeting hours ÷ Total work hours) × 100
+- **Productive percentage** = (Coding + Design hours ÷ Total work hours) × 100
 
-### Rock Progress
+## STEP 4: APPLY CLASSIFICATION RULES
 
-- Achieving (✅) or making good progress (👾) on stated work rocks
-- Rock intentions align with actual work completed
+### Goes in "What went well":
 
-### Time Quality
+- Any PRs shipped (list PR names)
+- Rocks with ✅ or 👾 status (list rock names)
+- Meeting percentage < 20%
+- High productive percentage (> 60%)
+- Any positive events attended
 
-- High ratio of actual work (Coding + Design) vs meetings (Default + Rituals)
-- Under 20% of time spent in meetings is ideal
+### Goes in "What didn't go well":
 
-### Meaningful Output
+- Zero PRs shipped (if work week)
+- Rocks with 🥊 or 🚧 status (list rock names)
+- Meeting percentage > 20%
+- Very low task count (< 3 without PTO/OOO context)
 
-- Shipping PRs (all PRs are positive accomplishments)
-- Completing work tasks across any category
-- Good collaboration with team members
+### Goes in "General":
 
-## What Defines a BAD Work Week
+- All raw numbers (hours, tasks, PRs)
+- Meeting and productive percentages
+- Event attendance
 
-### Rock Failure
+### Overview Decision:
 
-- Failing (🥊) work rocks or making little progress (🚧)
-- Time spent misaligned with stated rock intentions
-
-### Meeting Overhead
-
-- Over 20% of time spent in meetings (Default Work Cal + Rituals Cal)
-- Too much administrative overhead vs actual work
-
-### Low Output
-
-- No PRs shipped (unless explained by events like sickness)
-- Very few work tasks completed without clear reason
-
-## Success Metrics Priority
-
-1. **Rock progress** (most important - am I achieving my stated intentions?)
-2. **Time quality** (am I spending time on meaningful work?)
-3. **Output volume** (how much did I actually ship?)
-4. **Team collaboration** (how well did I work with others?)
-
-Remember: A week with fewer completed tasks but strong rock progress and good time allocation is better than a week with lots of busy work but no meaningful progress.
+- **Good week**: More "went well" items than "didn't go well"
+- **Rough week**: More "didn't go well" items than "went well"
+- **Mixed week**: Equal or unclear (provide context)

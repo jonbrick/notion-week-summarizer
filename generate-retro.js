@@ -554,14 +554,16 @@ async function generateRetrospective(combinedDoc, retroType) {
   console.log("✅ Retrospective generated!");
 
   // Parse the response to extract the four sections
-  const generalMatch = retroText.match(/general\?(.*?)(?=what went well\?)/is);
+  const generalMatch = retroText.match(
+    /## General\s*\n(.*?)(?=\n## What went well\?)/is
+  );
   const wentWellMatch = retroText.match(
-    /what went well\?(.*?)(?=what didn't go so well\?|what didn't go well\?)/is
+    /## What went well\?\s*\n(.*?)(?=\n## What didn't go (?:so )?well\?)/is
   );
   const didntGoWellMatch = retroText.match(
-    /what didn't go (?:so )?well\?(.*?)(?=overview\?)/is
+    /## What didn't go (?:so )?well\?\s*\n(.*?)(?=\n## Overview)/is
   );
-  const overviewMatch = retroText.match(/overview\?(.*?)$/is);
+  const overviewMatch = retroText.match(/## Overview\s*\n(.*?)$/is);
 
   const general = generalMatch ? generalMatch[1].trim() : "";
   const wentWell = wentWellMatch ? wentWellMatch[1].trim() : "";
@@ -647,6 +649,14 @@ async function generateRetro(retroType, weekNumber) {
 
     // Generate retrospective with AI
     const retro = await generateRetrospective(combinedDoc, retroType);
+
+    // Log the retro object structure
+    console.log("Retro object:", {
+      general: retro.general,
+      wentWell: retro.wentWell,
+      didntGoWell: retro.didntGoWell,
+      overview: retro.overview,
+    });
 
     // Save retro to file for review
     const retroFilename = `week-${weekNumber}-${retroType}-retro.txt`;

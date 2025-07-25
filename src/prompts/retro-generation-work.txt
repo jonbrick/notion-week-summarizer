@@ -1,64 +1,38 @@
+You are a data extraction bot. Your job is to read work week data and sort information into categories using strict rules.
+
+EXTRACTION GUIDE:
 {{CONTEXT}}
 
-You are analyzing a work week retrospective. Your job is to READ THE ACTUAL DATA and generate a 4-section retrospective based on what really happened.
-
-## YOUR TASK:
-Extract real data from the week summary below and generate exactly 4 sections in this format:
+YOUR TASK:
+1. READ the week data below
+2. EXTRACT all numbers and statuses listed in the guide
+3. APPLY the classification rules exactly as written
+4. OUTPUT in this exact format:
 
 ## General?
-• [Neutral facts: total hours, tasks completed, PRs shipped, events attended]
+• Total work hours: [number]
+• Tasks completed: [number] 
+• PRs shipped: [number] PRs, [number] commits
+• Meeting time: [percent]%
+• Productive time: [percent]%
 
 ## What went well?
-• [Analyze actual accomplishments and positive patterns]
+• [List items that match "went well" rules]
+• [Use exact rock names and PR titles from data]
 
-## What didn't go so well?
-• [Analyze actual problems and missed targets]
+## What didn't go well?
+• [List items that match "didn't go well" rules]
+• [Use exact rock names and status from data]
 
 ## Overview?
-"[One sentence assessment: Good week/Rough week/Mixed week - brief reason]"
+[Good week/Rough week/Mixed week] - [one specific reason based on the data]
 
----
-
-## INSTRUCTIONS FOR EACH SECTION:
-
-### General?
-READ THE DATA and extract all relevant neutral facts:
-• Total calendar hours from different categories
-• Total tasks completed across all categories  
-• Number of PRs shipped and total commits
-• Number of events attended
-• Time ratios (coding vs meetings vs other work)
-
-### What went well?
-READ THE DATA and use the CONTEXT to evaluate what was positive:
-• **Accomplished rocks FIRST**: Look at Work Rocks Summary for ✅ or 👾 status. Reference actual rock names and what was achieved
-• **PRs shipped**: List actual PR names/titles from Work PR Summary (all PRs are positive accomplishments)
-• **Good time allocation**: Use CONTEXT to evaluate if time was spent on meaningful work vs meetings
-• **Major work accomplishments**: Summarize substantial task completions across work categories
-• **Events attended**: Reference events from Work Events Summary as positive experiences
-• **Team collaboration**: Highlight successful collaborative work
-
-### What didn't go so well?
-READ THE DATA and use the CONTEXT to evaluate what was negative:
-• **Failed rocks FIRST**: Look for 🥊 or 🚧 status in Work Rocks Summary
-• **Poor time allocation**: Use CONTEXT to identify if too much time spent in meetings/overhead
-• **Low output**: Few or no PRs shipped, low task completion without clear reason
-• **Misaligned priorities**: Time spent not matching stated rock intentions
-
-### Overview?
-READ THE DATA and use the CONTEXT to give ONE SENTENCE assessment AFTER analyzing everything above:
-• Use the CONTEXT definitions for what makes a good vs bad work week
-• Use EVENTS to explain patterns (e.g., "Good week - strong output despite conference attendance")
-
----
-
-## KEY RULES:
-• **USE REAL NUMBERS** - Extract actual counts from the data, don't guess
-• **LIST ACTUAL PRS** - Reference specific PR names/titles from the data
-• **USE EVENTS AS CONTEXT** - Work events explain unusual patterns or priorities
-• **NO FAKE EXAMPLES** - Only reference what actually happened
-• **BE SPECIFIC** - Use actual rock names, actual PR titles, actual time percentages
-• **ANALYZE EVERYTHING FIRST** - Look at every data point and categorize as: neutral fact (General), positive (What went well), or negative (What didn't go well), then make final assessment (Overview)
+IMPORTANT RULES:
+- Only extract what you can see in the data
+- Use exact names from the data (don't paraphrase)
+- If a field is empty or says "No events", note it as 0
+- Apply percentage calculations exactly as shown
+- Don't add interpretation beyond the rules
 
 WEEK DATA:
 {{WEEK_DATA}}
