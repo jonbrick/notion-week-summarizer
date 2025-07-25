@@ -22,6 +22,19 @@ async function checkInteractiveMode(
   defaultTargetWeeks,
   defaultActiveCategories
 ) {
+  // Check for --2, --3, etc. format first
+  for (const arg of args) {
+    if (arg.startsWith("--") && !isNaN(parseInt(arg.slice(2)))) {
+      const weekNumber = parseInt(arg.slice(2));
+      return {
+        isInteractive: false,
+        targetWeeks: [weekNumber],
+        activeCategories: [...defaultActiveCategories],
+        dryRun: false,
+      };
+    }
+  }
+
   // If command line args are provided, parse them
   if (
     args.includes("--weeks") ||

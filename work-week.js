@@ -107,6 +107,16 @@ async function processWorkWeek() {
 async function main() {
   const args = process.argv.slice(2);
 
+  // Check for --2, --3, etc. format first
+  for (const arg of args) {
+    if (arg.startsWith("--") && !isNaN(parseInt(arg.slice(2)))) {
+      const weekNumber = parseInt(arg.slice(2));
+      TARGET_WEEKS = [weekNumber];
+      await processWorkWeek();
+      process.exit(0);
+    }
+  }
+
   // Check for --weeks argument
   const weekIndex = args.indexOf("--weeks");
   if (weekIndex !== -1 && args[weekIndex + 1]) {

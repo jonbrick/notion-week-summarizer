@@ -300,6 +300,28 @@ function parsePRSummaryForEval(prSummary) {
   return { count, names: names }; // Return all names, no truncation
 }
 
+// Function to parse Default Work Cal events for bullet points
+function parseDefaultWorkCalEvents(defaultWorkCalText) {
+  if (!defaultWorkCalText || defaultWorkCalText.includes("No default events")) {
+    return [];
+  }
+
+  const events = [];
+  const lines = defaultWorkCalText.split("\n");
+
+  for (const line of lines) {
+    // Look for bullet points with event titles
+    if (line.trim().startsWith("•")) {
+      const eventTitle = line.trim().substring(1).trim(); // Remove the bullet point
+      if (eventTitle && eventTitle.length > 0) {
+        events.push(eventTitle);
+      }
+    }
+  }
+
+  return events;
+}
+
 // Function to parse calendar hours from existing formatted calendar text
 function parseExistingCalendarHours(calendarText) {
   if (!calendarText || calendarText.includes("No ")) {
@@ -324,11 +346,18 @@ function parseExistingCalendarHours(calendarText) {
 }
 
 // Function to generate work calendar evaluation
-function generateWorkCalEvaluation(existingCalSummary, prSummary) {
+function generateWorkCalEvaluation(
+  existingCalSummary,
+  prSummary,
+  defaultWorkCalText
+) {
   const evaluations = [];
 
   // Parse PR data
   const prData = parsePRSummaryForEval(prSummary);
+
+  // Parse Default Work Cal events
+  const defaultEvents = parseDefaultWorkCalEvents(defaultWorkCalText);
 
   // Parse hours from Work Cal Summary format
   let defaultHours = 0;
@@ -389,6 +418,12 @@ function generateWorkCalEvaluation(existingCalSummary, prSummary) {
         1
       )} hours (${meetingPercent}%) [above 20% threshold]`
     );
+    // Add Default Work Cal events as bullet points
+    if (defaultEvents.length > 0) {
+      defaultEvents.forEach((event) => {
+        evaluations.push(`  • ${event}`);
+      });
+    }
   }
 
   // Bad evaluations
@@ -427,6 +462,15 @@ let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 // Check if running in interactive mode
 async function checkInteractiveMode() {
   const args = process.argv.slice(2);
+
+  // Check for --2, --3, etc. format
+  for (const arg of args) {
+    if (arg.startsWith("--") && !isNaN(parseInt(arg.slice(2)))) {
+      const weekNumber = parseInt(arg.slice(2));
+      TARGET_WEEKS = [weekNumber];
+      return false; // Not interactive
+    }
+  }
 
   if (args.includes("--weeks")) {
     // Command line mode
@@ -782,7 +826,8 @@ async function processWeek(weekNumber) {
 
       const calEvaluations = generateWorkCalEvaluation(
         existingCalSummary,
-        prSummary
+        prSummary,
+        notionUpdates["Default Work Cal"] || ""
       );
 
       if (calEvaluations.length > 0) {
