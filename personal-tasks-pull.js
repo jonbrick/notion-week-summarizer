@@ -123,41 +123,6 @@ async function fetchWeekEvents(startDate, endDate) {
   }
 }
 
-// Format rocks for Notion (same as work version but "Personal Rocks")
-function formatRocksForNotion(rocks) {
-  if (rocks.length === 0) {
-    return "No personal rocks this week.";
-  }
-
-  let output = `Personal Rocks (${rocks.length}):\n`;
-  output += "------\n";
-
-  rocks.forEach((rock) => {
-    const rockTitle =
-      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
-      "Untitled Rock";
-    const status = rock.properties.Status?.status?.name || "No Status";
-    const description =
-      rock.properties.Description?.rich_text
-        ?.map((t) => t.plain_text)
-        .join("") || "";
-    const type = rock.properties.Type?.select?.name || "";
-
-    output += `${status} ${rockTitle}`;
-    if (type) {
-      output += ` (${type})`;
-    }
-    output += "\n";
-
-    if (description) {
-      output += `  Description: ${description}\n`;
-    }
-    output += "\n";
-  });
-
-  return output.trim();
-}
-
 // Format events for Notion (same as work version but "Personal Events")
 function formatEventsForNotion(events) {
   if (events.length === 0) {
@@ -192,6 +157,52 @@ function formatEventsForNotion(events) {
       output += `  Notes: ${notes}\n`;
     }
     output += "\n";
+  });
+
+  return output.trim();
+}
+
+// Format rocks for Notion with evaluation-style format
+function formatRocksForNotion(rocks) {
+  if (rocks.length === 0) {
+    return "No personal rocks this week.";
+  }
+
+  let output = `Personal Rocks (${rocks.length}):\n`;
+  output += "------\n";
+
+  rocks.forEach((rock) => {
+    let rockTitle =
+      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
+      "Untitled Rock";
+
+    // Remove number prefixes like "02. " from rock titles
+    rockTitle = rockTitle.replace(/^\d+\.\s*/, "");
+
+    const status = rock.properties.Status?.status?.name || "No Status";
+    const description =
+      rock.properties.Description?.rich_text
+        ?.map((t) => t.plain_text)
+        .join("") || "";
+
+    // Map status to evaluation format
+    if (status.includes("Achieved")) {
+      output += `✅ ROCK ACHIEVED: ${rockTitle}${
+        description ? ` (${description.trim()})` : ""
+      }\n`;
+    } else if (status.includes("Good Progress")) {
+      output += `✅ ROCK PROGRESS: ${rockTitle}${
+        description ? ` (${description.trim()})` : ""
+      }\n`;
+    } else if (status.includes("Failed")) {
+      output += `❌ ROCK FAILED: ${rockTitle}${
+        description ? ` (${description.trim()})` : ""
+      }\n`;
+    } else if (status.includes("Little Progress")) {
+      output += `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
+        description ? ` (${description.trim()})` : ""
+      }\n`;
+    }
   });
 
   return output.trim();
@@ -282,7 +293,7 @@ async function processWeek(weekNumber) {
 
     console.log(`📋 Found ${tasksResponse.results.length} personal tasks`);
 
-    // 5. Format tasks for Notion
+    // 5. Format tasks for Notion with simplified format
     let summary = "";
 
     // Define personal task categories in order
@@ -294,19 +305,17 @@ async function processWeek(weekNumber) {
       "🏠 Home",
     ];
 
-    // Create header
-    summary = `Personal Tasks (${tasksResponse.results.length}):\n`;
-    summary += "------";
-
-    // Group tasks by Type
-    const tasksByType = {};
+    // Group tasks by Type with smart matching
+    const tasksByCategory = {};
 
     // Initialize all categories with empty arrays
     personalCategories.forEach((category) => {
-      tasksByType[category] = [];
+      tasksByCategory[category] = [];
     });
 
-    // Group tasks
+    // First, group tasks by title to deduplicate
+    const taskGroups = {};
+
     tasksResponse.results.forEach((task) => {
       const taskType = task.properties["Type"]?.select?.name;
 
@@ -314,39 +323,49 @@ async function processWeek(weekNumber) {
         const taskTitle = task.properties.Task.title
           .map((t) => t.plain_text)
           .join("");
-        const dueDate = task.properties["Due Date"].date.start;
-        const formattedDate = formatTaskDate(dueDate);
 
-        tasksByType[taskType].push({
-          title: taskTitle,
-          formattedDate: formattedDate,
-          dueDate: dueDate,
-        });
+        // Create a unique key for each task title + category combination
+        const taskKey = `${taskType}:${taskTitle}`;
+
+        if (!taskGroups[taskKey]) {
+          taskGroups[taskKey] = {
+            title: taskTitle,
+            category: taskType,
+            count: 0,
+          };
+        }
+
+        taskGroups[taskKey].count += 1;
       }
     });
 
-    // Add each category in order
-    personalCategories.forEach((category, index) => {
-      const tasks = tasksByType[category];
+    // Now organize deduplicated tasks by category
+    Object.values(taskGroups).forEach((taskGroup) => {
+      const category = taskGroup.category;
+      const title = taskGroup.title;
 
-      // Get display name without emoji
-      const categoryName = category.split(" ").slice(1).join(" ");
+      tasksByCategory[category].push({
+        title: title,
+        count: taskGroup.count,
+      });
+    });
 
-      // Add separator (except for first category)
-      if (index > 0) {
-        summary += "------";
-      }
+    // Calculate totals for summary
+    const totalTasks = tasksResponse.results.length;
+    const totalUniqueTasks = Object.values(taskGroups).length;
 
-      // Category header with count
-      summary += `\n${categoryName} Tasks (${tasks.length}):\n`;
+    // Create simplified summary format
+    summary = `PERSONAL TASK SUMMARY:\n`;
+    summary += `Total: ${totalTasks} tasks (${totalUniqueTasks} unique)\n`;
 
-      // Add tasks in this category
-      if (tasks.length === 0) {
-        summary += `• No ${categoryName.toLowerCase()} tasks completed\n`;
-      } else {
-        tasks.forEach((task) => {
-          summary += `• ${task.title} (${task.formattedDate})\n`;
-        });
+    // Add category breakdown
+    personalCategories.forEach((category) => {
+      const tasks = tasksByCategory[category];
+      const taskCount = tasks.length;
+      if (taskCount > 0) {
+        // Get display name without emoji
+        const categoryName = category.split(" ").slice(1).join(" ");
+        summary += `- ${categoryName}: ${taskCount} tasks\n`;
       }
     });
 
@@ -366,7 +385,34 @@ async function processWeek(weekNumber) {
     const events = await fetchWeekEvents(startDate, endDate);
     const eventsFormatted = formatEventsForNotion(events);
 
-    // 7. Update Notion
+    // 7. Generate evaluation
+    const evaluations = generatePersonalTaskEvaluation(
+      tasksByCategory,
+      rocks,
+      eventsFormatted
+    );
+
+    // Add evaluation section to summary
+    summary += "\n\n===== EVALUATION =====\n";
+
+    // Add rocks content to evaluation first (excluding header)
+    if (rocksFormatted && !rocksFormatted.includes("No personal rocks")) {
+      // Extract content after the "------" line
+      const rocksContent = rocksFormatted.split("------\n")[1];
+      if (rocksContent) {
+        summary += rocksContent;
+      }
+    }
+
+    // Add task evaluations after rocks
+    if (evaluations.length > 0) {
+      if (rocksFormatted && !rocksFormatted.includes("No personal rocks")) {
+        summary += "\n"; // Add separator between rocks and task evaluations
+      }
+      summary += evaluations.join("\n");
+    }
+
+    // 8. Update Notion
     const summaryUpdates = {
       "Personal Task Summary": summary,
       "Personal Rocks Summary": rocksFormatted,
@@ -380,6 +426,169 @@ async function processWeek(weekNumber) {
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error);
   }
+}
+
+// Generate personal task evaluation
+function generatePersonalTaskEvaluation(
+  tasksByCategory,
+  rocks,
+  eventsFormatted
+) {
+  const evaluations = [];
+
+  // Parse rock evaluations first (they go at top) - only if rocks are provided
+  if (rocks.length > 0) {
+    const rockEvals = parsePersonalRockEvaluations(rocks);
+
+    // Add good evaluations first
+    rockEvals
+      .filter((r) => r.type === "good")
+      .forEach((r) => evaluations.push(r.text));
+  }
+
+  // Check for physical health tasks (good when present)
+  const physicalHealthCount =
+    tasksByCategory["💪 Physical Health"]?.length || 0;
+  if (physicalHealthCount > 0) {
+    const taskNames = tasksByCategory["💪 Physical Health"]
+      .map((t) => t.title)
+      .join(", ");
+    evaluations.push(
+      `✅ PHYSICAL HEALTH TASKS: ${physicalHealthCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for personal tasks (good when present)
+  const personalCount = tasksByCategory["🌱 Personal"]?.length || 0;
+  if (personalCount > 0) {
+    const taskNames = tasksByCategory["🌱 Personal"]
+      .map((t) => t.title)
+      .join(", ");
+    evaluations.push(
+      `✅ PERSONAL TASKS: ${personalCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for interpersonal tasks (good when present)
+  const interpersonalCount = tasksByCategory["🍻 Interpersonal"]?.length || 0;
+  if (interpersonalCount > 0) {
+    const taskNames = tasksByCategory["🍻 Interpersonal"]
+      .map((t) => t.title)
+      .join(", ");
+    evaluations.push(
+      `✅ INTERPERSONAL TASKS: ${interpersonalCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for mental health tasks (good when present)
+  const mentalHealthCount = tasksByCategory["❤️ Mental Health"]?.length || 0;
+  if (mentalHealthCount > 0) {
+    const taskNames = tasksByCategory["❤️ Mental Health"]
+      .map((t) => t.title)
+      .join(", ");
+    evaluations.push(
+      `✅ MENTAL HEALTH TASKS: ${mentalHealthCount} completed (${taskNames})`
+    );
+  }
+
+  // Check for home tasks (good when present)
+  const homeCount = tasksByCategory["🏠 Home"]?.length || 0;
+  if (homeCount > 0) {
+    const taskNames = tasksByCategory["🏠 Home"].map((t) => t.title).join(", ");
+    evaluations.push(`✅ HOME TASKS: ${homeCount} completed (${taskNames})`);
+  }
+
+  // Check for personal events (good when present)
+  if (eventsFormatted && !eventsFormatted.includes("No personal events")) {
+    const eventLines = eventsFormatted
+      .split("\n")
+      .filter(
+        (line) =>
+          line.includes("✅") ||
+          line.includes("👾") ||
+          line.includes("🚧") ||
+          line.includes("🥊")
+      );
+    if (eventLines.length > 0) {
+      const eventCount = eventLines.length;
+      evaluations.push(`✅ PERSONAL EVENTS: ${eventCount} attended`);
+    }
+  }
+
+  // Add bad rock evaluations - only if rocks are provided
+  if (rocks.length > 0) {
+    const rockEvals = parsePersonalRockEvaluations(rocks);
+    rockEvals
+      .filter((r) => r.type === "bad")
+      .forEach((r) => evaluations.push(r.text));
+  }
+
+  // Check for missing physical health tasks (always bad when 0)
+  const physicalHealthCountFinal =
+    tasksByCategory["💪 Physical Health"]?.length || 0;
+  if (physicalHealthCountFinal === 0) {
+    evaluations.push(`❌ NO PHYSICAL HEALTH TASKS: 0 completed`);
+  }
+
+  // Check for missing mental health tasks (always bad when 0)
+  const mentalHealthCountFinal =
+    tasksByCategory["❤️ Mental Health"]?.length || 0;
+  if (mentalHealthCountFinal === 0) {
+    evaluations.push(`❌ NO MENTAL HEALTH TASKS: 0 completed`);
+  }
+
+  return evaluations;
+}
+
+// Parse personal rocks data directly to extract rock evaluations
+function parsePersonalRockEvaluations(rocks) {
+  const evaluations = [];
+
+  rocks.forEach((rock) => {
+    let rockTitle =
+      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
+      "Untitled Rock";
+    // Remove number prefixes like "02. " from rock titles
+    rockTitle = rockTitle.replace(/^\d+\.\s*/, "");
+
+    const status = rock.properties.Status?.status?.name || "No Status";
+    const description =
+      rock.properties.Description?.rich_text
+        ?.map((t) => t.plain_text)
+        .join("") || "";
+
+    if (status.includes("Achieved")) {
+      evaluations.push({
+        type: "good",
+        text: `✅ ROCK ACHIEVED: ${rockTitle}${
+          description ? ` (${description.trim()})` : ""
+        }`,
+      });
+    } else if (status.includes("Good Progress")) {
+      evaluations.push({
+        type: "good",
+        text: `✅ ROCK PROGRESS: ${rockTitle}${
+          description ? ` (${description.trim()})` : ""
+        }`,
+      });
+    } else if (status.includes("Failed")) {
+      evaluations.push({
+        type: "bad",
+        text: `❌ ROCK FAILED: ${rockTitle}${
+          description ? ` (${description.trim()})` : ""
+        }`,
+      });
+    } else if (status.includes("Little Progress")) {
+      evaluations.push({
+        type: "bad",
+        text: `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
+          description ? ` (${description.trim()})` : ""
+        }`,
+      });
+    }
+  });
+
+  return evaluations;
 }
 
 // Process all selected weeks
