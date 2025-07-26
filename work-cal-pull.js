@@ -106,6 +106,40 @@ function getMyResponseStatus(attendees) {
   return myAttendance ? myAttendance.responseStatus : null;
 }
 
+// Helper function to clean up partner names
+function cleanPartnerName(partnerName) {
+  // Remove email domain if present
+  let cleanName = partnerName;
+  if (partnerName.includes("@")) {
+    cleanName = partnerName.split("@")[0];
+  }
+
+  // Convert email-style names to proper names (e.g., "zac.halbert" -> "Zac")
+  if (cleanName.includes(".")) {
+    const parts = cleanName.split(".");
+    if (parts.length >= 2) {
+      // Take the first part and capitalize it
+      cleanName =
+        parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+    }
+  } else {
+    // Handle full names (e.g., "Zac halbert" -> "Zac")
+    const nameParts = cleanName.split(" ");
+    if (nameParts.length > 1) {
+      // Take just the first name and capitalize it
+      cleanName =
+        nameParts[0].charAt(0).toUpperCase() +
+        nameParts[0].slice(1).toLowerCase();
+    } else {
+      // Capitalize single names
+      cleanName =
+        cleanName.charAt(0).toUpperCase() + cleanName.slice(1).toLowerCase();
+    }
+  }
+
+  return cleanName;
+}
+
 // Extract pairing partner information
 function getPairingPartner(rawEvent) {
   const eventTitle = rawEvent.summary || "";
@@ -115,31 +149,35 @@ function getPairingPartner(rawEvent) {
     return null;
   }
 
+  // Get attendees excluding yourself
+  const attendees = rawEvent.attendees || [];
+  const otherAttendees = attendees.filter((attendee) => !attendee.self);
+
   // Check if this looks like a pairing event
   const isPairingEvent =
     eventTitle.toLowerCase().includes("pairing") ||
     eventTitle.toLowerCase().includes("pair") ||
     eventTitle.toLowerCase().includes("hold");
 
-  if (!isPairingEvent) {
-    return null;
+  // If it's a pairing event and there's exactly one other person, return their name
+  if (isPairingEvent && otherAttendees.length === 1) {
+    const partner = otherAttendees[0];
+    const partnerName = partner.displayName || partner.email || "Unknown";
+
+    return cleanPartnerName(partnerName);
   }
 
-  // Get attendees excluding yourself
-  const attendees = rawEvent.attendees || [];
-  const otherAttendees = attendees.filter((attendee) => !attendee.self);
-
-  // If there's exactly one other person, return their name
+  // NEW: Check for two-person meetings where the other person's name is not in the title
   if (otherAttendees.length === 1) {
     const partner = otherAttendees[0];
     const partnerName = partner.displayName || partner.email || "Unknown";
 
-    // Clean up the name (remove email domain if present)
-    const cleanName = partnerName.includes("@")
-      ? partnerName.split("@")[0]
-      : partnerName;
+    const cleanName = cleanPartnerName(partnerName);
 
-    return cleanName;
+    // Check if the partner's name is NOT in the event title (case insensitive)
+    if (!eventTitle.toLowerCase().includes(cleanName.toLowerCase())) {
+      return cleanName;
+    }
   }
 
   return null;
@@ -152,10 +190,7 @@ function categorizeEventByColor(rawEvent) {
   const responseStatus = getMyResponseStatus(rawEvent.attendees);
   const eventTitle = rawEvent.summary || "";
 
-  // 1. EventType trumps everything
-  if (eventType === "outOfOffice") {
-    return createEventObject(rawEvent, "ignored", "Out of Office");
-  }
+  // 1. EventType trumps everything (except OOO events)
   if (eventType === "workingLocation") {
     return createEventObject(rawEvent, "ignored", "Working Location");
   }
@@ -170,16 +205,33 @@ function categorizeEventByColor(rawEvent) {
     return createEventObject(rawEvent, "ignored", "Zac Out");
   }
 
-  // 4. JB OOO/PTO filter - track all-day JB OOO/PTO events
+  // 4. OOO/PTO filter - track all OOO/PTO events (Google Calendar eventType or title-based)
   const isAllDay =
     rawEvent.start && rawEvent.start.date && !rawEvent.start.dateTime;
 
+  // Check for Google Calendar outOfOffice eventType
+  if (eventType === "outOfOffice") {
+    return createEventObject(rawEvent, "ooo", "Google Calendar OOO");
+  }
+
+  // Check for all-day JB OOO/PTO events (existing logic)
   if (
     isAllDay &&
     eventTitle.includes("JB") &&
     (eventTitle.includes("OOO") || eventTitle.includes("PTO"))
   ) {
     return createEventObject(rawEvent, "ooo", "JB OOO/PTO");
+  }
+
+  // Check for any all-day OOO/PTO events (broader detection)
+  if (
+    isAllDay &&
+    (eventTitle.toLowerCase().includes("ooo") ||
+      eventTitle.toLowerCase().includes("pto") ||
+      eventTitle.toLowerCase().includes("out of office") ||
+      eventTitle.toLowerCase().includes("vacation"))
+  ) {
+    return createEventObject(rawEvent, "ooo", "OOO/PTO Event");
   }
 
   // 5. Color mapping for default eventType events
@@ -204,8 +256,38 @@ function categorizeEventByColor(rawEvent) {
 
 // Create event object
 function createEventObject(rawEvent, category, categoryName) {
-  const isAllDay =
-    rawEvent.start && rawEvent.start.date && !rawEvent.start.dateTime;
+  // Enhanced all-day detection
+  let isAllDay = false;
+
+  // Check for traditional all-day events (date field, no dateTime)
+  if (rawEvent.start && rawEvent.start.date && !rawEvent.start.dateTime) {
+    isAllDay = true;
+  }
+
+  // Check for Google Calendar all-day events (dateTime at midnight, spanning multiple days)
+  if (rawEvent.start?.dateTime && rawEvent.end?.dateTime) {
+    const startDate = new Date(rawEvent.start.dateTime);
+    const endDate = new Date(rawEvent.end.dateTime);
+
+    // Check if both times are at midnight (00:00:00)
+    const startIsMidnight =
+      startDate.getHours() === 0 &&
+      startDate.getMinutes() === 0 &&
+      startDate.getSeconds() === 0;
+    const endIsMidnight =
+      endDate.getHours() === 0 &&
+      endDate.getMinutes() === 0 &&
+      endDate.getSeconds() === 0;
+
+    // Check if it spans multiple days
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+    if (startIsMidnight && endIsMidnight && diffDays >= 1) {
+      isAllDay = true;
+    }
+  }
+
   const duration = isAllDay
     ? null
     : calculateDuration(rawEvent.start?.dateTime, rawEvent.end?.dateTime);
@@ -455,11 +537,17 @@ function generateWorkCalEvaluation(
   }
 
   // MEETING TIME - ALWAYS FIRST
-  if (meetingPercent >= 20) {
+  if (meetingHours >= 15) {
     evaluations.push(
       `⚠️ MEETING TIME: ${meetingHours.toFixed(
         1
-      )} hours (${meetingPercent}%) [above 20% threshold]`
+      )} hours (${meetingPercent}%) [above 15 hour threshold]`
+    );
+  } else if (meetingHours > 0) {
+    evaluations.push(
+      `✅ MEETING TIME: ${meetingHours.toFixed(
+        1
+      )} hours (${meetingPercent}%) [below 15 hour threshold]`
     );
   }
 
@@ -869,20 +957,31 @@ async function processWeek(weekNumber) {
     const productivePercent =
       totalHours > 0 ? Math.round((productiveHours / totalHours) * 100) : 0;
 
-    // Calculate OOO days - count actual days for all-day events
-    const oooDays = categories.ooo.reduce((totalDays, event) => {
+    // Calculate OOO days - count actual days for all-day events with deduplication
+    const oooDaysSet = new Set(); // Use Set to track unique days
+
+    categories.ooo.forEach((event) => {
       if (!event.isAllDay) {
-        // Time-specific event, count as 1 day
-        return totalDays + 1;
+        // Time-specific event, count the specific day
+        const eventDate = new Date(event.startTime);
+        const dayKey = eventDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+        oooDaysSet.add(dayKey);
       } else {
-        // All-day event, calculate days between start and end
+        // All-day event, calculate all days between start and end
         const startDate = new Date(event.startTime);
         const endDate = new Date(event.endTime);
-        const diffTime = endDate.getTime() - startDate.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return totalDays + diffDays;
+
+        // Iterate through each day in the range (exclude end date since it's the start of next day)
+        const currentDate = new Date(startDate);
+        while (currentDate < endDate) {
+          const dayKey = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+          oooDaysSet.add(dayKey);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
       }
-    }, 0);
+    });
+
+    const oooDays = oooDaysSet.size;
 
     let workCalSummary = `WORK CAL SUMMARY:\n`;
     workCalSummary += `Total: ${totalHours.toFixed(

@@ -159,19 +159,19 @@ function formatRocksForNotion(rocks) {
     // Map status to evaluation format
     if (status.includes("Achieved")) {
       output += `✅ ROCK ACHIEVED: ${rockTitle}${
-        description ? ` (${description})` : ""
+        description ? ` (${description.trim()})` : ""
       }\n`;
     } else if (status.includes("Good Progress")) {
       output += `✅ ROCK PROGRESS: ${rockTitle}${
-        description ? ` (${description})` : ""
+        description ? ` (${description.trim()})` : ""
       }\n`;
     } else if (status.includes("Failed")) {
       output += `❌ ROCK FAILED: ${rockTitle}${
-        description ? ` (${description})` : ""
+        description ? ` (${description.trim()})` : ""
       }\n`;
     } else if (status.includes("Little Progress")) {
       output += `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
-        description ? ` (${description})` : ""
+        description ? ` (${description.trim()})` : ""
       }\n`;
     }
   });
@@ -239,28 +239,28 @@ function parseRockEvaluations(rocks) {
       evaluations.push({
         type: "good",
         text: `✅ ROCK ACHIEVED: ${rockTitle}${
-          description ? ` (${description})` : ""
+          description ? ` (${description.trim()})` : ""
         }`,
       });
     } else if (status.includes("Good Progress")) {
       evaluations.push({
         type: "good",
         text: `✅ ROCK PROGRESS: ${rockTitle}${
-          description ? ` (${description})` : ""
+          description ? ` (${description.trim()})` : ""
         }`,
       });
     } else if (status.includes("Failed")) {
       evaluations.push({
         type: "bad",
         text: `❌ ROCK FAILED: ${rockTitle}${
-          description ? ` (${description})` : ""
+          description ? ` (${description.trim()})` : ""
         }`,
       });
     } else if (status.includes("Little Progress")) {
       evaluations.push({
         type: "bad",
         text: `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
-          description ? ` (${description})` : ""
+          description ? ` (${description.trim()})` : ""
         }`,
       });
     }

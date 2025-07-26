@@ -177,6 +177,37 @@ function cleanPRTitle(prTitle) {
     .trim();
 }
 
+// Clean warning messages for better readability
+function cleanWarningMessage(warningText) {
+  // Handle meeting time warnings
+  if (warningText.includes("MEETING TIME:")) {
+    // Extract hours and percentage from "⚠️ MEETING TIME: 23.5 hours (51%) [above 20% threshold]"
+    const match = warningText.match(
+      /MEETING TIME:\s*([\d.]+)\s*hours?\s*\((\d+)%\)/
+    );
+    if (match) {
+      const hours = match[1];
+      const percentage = match[2];
+      return `${hours} hours of meetings (${percentage}%)`;
+    }
+  }
+
+  // Handle other warning patterns
+  if (warningText.includes("NO CODING TIME:")) {
+    return "No coding time this week";
+  }
+
+  if (warningText.includes("NO DESIGN TIME:")) {
+    return "No design time this week";
+  }
+
+  // For other warnings, just remove the ⚠️ and clean up
+  return warningText
+    .replace(/^⚠️\s*/, "") // Remove warning emoji
+    .replace(/\s*\[.*?\]\s*$/, "") // Remove bracketed explanations
+    .trim();
+}
+
 // Convert task names to past tense
 function makePastTense(taskNames) {
   return taskNames
@@ -209,6 +240,26 @@ function extractCareAbouts(taskEvals, calEvals) {
     good: [],
     bad: [],
   };
+
+  // NEW: Look for warning signs (⚠️) in both task and calendar evaluations
+  const allWarnings = [];
+
+  // Check task evaluations for warnings
+  taskEvals.forEach((eval) => {
+    if (eval.rawLine && eval.rawLine.includes("⚠️")) {
+      allWarnings.push(cleanWarningMessage(eval.text));
+    }
+  });
+
+  // Check calendar evaluations for warnings
+  calEvals.forEach((eval) => {
+    if (eval.rawLine && eval.rawLine.includes("⚠️")) {
+      allWarnings.push(cleanWarningMessage(eval.text));
+    }
+  });
+
+  // Add all warnings to bad items
+  careAbouts.bad.push(...allWarnings);
 
   // 1. Rock status (from tasks) - TOP PRIORITY
   const rockEvals = taskEvals.filter(
@@ -249,7 +300,7 @@ function extractCareAbouts(taskEvals, calEvals) {
     const dayMatch = oooEval.text.match(/OOO: (\d+) Days?/);
     if (dayMatch) {
       oooDays = parseInt(dayMatch[1]);
-      const oooText = `Out of office ${oooDays} day${
+      const oooText = `🏝️ Out of office ${oooDays} day${
         oooDays === 1 ? "" : "s"
       } this week`;
 
@@ -264,7 +315,7 @@ function extractCareAbouts(taskEvals, calEvals) {
     }
   }
 
-  // 3. Design Tasks (from tasks)
+  // 3. Design Tasks (from tasks) - Format as "Designed [task name]"
   const designTaskEval = taskEvals.find(
     (e) => e.text.includes("DESIGN TASKS") || e.text.includes("NO DESIGN TASKS")
   );
@@ -277,7 +328,15 @@ function extractCareAbouts(taskEvals, calEvals) {
       );
       const taskNames = taskMatch ? taskMatch[1] : "";
       if (taskNames) {
-        designTasksText = makePastTense(taskNames);
+        // Format as "Designed [first task]… [other tasks]"
+        const designTaskNames = taskNames.split(", ");
+        if (designTaskNames.length > 0) {
+          const firstTask = `Designed ${designTaskNames[0].trim()}`;
+          const otherTasks = designTaskNames
+            .slice(1)
+            .map((task) => task.trim());
+          designTasksText = [firstTask, ...otherTasks].join("… ");
+        }
       }
     } else {
       // Clean up "NO DESIGN TASKS: 0 completed" to "No design tasks this week"
@@ -291,16 +350,16 @@ function extractCareAbouts(taskEvals, calEvals) {
     }
   }
 
-  // 4. Misc Meetings (from cal) - ALL meetings, condensed format
+  // 4. Misc Meetings (from cal) - ALL meetings, condensed format in one paragraph
   const meetingEval = calEvals.find((e) => e.text.includes("MEETINGS"));
   let meetingsText = "";
   if (meetingEval && meetingEval.type === "good" && meetingEval.bullets) {
-    // Clean and format meeting names
+    // Clean and format meeting names, ensure they're in one paragraph
     const cleanMeetingBullets = meetingEval.bullets.map(cleanMeetingName);
     meetingsText = cleanMeetingBullets.join("… ");
   }
 
-  // 5. Feedback Tasks (from tasks)
+  // 5. Feedback Tasks (from tasks) - Format as "Feedback on [task name]"
   const feedbackTaskEval = taskEvals.find(
     (e) =>
       e.text.includes("FEEDBACK TASKS") || e.text.includes("NO FEEDBACK TASKS")
@@ -314,7 +373,15 @@ function extractCareAbouts(taskEvals, calEvals) {
       );
       const taskNames = taskMatch ? taskMatch[1] : "";
       if (taskNames) {
-        feedbackTasksText = makePastTense(taskNames);
+        // Format as "Feedback on [first task]… [other tasks]"
+        const feedbackTaskNames = taskNames.split(", ");
+        if (feedbackTaskNames.length > 0) {
+          const firstTask = `Feedback on ${feedbackTaskNames[0].trim()}`;
+          const otherTasks = feedbackTaskNames
+            .slice(1)
+            .map((task) => task.trim());
+          feedbackTasksText = [firstTask, ...otherTasks].join("… ");
+        }
       }
     } else {
       // Clean up "NO FEEDBACK TASKS: 0 completed" to "No feedback tasks this week"
@@ -328,7 +395,7 @@ function extractCareAbouts(taskEvals, calEvals) {
     }
   }
 
-  // 6. Research Tasks (from tasks) - handle separately for proper ordering
+  // 6. Research Tasks (from tasks) - Format as "Researched [task name]"
   const researchTaskEval = taskEvals.find(
     (e) =>
       e.text.includes("RESEARCH TASKS") || e.text.includes("NO RESEARCH TASKS")
@@ -342,7 +409,15 @@ function extractCareAbouts(taskEvals, calEvals) {
       );
       const taskNames = taskMatch ? taskMatch[1] : "";
       if (taskNames) {
-        researchTasksText = makePastTense(taskNames);
+        // Format as "Researched [first task]… [other tasks]"
+        const researchTaskNames = taskNames.split(", ");
+        if (researchTaskNames.length > 0) {
+          const firstTask = `Researched ${researchTaskNames[0].trim()}`;
+          const otherTasks = researchTaskNames
+            .slice(1)
+            .map((task) => task.trim());
+          researchTasksText = [firstTask, ...otherTasks].join("… ");
+        }
       }
     } else {
       // Clean up "NO RESEARCH TASKS: 0 completed" to "No research tasks this week"
@@ -356,7 +431,7 @@ function extractCareAbouts(taskEvals, calEvals) {
     }
   }
 
-  // 7. QA Tasks (from tasks)
+  // 7. QA Tasks (from tasks) - Format as "QA'd [task name]"
   const qaTaskEval = taskEvals.find(
     (e) => e.text.includes("QA TASKS") || e.text.includes("NO QA TASKS")
   );
@@ -369,7 +444,13 @@ function extractCareAbouts(taskEvals, calEvals) {
       );
       const taskNames = taskMatch ? taskMatch[1] : "";
       if (taskNames) {
-        qaTasksText = makePastTense(taskNames);
+        // Format as "QA'd [first task]… [other tasks]"
+        const qaTaskNames = taskNames.split(", ");
+        if (qaTaskNames.length > 0) {
+          const firstTask = `QA'd ${qaTaskNames[0].trim()}`;
+          const otherTasks = qaTaskNames.slice(1).map((task) => task.trim());
+          qaTasksText = [firstTask, ...otherTasks].join("… ");
+        }
       }
     } else {
       // Clean up "NO QA TASKS: 0 completed" to "No qa tasks this week"
@@ -414,32 +495,33 @@ function extractCareAbouts(taskEvals, calEvals) {
 
   // 1. ROCK (first!)
   if (rockText) {
-    summaryItems.push(rockText);
+    summaryItems.push(rockText + "…");
   }
 
-  // 2. DESIGN TASKS
+  // 2. TASK SUMMARY - Each task type gets its own paragraph
+  // Add design tasks
   if (designTasksText) {
-    summaryItems.push(designTasksText);
+    summaryItems.push(designTasksText + "…");
   }
 
-  // 3. FEEDBACK TASKS (crit tasks)
+  // Add feedback tasks
   if (feedbackTasksText) {
-    summaryItems.push(feedbackTasksText);
+    summaryItems.push(feedbackTasksText + "…");
   }
 
-  // 4. RESEARCH TASKS
+  // Add research tasks
   if (researchTasksText) {
-    summaryItems.push(researchTasksText);
+    summaryItems.push(researchTasksText + "…");
   }
 
-  // 5. QA TASKS
+  // Add QA tasks
   if (qaTasksText) {
-    summaryItems.push(qaTasksText);
+    summaryItems.push(qaTasksText + "…");
   }
 
-  // 6. CAL EVENTS (meetings)
+  // 3. CAL EVENTS (meetings only) - All meetings in one paragraph
   if (meetingsText) {
-    summaryItems.push(meetingsText);
+    summaryItems.push(meetingsText + "…");
   }
 
   // 7. PRS SHIPPED
@@ -463,7 +545,7 @@ function extractCareAbouts(taskEvals, calEvals) {
 
   // 9. Ensure OOO is always at the top of both columns
   if (oooDays > 0) {
-    const oooText = `Out of office ${oooDays} day${
+    const oooText = `🏝️ Out of office ${oooDays} day${
       oooDays === 1 ? "" : "s"
     } this week`;
 
@@ -478,6 +560,11 @@ function extractCareAbouts(taskEvals, calEvals) {
     // Add OOO at the top of both columns
     careAbouts.good.unshift(oooText);
     careAbouts.bad.unshift(oooText);
+  }
+
+  // 10. Handle empty bad items
+  if (careAbouts.bad.length === 0) {
+    careAbouts.bad.push("(Nothing of note)");
   }
 
   return careAbouts;
