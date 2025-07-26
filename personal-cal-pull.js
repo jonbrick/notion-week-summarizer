@@ -30,7 +30,7 @@ console.log("🗓️ Personal Calendar Summary Generator");
 // Script configuration
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 let includePersonalCal = true; // Default to personal calendar
-let includePRs = false;
+let includePRs = true; // Always include PRs
 
 // Google Auth for Personal
 function getGoogleAuth() {
@@ -945,7 +945,8 @@ async function processWeek(weekNumber) {
           categoryStats,
           interpersonalEvents,
           interpersonalGroups,
-          womenToGroup
+          womenToGroup,
+          notionUpdates
         );
 
         if (calEvaluations.length > 0) {
@@ -974,8 +975,8 @@ async function processWeek(weekNumber) {
       }
     }
 
-    // Fetch PR events if requested
-    if (includePRs && process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID) {
+    // Fetch PR events (always included)
+    if (process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID) {
       console.log("\n📥 Fetching Personal PR events...");
       const prEvents = await fetchCalendarEvents(
         process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID,
@@ -1031,171 +1032,141 @@ function generatePersonalCalEvaluation(
   categoryStats,
   interpersonalEvents,
   interpersonalGroups,
-  womenToGroup
+  womenToGroup,
+  notionUpdates
 ) {
   const evaluations = [];
 
-  // Check for personal time (good when present)
-  const personalHours = categoryStats.personal?.hours || 0;
-  if (personalHours > 0) {
-    evaluations.push(`✅ PERSONAL TIME: ${personalHours.toFixed(1)} hours`);
-  }
+  // Parse interpersonal events for evaluation
+  const groupedEvaluations = [];
+  const groupedEventTitles = new Set();
 
-  // Check for physical health time (good when present)
-  const physicalHealthHours = categoryStats.physicalHealth?.hours || 0;
-  if (physicalHealthHours > 0) {
-    evaluations.push(
-      `✅ PHYSICAL HEALTH: ${physicalHealthHours.toFixed(1)} hours`
-    );
-  }
+  // Process grouped interpersonal events
+  Object.keys(interpersonalGroups).forEach((mainName) => {
+    const events = interpersonalGroups[mainName];
+    if (events.length > 0) {
+      const eventTitles = events.map((e) => {
+        // Special handling for call events
+        if (mainName === "Calls") {
+          return e.title; // Keep call titles as-is
+        }
 
-  // Check for interpersonal time (good when present) - include all events with grouping
-  const interpersonalHours = categoryStats.interpersonal?.hours || 0;
-  if (interpersonalHours > 0) {
-    if (interpersonalEvents && interpersonalEvents.length > 0) {
-      // Get all event titles for the full list
-      const allEventTitles = interpersonalEvents.map((e) => e.title);
+        // Clean up event titles by removing any of the nicknames
+        let cleanTitle = e.title;
+        const nicknames = womenToGroup[mainName];
 
-      // Add grouped events first
-      const groupedEvaluations = [];
-      const groupedEventTitles = new Set(); // Track which events are already grouped
+        // Process longer names first to avoid partial matches
+        const sortedNicknames = nicknames.sort((a, b) => b.length - a.length);
 
-      Object.keys(interpersonalGroups).forEach((mainName) => {
-        const events = interpersonalGroups[mainName];
-        if (events.length > 0) {
-          const eventTitles = events.map((e) => {
-            // Special handling for call events
-            if (mainName === "Calls") {
-              return e.title; // Keep call titles as-is
-            }
+        sortedNicknames.forEach((nickname) => {
+          const patterns = [
+            new RegExp(`\\s+with\\s+${nickname}\\s*`, "gi"),
+            new RegExp(`\\s+w\\s+${nickname}\\s*`, "gi"),
+            new RegExp(`\\s+${nickname}\\s*`, "gi"), // Remove just the name if it appears alone
+          ];
 
-            // Clean up event titles by removing any of the nicknames
-            let cleanTitle = e.title;
-            const nicknames = womenToGroup[mainName];
-
-            // Remove any of the nicknames with various patterns
-            const sortedNicknames = nicknames.sort(
-              (a, b) => b.length - a.length
-            );
-
-            sortedNicknames.forEach((nickname) => {
-              const patterns = [
-                new RegExp(`\\s+with\\s+${nickname}\\s*`, "gi"),
-                new RegExp(`\\s+w\\s+${nickname}\\s*`, "gi"),
-                new RegExp(`\\s+${nickname}\\s*`, "gi"), // Remove just the name if it appears alone
-              ];
-
-              patterns.forEach((pattern) => {
-                cleanTitle = cleanTitle.replace(pattern, "");
-              });
-
-              // Handle cases with "&" or "and" - remove Jen and keep other person
-              const andPatterns = [
-                new RegExp(`\\s+with\\s+${nickname}\\s*&\\s*([^\\s]+)`, "gi"),
-                new RegExp(`\\s+with\\s+([^\\s]+)\\s*&\\s*${nickname}`, "gi"),
-                new RegExp(`\\s+with\\s+${nickname}\\s+and\\s+([^\\s]+)`, "gi"),
-                new RegExp(`\\s+with\\s+([^\\s]+)\\s+and\\s+${nickname}`, "gi"),
-              ];
-
-              andPatterns.forEach((pattern) => {
-                cleanTitle = cleanTitle.replace(pattern, " with $1");
-              });
-            });
-
-            // Clean up any remaining connectors and normalize
-            cleanTitle = cleanTitle
-              .replace(/\s*&\s*/gi, " with ") // Replace any remaining "&" with "with"
-              .replace(/\s+and\s+/gi, " with ") // Replace any remaining "and" with "with"
-              .replace(/\s+\+\s+/gi, " with ") // Replace any remaining "+" with "with"
-              .replace(/\s{2,}/g, " ") // Replace multiple spaces with single space
-              .replace(/\s+with\s+with\s+/gi, " with ") // Fix double "with"
-              .trim();
-
-            return cleanTitle;
+          patterns.forEach((pattern) => {
+            cleanTitle = cleanTitle.replace(pattern, "");
           });
 
-          // Add original event titles to the set to exclude from full list
-          events.forEach((e) => groupedEventTitles.add(e.title));
+          // Handle cases with "&" or "and" - remove Jen and keep other person
+          const andPatterns = [
+            new RegExp(`\\s+with\\s+${nickname}\\s*&\\s*([^\\s]+)`, "gi"),
+            new RegExp(`\\s+with\\s+([^\\s]+)\\s*&\\s*${nickname}`, "gi"),
+            new RegExp(`\\s+with\\s+${nickname}\\s+and\\s+([^\\s]+)`, "gi"),
+            new RegExp(`\\s+with\\s+([^\\s]+)\\s+and\\s+${nickname}`, "gi"),
+          ];
 
-          if (mainName === "Calls") {
-            // Extract call people for display
-            const callPeople = [];
-            events.forEach((event) => {
-              const eventTitle = event.title.toLowerCase();
-              const callPatterns = [
-                /^([a-z]+)\s+call/i, // "Mom Call", "Drew call"
-                /call\s+([a-z]+)/i, // "call Dad", "call Mom"
-              ];
+          andPatterns.forEach((pattern) => {
+            cleanTitle = cleanTitle.replace(pattern, " with $1");
+          });
+        });
 
-              for (const pattern of callPatterns) {
-                const match = eventTitle.match(pattern);
-                if (match) {
-                  const person =
-                    match[1].charAt(0).toUpperCase() + match[1].slice(1);
-                  if (!callPeople.includes(person)) {
-                    callPeople.push(person);
-                  }
-                  break;
-                }
-              }
-            });
+        // Clean up any remaining connectors and normalize
+        cleanTitle = cleanTitle
+          .replace(/\s*&\s*/gi, " with ") // Replace any remaining "&" with "with"
+          .replace(/\s+and\s+/gi, " with ") // Replace any remaining "and" with "with"
+          .replace(/\s+\+\s+/gi, " with ") // Replace any remaining "+" with "with"
+          .replace(/\s{2,}/g, " ") // Replace multiple spaces with single space
+          .replace(/\s+with\s+with\s+/gi, " with ") // Fix double "with"
+          .trim();
 
-            groupedEvaluations.push(`Calls with ${callPeople.join(", ")}`);
-          } else {
-            groupedEvaluations.push(
-              `Time with ${mainName} [${eventTitles.join(", ")}]`
-            );
-          }
-        }
+        return cleanTitle;
       });
 
-      // Get remaining events (not already grouped)
-      const remainingEvents = interpersonalEvents.filter(
-        (e) => !groupedEventTitles.has(e.title)
-      );
-      const remainingEventTitles = remainingEvents.map((e) => e.title);
+      // Add original event titles to the set to exclude from full list
+      events.forEach((e) => groupedEventTitles.add(e.title));
 
-      // Add all events
-      if (groupedEvaluations.length > 0) {
-        if (remainingEventTitles.length > 0) {
-          evaluations.push(
-            `✅ INTERPERSONAL EVENTS: ${
-              interpersonalEvents.length
-            } events (${groupedEvaluations.join(
-              " ... "
-            )} ... ${remainingEventTitles.join(" ... ")})`
-          );
-        } else {
-          evaluations.push(
-            `✅ INTERPERSONAL EVENTS: ${
-              interpersonalEvents.length
-            } events (${groupedEvaluations.join(" ... ")})`
-          );
-        }
+      if (mainName === "Calls") {
+        // Extract call people for display
+        const callPeople = [];
+        events.forEach((event) => {
+          const eventTitle = event.title.toLowerCase();
+          const callPatterns = [
+            /^([a-z]+)\s+call/i, // "Mom Call", "Drew call"
+            /call\s+([a-z]+)/i, // "call Dad", "call Mom"
+          ];
+
+          for (const pattern of callPatterns) {
+            const match = eventTitle.match(pattern);
+            if (match) {
+              const person =
+                match[1].charAt(0).toUpperCase() + match[1].slice(1);
+              if (!callPeople.includes(person)) {
+                callPeople.push(person);
+              }
+              break;
+            }
+          }
+        });
+
+        groupedEvaluations.push(`Calls with ${callPeople.join(", ")}`);
       } else {
-        evaluations.push(
-          `✅ INTERPERSONAL EVENTS: ${
-            interpersonalEvents.length
-          } events (${allEventTitles.join(" ... ")})`
+        groupedEvaluations.push(
+          `Time with ${mainName} [${eventTitles.join(", ")}]`
         );
       }
-    } else {
-      evaluations.push(
-        `✅ INTERPERSONAL TIME: ${interpersonalHours.toFixed(1)} hours`
-      );
     }
+  });
+
+  // Add remaining interpersonal events (not in groups)
+  const remainingEvents = interpersonalEvents.filter(
+    (event) => !groupedEventTitles.has(event.title)
+  );
+
+  if (remainingEvents.length > 0) {
+    const remainingEventTitles = remainingEvents.map((e) => e.title);
+    groupedEvaluations.push(remainingEventTitles.join(" ... "));
   }
 
-  // Check for home time (good when present)
-  const homeHours = categoryStats.home?.hours || 0;
-  if (homeHours > 0) {
-    evaluations.push(`✅ HOME TIME: ${homeHours.toFixed(1)} hours`);
+  // Add interpersonal evaluation if there are events
+  if (groupedEvaluations.length > 0) {
+    evaluations.push(
+      `✅ INTERPERSONAL EVENTS: ${
+        interpersonalEvents.length
+      } events (${groupedEvaluations.join(" ... ")})`
+    );
+  } else {
+    evaluations.push(`❌ NO INTERPERSONAL EVENTS: 0 events`);
   }
 
-  // Check for mental health time (good when present)
-  const mentalHealthHours = categoryStats.mentalHealth?.hours || 0;
-  if (mentalHealthHours > 0) {
-    evaluations.push(`✅ MENTAL HEALTH: ${mentalHealthHours.toFixed(1)} hours`);
+  // Check for mental health events (only show when present)
+  const mentalHealthEvents = interpersonalEvents.filter((event) => {
+    const eventTitle = event.title.toLowerCase();
+    return (
+      eventTitle.includes("therapy") ||
+      eventTitle.includes("meditation") ||
+      eventTitle.includes("journal")
+    );
+  });
+
+  if (mentalHealthEvents.length > 0) {
+    const mentalHealthEventTitles = mentalHealthEvents.map((e) => e.title);
+    evaluations.push(
+      `✅ MENTAL HEALTH EVENTS: ${
+        mentalHealthEvents.length
+      } events (${mentalHealthEventTitles.join(" ... ")})`
+    );
   }
 
   // Check for personal PRs (good when present)
@@ -1210,19 +1181,167 @@ function generatePersonalCalEvaluation(
     }
   }
 
-  // Check for missing personal time (always bad when 0)
-  if (personalHours === 0) {
-    evaluations.push(`❌ NO PERSONAL TIME: 0 hours`);
+  // Parse Physical Health Cal data for sleep and workouts FIRST
+  if (notionUpdates["Physical Health Cal"]) {
+    const physicalCalText = notionUpdates["Physical Health Cal"];
+    console.log(
+      "🔍 Debug: Physical Health Cal data found, length:",
+      physicalCalText.length
+    );
+    console.log(
+      "🔍 Debug: First 200 chars of Physical Health Cal:",
+      physicalCalText.substring(0, 200)
+    );
+
+    // Check for sleep tracking (early wake-ups GOOD, sleep-ins BAD) - FIRST
+    if (physicalCalText.includes("SLEEP TRACKING:")) {
+      const earlyMatch = physicalCalText.match(/Early wake-ups: (\d+) days/);
+      const sleepInMatch = physicalCalText.match(/Sleep-ins: (\d+) days/);
+
+      if (earlyMatch) {
+        const earlyDays = parseInt(earlyMatch[1]);
+        if (earlyDays > 0) {
+          evaluations.push(`✅ EARLY WAKE-UPS: ${earlyDays} days`);
+        }
+      }
+
+      if (sleepInMatch) {
+        const sleepInDays = parseInt(sleepInMatch[1]);
+        if (sleepInDays > 0) {
+          evaluations.push(`❌ SLEEP-INS: ${sleepInDays} days`);
+        }
+      }
+    }
+
+    // Check for workouts (any workout is GOOD, no workouts is BAD) - SECOND
+    if (physicalCalText.includes("WORKOUTS (")) {
+      if (physicalCalText.includes("No workout sessions this week")) {
+        evaluations.push(`❌ NO WORKOUTS: 0 sessions`);
+      } else {
+        // Try multiple regex patterns for workouts
+        let workoutMatch = physicalCalText.match(
+          /WORKOUTS\s*\((\d+)\s*sessions?,\s*([\d.]+)\s*hours?\):/
+        );
+
+        if (!workoutMatch) {
+          // Try without the colon
+          workoutMatch = physicalCalText.match(
+            /WORKOUTS\s*\((\d+)\s*sessions?,\s*([\d.]+)\s*hours?\)/
+          );
+        }
+
+        if (!workoutMatch) {
+          // Try more flexible pattern
+          workoutMatch = physicalCalText.match(
+            /WORKOUTS.*?\((\d+).*?sessions?.*?([\d.]+).*?hours?\)/
+          );
+        }
+
+        if (workoutMatch) {
+          const sessions = parseInt(workoutMatch[1]);
+          const hours = parseFloat(workoutMatch[2]);
+
+          // Extract workout details from the text
+          const workoutDetails = [];
+          const lines = physicalCalText.split("\n");
+          let inWorkoutSection = false;
+
+          for (const line of lines) {
+            if (line.includes("WORKOUTS (")) {
+              inWorkoutSection = true;
+              continue;
+            }
+            if (inWorkoutSection && line.startsWith("•")) {
+              const workoutName = line.replace("• ", "").split(" (")[0];
+              workoutDetails.push(workoutName);
+            }
+            if (inWorkoutSection && line.trim() === "") {
+              break;
+            }
+          }
+
+          const workoutList = workoutDetails.join(", ");
+          evaluations.push(
+            `✅ WORKOUTS: ${sessions} sessions, ${hours} hours (${workoutList})`
+          );
+        }
+      }
+    }
   }
 
-  // Check for missing physical health time (always bad when 0)
-  if (physicalHealthHours === 0) {
-    evaluations.push(`❌ NO PHYSICAL HEALTH: 0 hours`);
+  // Parse Personal Cal data for video games and reading - THIRD
+  if (notionUpdates["Personal Cal"]) {
+    const personalCalText = notionUpdates["Personal Cal"];
+
+    // Check for video games (none is GOOD, played is BAD)
+    if (personalCalText.includes("VIDEO GAMES:")) {
+      if (personalCalText.includes("No gaming sessions this week")) {
+        evaluations.push(`✅ NO VIDEO GAMES: 0 hours`);
+      } else {
+        const gameMatch = personalCalText.match(
+          /VIDEO GAMES \((\d+) sessions?, ([\d.]+) hours\)/
+        );
+        if (gameMatch) {
+          const sessions = parseInt(gameMatch[1]);
+          const hours = parseFloat(gameMatch[2]);
+          evaluations.push(
+            `❌ VIDEO GAMES: ${sessions} sessions, ${hours} hours`
+          );
+        }
+      }
+    }
+
+    // Check for reading (none is BAD, read is GOOD)
+    if (personalCalText.includes("READING:")) {
+      if (personalCalText.includes("No reading sessions this week")) {
+        evaluations.push(`❌ NO READING: 0 sessions`);
+      } else {
+        const readMatch = personalCalText.match(
+          /READING \((\d+) sessions?, ([\d.]+) hours\)/
+        );
+        if (readMatch) {
+          const sessions = parseInt(readMatch[1]);
+          const hours = parseFloat(readMatch[2]);
+          evaluations.push(`✅ READING: ${sessions} sessions, ${hours} hours`);
+        }
+      }
+    }
   }
 
-  // Check for missing mental health time (always bad when 0)
-  if (mentalHealthHours === 0) {
-    evaluations.push(`❌ NO MENTAL HEALTH: 0 hours`);
+  // Parse Physical Health Cal data for alcohol and bodyweight - FOURTH
+  if (notionUpdates["Physical Health Cal"]) {
+    const physicalCalText = notionUpdates["Physical Health Cal"];
+
+    // Check for alcohol (sober days GOOD, drinking days BAD)
+    if (physicalCalText.includes("ALCOHOL:")) {
+      const soberMatch = physicalCalText.match(/Days sober: (\d+)/);
+      const drinkingMatch = physicalCalText.match(/Days drinking: (\d+)/);
+
+      if (soberMatch) {
+        const soberDays = parseInt(soberMatch[1]);
+        if (soberDays > 0) {
+          evaluations.push(`✅ SOBER DAYS: ${soberDays} days`);
+        }
+      }
+
+      if (drinkingMatch) {
+        const drinkingDays = parseInt(drinkingMatch[1]);
+        if (drinkingDays > 0) {
+          evaluations.push(`❌ DRINKING DAYS: ${drinkingDays} days`);
+        }
+      }
+    }
+
+    // Check for bodyweight (good when tracked)
+    if (physicalCalText.includes("AVERAGE BODY WEIGHT:")) {
+      const weightMatch = physicalCalText.match(
+        /AVERAGE BODY WEIGHT: ([\d.]+) lbs/
+      );
+      if (weightMatch) {
+        const weight = parseFloat(weightMatch[1]);
+        evaluations.push(`✅ BODY WEIGHT: ${weight} lbs tracked`);
+      }
+    }
   }
 
   return evaluations;
@@ -1261,29 +1380,6 @@ async function main() {
   if (result.isInteractive) {
     console.log(`\n📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
 
-    // Ask what to include first
-    console.log("? What to process?");
-    console.log("  1 - Both (Personal Calendar + PRs)");
-    console.log("  2 - Personal Calendar Only");
-    console.log("  3 - Personal PRs Only");
-
-    const includeInput = await askQuestion(
-      "\n? Enter choice (or press enter for both): "
-    );
-
-    // Reset flags
-    includePersonalCal = false;
-    includePRs = false;
-
-    if (includeInput.trim() === "1" || includeInput.trim() === "") {
-      includePersonalCal = true;
-      includePRs = true;
-    } else if (includeInput.trim() === "2") {
-      includePersonalCal = true;
-    } else if (includeInput.trim() === "3") {
-      includePRs = true;
-    }
-
     const weeksInput = await askQuestion(
       "\n? Which weeks to process? (comma-separated, e.g., 1,2,3): "
     );
@@ -1296,15 +1392,7 @@ async function main() {
     }
 
     // Show confirmation
-    console.log(
-      `\n📋 Processing: ${
-        includePersonalCal && includePRs
-          ? "Personal Calendar + PRs"
-          : includePersonalCal
-          ? "Personal Calendar"
-          : "Personal PRs"
-      }`
-    );
+    console.log(`\n📋 Processing: Personal Calendar + PRs`);
     console.log(`📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
 
     const confirm = await askQuestion("Continue? (y/n): ");
@@ -1316,14 +1404,7 @@ async function main() {
 
     console.log(""); // Empty line before processing
   } else {
-    // Command line mode - check for flags
-    if (args.includes("--prs")) {
-      includePRs = true;
-      includePersonalCal = false;
-    } else if (args.includes("--both")) {
-      includePRs = true;
-      includePersonalCal = true;
-    }
+    // Command line mode - always include both
     TARGET_WEEKS = result.targetWeeks;
   }
 

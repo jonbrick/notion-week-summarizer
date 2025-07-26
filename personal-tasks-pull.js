@@ -298,11 +298,11 @@ async function processWeek(weekNumber) {
 
     // Define personal task categories in order
     const personalCategories = [
-      "💪 Physical Health",
       "🌱 Personal",
       "🍻 Interpersonal",
-      "❤️ Mental Health",
       "🏠 Home",
+      "💪 Physical Health",
+      "❤️ Mental Health",
     ];
 
     // Group tasks by Type with smart matching
@@ -350,6 +350,30 @@ async function processWeek(weekNumber) {
       });
     });
 
+    // 6. Fetch rocks and events first (needed for summary)
+    console.log(`\n🪨 Fetching personal rocks...`);
+    const rocks = await fetchWeekRocks(startDate, endDate, weekPageId);
+    const rocksFormatted = formatRocksForNotion(rocks);
+
+    console.log(`\n🎟️ Fetching personal events...`);
+    const events = await fetchWeekEvents(startDate, endDate);
+    console.log(`📋 Found ${events.length} personal events`);
+
+    // Debug: Log event details
+    events.forEach((event, index) => {
+      const eventName =
+        event.properties["Event Name"]?.title
+          ?.map((t) => t.plain_text)
+          .join("") || "Untitled Event";
+      const eventStatus =
+        event.properties["Status"]?.status?.name || "No Status";
+      console.log(
+        `  Event ${index + 1}: "${eventName}" (Status: ${eventStatus})`
+      );
+    });
+
+    const eventsFormatted = formatEventsForNotion(events);
+
     // Calculate totals for summary
     const totalTasks = tasksResponse.results.length;
     const totalUniqueTasks = Object.values(taskGroups).length;
@@ -358,15 +382,19 @@ async function processWeek(weekNumber) {
     summary = `PERSONAL TASK SUMMARY:\n`;
     summary += `Total: ${totalTasks} tasks (${totalUniqueTasks} unique)\n`;
 
+    // Add events count to summary
+    const eventsCount = events.length;
+    summary += `- Events: ${eventsCount} event${
+      eventsCount !== 1 ? "s" : ""
+    }\n`;
+
     // Add category breakdown
     personalCategories.forEach((category) => {
       const tasks = tasksByCategory[category];
       const taskCount = tasks.length;
-      if (taskCount > 0) {
-        // Get display name without emoji
-        const categoryName = category.split(" ").slice(1).join(" ");
-        summary += `- ${categoryName}: ${taskCount} tasks\n`;
-      }
+      // Get display name without emoji
+      const categoryName = category.split(" ").slice(1).join(" ");
+      summary += `- ${categoryName}: ${taskCount} tasks\n`;
     });
 
     // Remove trailing newline
@@ -375,15 +403,6 @@ async function processWeek(weekNumber) {
     console.log(
       `\n📝 Generated summary with ${tasksResponse.results.length} tasks`
     );
-
-    // 6. Fetch rocks and events
-    console.log(`\n🪨 Fetching personal rocks...`);
-    const rocks = await fetchWeekRocks(startDate, endDate, weekPageId);
-    const rocksFormatted = formatRocksForNotion(rocks);
-
-    console.log(`\n🎟️ Fetching personal events...`);
-    const events = await fetchWeekEvents(startDate, endDate);
-    const eventsFormatted = formatEventsForNotion(events);
 
     // 7. Generate evaluation
     const evaluations = generatePersonalTaskEvaluation(
@@ -395,7 +414,41 @@ async function processWeek(weekNumber) {
     // Add evaluation section to summary
     summary += "\n\n===== EVALUATION =====\n";
 
-    // Add rocks content to evaluation first (excluding header)
+    // Add events evaluation first
+    if (eventsFormatted && !eventsFormatted.includes("No personal events")) {
+      // Extract events from the formatted string (after the "------" line)
+      const eventsContent = eventsFormatted.split("------\n")[1];
+      if (eventsContent) {
+        const eventLines = eventsContent
+          .split("\n")
+          .filter((line) => line.trim() && !line.startsWith("Notes:"))
+          .map((line) => {
+            // Remove "Done" from the beginning of the line
+            const cleanLine = line.replace(/^.*?Done\s+/, "");
+
+            // Extract event name and type from "EventName (EventType) - Date"
+            const eventMatch = cleanLine.match(/^(.+?)\s*\(([^)]+)\)/);
+            if (eventMatch) {
+              const eventName = eventMatch[1].trim();
+              const eventType = eventMatch[2].trim();
+              return `✅ EVENT: ${eventName} (${eventType})`;
+            } else {
+              // Fallback if no type found
+              const eventName = cleanLine.trim();
+              return `✅ EVENT: ${eventName}`;
+            }
+          });
+
+        if (eventLines.length > 0) {
+          summary += eventLines.join("\n") + "\n";
+          // Print events to console
+          console.log(`\n📅 EVENTS EVALUATION:`);
+          eventLines.forEach((line) => console.log(`  ${line}`));
+        }
+      }
+    }
+
+    // Add rocks content to evaluation (excluding header)
     if (rocksFormatted && !rocksFormatted.includes("No personal rocks")) {
       // Extract content after the "------" line
       const rocksContent = rocksFormatted.split("------\n")[1];
@@ -436,17 +489,29 @@ function generatePersonalTaskEvaluation(
 ) {
   const evaluations = [];
 
-  // Parse rock evaluations first (they go at top) - only if rocks are provided
-  if (rocks.length > 0) {
-    const rockEvals = parsePersonalRockEvaluations(rocks);
-
-    // Add good evaluations first
-    rockEvals
-      .filter((r) => r.type === "good")
-      .forEach((r) => evaluations.push(r.text));
+  // Check for personal tasks (good when present, bad when 0)
+  const personalCount = tasksByCategory["🌱 Personal"]?.length || 0;
+  if (personalCount > 0) {
+    const taskNames = tasksByCategory["🌱 Personal"]
+      .map((t) => t.title)
+      .join(", ");
+    evaluations.push(
+      `✅ PERSONAL TASKS: ${personalCount} completed (${taskNames})`
+    );
+  } else {
+    evaluations.push(`❌ NO PERSONAL TASKS: 0 completed`);
   }
 
-  // Check for physical health tasks (good when present)
+  // Check for home tasks (good when present, bad when 0)
+  const homeCount = tasksByCategory["🏠 Home"]?.length || 0;
+  if (homeCount > 0) {
+    const taskNames = tasksByCategory["🏠 Home"].map((t) => t.title).join(", ");
+    evaluations.push(`✅ HOME TASKS: ${homeCount} completed (${taskNames})`);
+  } else {
+    evaluations.push(`❌ NO HOME TASKS: 0 completed`);
+  }
+
+  // Check for physical health tasks (good when present, bad when 0)
   const physicalHealthCount =
     tasksByCategory["💪 Physical Health"]?.length || 0;
   if (physicalHealthCount > 0) {
@@ -456,85 +521,8 @@ function generatePersonalTaskEvaluation(
     evaluations.push(
       `✅ PHYSICAL HEALTH TASKS: ${physicalHealthCount} completed (${taskNames})`
     );
-  }
-
-  // Check for personal tasks (good when present)
-  const personalCount = tasksByCategory["🌱 Personal"]?.length || 0;
-  if (personalCount > 0) {
-    const taskNames = tasksByCategory["🌱 Personal"]
-      .map((t) => t.title)
-      .join(", ");
-    evaluations.push(
-      `✅ PERSONAL TASKS: ${personalCount} completed (${taskNames})`
-    );
-  }
-
-  // Check for interpersonal tasks (good when present)
-  const interpersonalCount = tasksByCategory["🍻 Interpersonal"]?.length || 0;
-  if (interpersonalCount > 0) {
-    const taskNames = tasksByCategory["🍻 Interpersonal"]
-      .map((t) => t.title)
-      .join(", ");
-    evaluations.push(
-      `✅ INTERPERSONAL TASKS: ${interpersonalCount} completed (${taskNames})`
-    );
-  }
-
-  // Check for mental health tasks (good when present)
-  const mentalHealthCount = tasksByCategory["❤️ Mental Health"]?.length || 0;
-  if (mentalHealthCount > 0) {
-    const taskNames = tasksByCategory["❤️ Mental Health"]
-      .map((t) => t.title)
-      .join(", ");
-    evaluations.push(
-      `✅ MENTAL HEALTH TASKS: ${mentalHealthCount} completed (${taskNames})`
-    );
-  }
-
-  // Check for home tasks (good when present)
-  const homeCount = tasksByCategory["🏠 Home"]?.length || 0;
-  if (homeCount > 0) {
-    const taskNames = tasksByCategory["🏠 Home"].map((t) => t.title).join(", ");
-    evaluations.push(`✅ HOME TASKS: ${homeCount} completed (${taskNames})`);
-  }
-
-  // Check for personal events (good when present)
-  if (eventsFormatted && !eventsFormatted.includes("No personal events")) {
-    const eventLines = eventsFormatted
-      .split("\n")
-      .filter(
-        (line) =>
-          line.includes("✅") ||
-          line.includes("👾") ||
-          line.includes("🚧") ||
-          line.includes("🥊")
-      );
-    if (eventLines.length > 0) {
-      const eventCount = eventLines.length;
-      evaluations.push(`✅ PERSONAL EVENTS: ${eventCount} attended`);
-    }
-  }
-
-  // Add bad rock evaluations - only if rocks are provided
-  if (rocks.length > 0) {
-    const rockEvals = parsePersonalRockEvaluations(rocks);
-    rockEvals
-      .filter((r) => r.type === "bad")
-      .forEach((r) => evaluations.push(r.text));
-  }
-
-  // Check for missing physical health tasks (always bad when 0)
-  const physicalHealthCountFinal =
-    tasksByCategory["💪 Physical Health"]?.length || 0;
-  if (physicalHealthCountFinal === 0) {
+  } else {
     evaluations.push(`❌ NO PHYSICAL HEALTH TASKS: 0 completed`);
-  }
-
-  // Check for missing mental health tasks (always bad when 0)
-  const mentalHealthCountFinal =
-    tasksByCategory["❤️ Mental Health"]?.length || 0;
-  if (mentalHealthCountFinal === 0) {
-    evaluations.push(`❌ NO MENTAL HEALTH TASKS: 0 completed`);
   }
 
   return evaluations;
@@ -608,6 +596,19 @@ async function processAllWeeks() {
 // Main execution
 async function main() {
   const args = process.argv.slice(2);
+
+  // Check for week shortcuts (--1, --2, etc.)
+  const weekShortcut = args.find(
+    (arg) => arg.startsWith("--") && /^\d+$/.test(arg.slice(2))
+  );
+  if (weekShortcut) {
+    const weekNumber = parseInt(weekShortcut.slice(2));
+    TARGET_WEEKS = [weekNumber];
+    console.log(`📋 Personal Task Pull\n`);
+    console.log(`🚀 Processing week ${weekNumber}...\n`);
+    await processAllWeeks();
+    return;
+  }
 
   // Check if running in interactive mode
   const result = await checkInteractiveMode(
