@@ -451,7 +451,7 @@ async function processWeek(weekNumber) {
 
     console.log(`📋 Found ${tasksResponse.results.length} work tasks`);
 
-    // 5. Format tasks for Notion with new format
+    // 5. Format tasks for Notion with simplified format
     let summary = "";
 
     // Define all work categories in custom order
@@ -465,11 +465,6 @@ async function processWeek(weekNumber) {
       "Social",
       "OOO",
     ];
-
-    // Create header
-    summary = `WORK TASK SUMMARY:\n`;
-    summary += `Total: ${tasksResponse.results.length} tasks\n`;
-    summary += "------";
 
     // Group tasks by Work Category with smart matching
     const tasksByCategory = {};
@@ -498,8 +493,6 @@ async function processWeek(weekNumber) {
         const taskTitle = task.properties.Task.title
           .map((t) => t.plain_text)
           .join("");
-        const dueDate = task.properties["Due Date"].date.start;
-        const formattedDate = formatTaskDate(dueDate);
 
         // Create a unique key for each task title + category combination
         const taskKey = `${category}:${taskTitle}`;
@@ -508,13 +501,11 @@ async function processWeek(weekNumber) {
           taskGroups[taskKey] = {
             title: taskTitle,
             category: category,
-            dates: [],
-            formattedDates: [],
+            count: 0,
           };
         }
 
-        taskGroups[taskKey].dates.push(dueDate);
-        taskGroups[taskKey].formattedDates.push(formattedDate);
+        taskGroups[taskKey].count += 1;
       }
     });
 
@@ -523,63 +514,28 @@ async function processWeek(weekNumber) {
       const category = taskGroup.category;
       const title = taskGroup.title;
 
-      // Sort dates chronologically
-      const sortedDates = taskGroup.dates.sort();
-      const sortedFormattedDates = taskGroup.formattedDates.sort();
-
-      // Create date range string
-      let dateString;
-      if (sortedFormattedDates.length === 1) {
-        dateString = sortedFormattedDates[0];
-      } else {
-        dateString = `${sortedFormattedDates[0]} - ${
-          sortedFormattedDates[sortedFormattedDates.length - 1]
-        }`;
-      }
-
       tasksByCategory[category].push({
         title: title,
-        formattedDate: dateString,
-        dueDate: sortedDates[0], // Use first date for sorting
-        count: sortedDates.length, // Track how many instances
+        count: taskGroup.count,
       });
     });
 
-    // Add categories that have tasks (not empty ones)
-    const categoriesWithTasks = [];
-    const categoriesWithoutTasks = [];
+    // Calculate totals for summary
+    const totalTasks = tasksResponse.results.length;
+    const totalUniqueTasks = Object.values(taskGroups).length;
 
+    // Create simplified summary format
+    summary = `WORK TASK SUMMARY:\n`;
+    summary += `Total: ${totalTasks} tasks (${totalUniqueTasks} unique)\n`;
+
+    // Add category breakdown
     allCategories.forEach((category) => {
       const tasks = tasksByCategory[category];
-      if (tasks.length > 0) {
-        categoriesWithTasks.push(category);
-      } else {
-        categoriesWithoutTasks.push(category);
+      const taskCount = tasks.length;
+      if (taskCount > 0) {
+        summary += `- ${category}: ${taskCount} tasks\n`;
       }
     });
-
-    // Add categories with tasks
-    categoriesWithTasks.forEach((category, index) => {
-      const tasks = tasksByCategory[category];
-
-      // Add separator (except for first category)
-      if (index > 0) {
-        summary += "------";
-      }
-
-      summary += `\n${category} Tasks (${tasks.length}):\n`;
-
-      tasks.forEach((task) => {
-        const countText = task.count > 1 ? ` (${task.count} days)` : "";
-        summary += `• ${task.title} (${task.formattedDate})${countText}\n`;
-      });
-    });
-
-    // Add "No tasks" summary line for empty categories
-    if (categoriesWithoutTasks.length > 0) {
-      summary += "------\n";
-      summary += `No tasks (${categoriesWithoutTasks.join(", ")} Tasks)\n`;
-    }
 
     // Remove trailing newline
     summary = summary.trim();

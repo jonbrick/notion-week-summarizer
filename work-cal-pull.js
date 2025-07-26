@@ -106,11 +106,51 @@ function getMyResponseStatus(attendees) {
   return myAttendance ? myAttendance.responseStatus : null;
 }
 
+// Extract pairing partner information
+function getPairingPartner(rawEvent) {
+  const eventTitle = rawEvent.summary || "";
+
+  // Only process if title doesn't contain "Jon" (case insensitive)
+  if (eventTitle.toLowerCase().includes("jon")) {
+    return null;
+  }
+
+  // Check if this looks like a pairing event
+  const isPairingEvent =
+    eventTitle.toLowerCase().includes("pairing") ||
+    eventTitle.toLowerCase().includes("pair") ||
+    eventTitle.toLowerCase().includes("hold");
+
+  if (!isPairingEvent) {
+    return null;
+  }
+
+  // Get attendees excluding yourself
+  const attendees = rawEvent.attendees || [];
+  const otherAttendees = attendees.filter((attendee) => !attendee.self);
+
+  // If there's exactly one other person, return their name
+  if (otherAttendees.length === 1) {
+    const partner = otherAttendees[0];
+    const partnerName = partner.displayName || partner.email || "Unknown";
+
+    // Clean up the name (remove email domain if present)
+    const cleanName = partnerName.includes("@")
+      ? partnerName.split("@")[0]
+      : partnerName;
+
+    return cleanName;
+  }
+
+  return null;
+}
+
 // Categorize event by color
 function categorizeEventByColor(rawEvent) {
   const colorId = rawEvent.colorId || "default";
   const eventType = rawEvent.eventType || "default";
   const responseStatus = getMyResponseStatus(rawEvent.attendees);
+  const eventTitle = rawEvent.summary || "";
 
   // 1. EventType trumps everything
   if (eventType === "outOfOffice") {
@@ -125,8 +165,12 @@ function categorizeEventByColor(rawEvent) {
     return createEventObject(rawEvent, "ignored", "Declined Meeting");
   }
 
-  // 3. JB OOO/PTO filter - track all-day JB OOO/PTO events
-  const eventTitle = rawEvent.summary || "";
+  // 3. Ignore "Zac out" events
+  if (eventTitle.toLowerCase().includes("zac out")) {
+    return createEventObject(rawEvent, "ignored", "Zac Out");
+  }
+
+  // 4. JB OOO/PTO filter - track all-day JB OOO/PTO events
   const isAllDay =
     rawEvent.start && rawEvent.start.date && !rawEvent.start.dateTime;
 
@@ -138,7 +182,7 @@ function categorizeEventByColor(rawEvent) {
     return createEventObject(rawEvent, "ooo", "JB OOO/PTO");
   }
 
-  // 4. Color mapping for default eventType events
+  // 5. Color mapping for default eventType events
   const colorMapping = {
     8: { category: "personal", name: "Personal Event Cal" }, // Gray
     3: { category: "coding", name: "Coding & Tickets Cal" }, // Purple
@@ -183,6 +227,7 @@ function createEventObject(rawEvent, category, categoryName) {
     attendeeCount: rawEvent.attendees ? rawEvent.attendees.length : 0,
     eventType: rawEvent.eventType || "default",
     responseStatus: getMyResponseStatus(rawEvent.attendees),
+    pairingPartner: getPairingPartner(rawEvent),
   };
 }
 
@@ -386,21 +431,96 @@ function generateWorkCalEvaluation(
   const meetingPercent =
     totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
 
+  // Calculate category stats for additional time categories
+  const categoryStats = {
+    qa: { hours: 0 },
+    review: { hours: 0 },
+    research: { hours: 0 },
+  };
+
+  // Extract additional hours from Work Cal Summary format
+  lines.forEach((line) => {
+    if (line.includes("- QA:")) {
+      categoryStats.qa.hours = parseExistingCalendarHours(line);
+    } else if (line.includes("- Review:")) {
+      categoryStats.review.hours = parseExistingCalendarHours(line);
+    } else if (line.includes("- Research:")) {
+      categoryStats.research.hours = parseExistingCalendarHours(line);
+    }
+  });
+
   // OOO evaluation (TOP priority)
   if (oooDays > 0) {
     evaluations.push(`🏝️ OOO: ${oooDays} Day${oooDays === 1 ? "" : "s"}`);
   }
 
-  // Good evaluations
-  if (prData.count > 0) {
-    evaluations.push(`✅ ${prData.count} PRs SHIPPED:`);
-    // Add each PR as a bullet point
-    prData.names.forEach((prName) => {
-      evaluations.push(`  • ${prName}`);
-    });
+  // MEETING TIME - ALWAYS FIRST
+  if (meetingPercent >= 20) {
+    evaluations.push(
+      `⚠️ MEETING TIME: ${meetingHours.toFixed(
+        1
+      )} hours (${meetingPercent}%) [above 20% threshold]`
+    );
   }
 
-  // MEETINGS evaluation (after PRs)
+  // QA TIME (when we have it)
+  const qaHours = categoryStats?.qa?.hours || 0;
+  if (qaHours > 0) {
+    evaluations.push(
+      `✅ QA TIME: ${qaHours.toFixed(1)} hours (${Math.round(
+        (qaHours / totalHours) * 100
+      )}%)`
+    );
+  }
+
+  // CODING TIME
+  if (codingHours > 0) {
+    evaluations.push(
+      `✅ CODING TIME: ${codingHours.toFixed(1)} hours (${Math.round(
+        (codingHours / totalHours) * 100
+      )}%)`
+    );
+  }
+
+  // REVIEW TIME (when we have it)
+  const reviewHours = categoryStats?.review?.hours || 0;
+  if (reviewHours > 0) {
+    evaluations.push(
+      `✅ REVIEW TIME: ${reviewHours.toFixed(1)} hours (${Math.round(
+        (reviewHours / totalHours) * 100
+      )}%)`
+    );
+  }
+
+  // DESIGN TIME
+  if (designHours > 0) {
+    evaluations.push(
+      `✅ DESIGN TIME: ${designHours.toFixed(1)} hours (${Math.round(
+        (designHours / totalHours) * 100
+      )}%)`
+    );
+  }
+
+  // RESEARCH TIME (when we have it)
+  const researchHours = categoryStats?.research?.hours || 0;
+  if (researchHours > 0) {
+    evaluations.push(
+      `✅ RESEARCH TIME: ${researchHours.toFixed(1)} hours (${Math.round(
+        (researchHours / totalHours) * 100
+      )}%)`
+    );
+  }
+
+  // Bad evaluations (except PRs - those go last)
+  if (designHours === 0) {
+    evaluations.push(`❌ NO DESIGN TIME: 0 hours (0%)`);
+  }
+
+  if (codingHours === 0) {
+    evaluations.push(`❌ NO CODING TIME: 0 hours`);
+  }
+
+  // MEETINGS evaluation - SECOND TO LAST
   if (defaultWorkCalText && !defaultWorkCalText.includes("No default events")) {
     const meetingNames = parseMeetingNames(defaultWorkCalText);
     if (meetingNames.length > 0) {
@@ -411,34 +531,15 @@ function generateWorkCalEvaluation(
     }
   }
 
-  if (codingHours > 0) {
-    evaluations.push(
-      `✅ CODING TIME: ${codingHours.toFixed(1)} hours (${Math.round(
-        (codingHours / totalHours) * 100
-      )}%)`
-    );
-  }
-
-  // Warning evaluations
-  if (meetingPercent >= 20) {
-    evaluations.push(
-      `⚠️ MEETING TIME: ${meetingHours.toFixed(
-        1
-      )} hours (${meetingPercent}%) [above 20% threshold]`
-    );
-  }
-
-  // Bad evaluations
-  if (prData.count === 0) {
+  // PRs evaluation - ALWAYS LAST
+  if (prData.count > 0) {
+    evaluations.push(`✅ ${prData.count} PRs SHIPPED:`);
+    // Add each PR as a bullet point
+    prData.names.forEach((prName) => {
+      evaluations.push(`  • ${prName}`);
+    });
+  } else {
     evaluations.push(`❌ NO PRs SHIPPED: 0 PRs this week`);
-  }
-
-  if (designHours === 0) {
-    evaluations.push(`❌ NO DESIGN TIME: 0 hours (0%)`);
-  }
-
-  if (codingHours === 0) {
-    evaluations.push(`❌ NO CODING TIME: 0 hours`);
   }
 
   return evaluations;
@@ -561,7 +662,17 @@ function formatEventsForNotion(events, categoryName) {
     const duration =
       group.totalMinutes > 0 ? formatDuration(group.totalMinutes) : "unknown";
     const countText = group.count > 1 ? ` (${group.count}x)` : "";
-    output += `• ${group.title}${countText} (${duration})\n`;
+
+    // Find the first event in this group to get pairing partner info and all-day status
+    const firstEvent = events.find((e) => e.title.trim() === group.title);
+    const pairingInfo = firstEvent?.pairingPartner
+      ? ` with ${firstEvent.pairingPartner}`
+      : "";
+
+    // Show "(all day)" for all-day events instead of duration
+    const timeInfo = firstEvent?.isAllDay ? "(all day)" : `(${duration})`;
+
+    output += `• ${group.title}${pairingInfo}${countText} ${timeInfo}\n`;
   });
 
   return output;
@@ -834,10 +945,27 @@ async function processWeek(weekNumber) {
       );
 
       if (calEvaluations.length > 0) {
-        notionUpdates["Work Cal Summary"] =
+        let finalSummary =
           existingCalSummary +
           "\n===== EVALUATION =====\n" +
           calEvaluations.join("\n");
+
+        // Check if summary exceeds Notion's 2000 character limit
+        if (finalSummary.length > 2000) {
+          console.log(
+            `⚠️  Work Cal Summary too long (${finalSummary.length} chars), truncating...`
+          );
+          const maxLength = 1950;
+          let truncateAt = finalSummary.lastIndexOf("\n", maxLength);
+          if (truncateAt === -1 || truncateAt < maxLength - 200) {
+            truncateAt = maxLength;
+          }
+          finalSummary =
+            finalSummary.substring(0, truncateAt) +
+            "\n\n... (truncated due to length)";
+        }
+
+        notionUpdates["Work Cal Summary"] = finalSummary;
       }
     }
 
