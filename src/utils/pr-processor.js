@@ -11,7 +11,7 @@ function removeTimestamps(commitText) {
 
 /**
  * Extract PR info from a calendar event
- * Handles both single PRs and comma-separated multiple PRs
+ * Each event now represents a single PR
  */
 function extractPRInfo(event) {
   const description = event.description || "";
@@ -20,12 +20,9 @@ function extractPRInfo(event) {
   const prMatch = description.match(/🔀 PR: (.+?)(?:\n|$)/);
   const prTitle = prMatch ? prMatch[1] : "Unknown PR";
 
-  // Check if this contains multiple PRs (comma-separated)
-  const prNumbers = [];
-  const prNumberMatches = prTitle.matchAll(/#(\d+)/g);
-  for (const match of prNumberMatches) {
-    prNumbers.push(match[1]);
-  }
+  // Extract PR number
+  const prNumberMatch = prTitle.match(/#(\d+)/);
+  const prNumber = prNumberMatch ? prNumberMatch[1] : null;
 
   // Extract commits section as raw text
   const commitsSection = description.split("📝 Commits:\n")[1];
@@ -34,45 +31,18 @@ function extractPRInfo(event) {
   // Get date from event
   const date = event.start.date || event.start.dateTime?.split("T")[0];
 
-  // If multiple PRs found, split them
-  if (prNumbers.length > 1) {
-    return prNumbers.map((prNumber, index) => {
-      // Try to extract individual PR titles by splitting on commas
-      const prTitleParts = prTitle.split(",").map((part) => part.trim());
-      let individualPRTitle = prTitle; // fallback to full title
+  // Extract commit count from summary
+  const commitCountMatch = event.summary.match(/(\d+) commits?/);
+  const commitCount = commitCountMatch ? parseInt(commitCountMatch[1]) : 1;
 
-      // Find the part that contains this PR number
-      const matchingPart = prTitleParts.find((part) =>
-        part.includes(`#${prNumber}`)
-      );
-      if (matchingPart) {
-        individualPRTitle = matchingPart;
-      }
-
-      return {
-        prNumber,
-        prTitle: individualPRTitle,
-        commits,
-        date,
-        summary: event.summary,
-        isMultiPR: true,
-        multiPRIndex: index,
-        multiPRTotal: prNumbers.length,
-      };
-    });
-  }
-
-  // Single PR case
-  return [
-    {
-      prNumber: prNumbers[0] || null,
-      prTitle,
-      commits,
-      date,
-      summary: event.summary,
-      isMultiPR: false,
-    },
-  ];
+  return {
+    prNumber,
+    prTitle,
+    commits,
+    date,
+    summary: event.summary,
+    commitCount,
+  };
 }
 
 /**
@@ -82,39 +52,25 @@ function groupEventsByPR(events) {
   const prGroups = {};
 
   events.forEach((event) => {
-    const prInfoArray = extractPRInfo(event); // Now returns an array
+    const prInfo = extractPRInfo(event);
+    const key = prInfo.prNumber || prInfo.prTitle;
 
-    prInfoArray.forEach((prInfo) => {
-      const key = prInfo.prNumber || prInfo.prTitle;
+    if (!prGroups[key]) {
+      prGroups[key] = {
+        prTitle: prInfo.prTitle,
+        prNumber: prInfo.prNumber,
+        commits: [],
+        dates: [],
+        totalCommits: 0,
+      };
+    }
 
-      if (!prGroups[key]) {
-        prGroups[key] = {
-          prTitle: prInfo.prTitle,
-          prNumber: prInfo.prNumber,
-          commits: [],
-          dates: [],
-          totalCommits: 0,
-        };
-      }
-
-      // Add commits text if not already present
-      if (prInfo.commits && !prGroups[key].commits.includes(prInfo.commits)) {
-        prGroups[key].commits.push(prInfo.commits);
-      }
-      prGroups[key].dates.push(prInfo.date);
-
-      // For multi-PR events, divide the commit count by the number of PRs
-      // Extract actual commit count from summary (e.g., "3 commits")
-      const commitCountMatch = event.summary.match(/(\d+) commits?/);
-      let commitCount = commitCountMatch ? parseInt(commitCountMatch[1]) : 1;
-
-      // If this is a multi-PR event, divide commits equally among PRs
-      if (prInfo.isMultiPR) {
-        commitCount = Math.ceil(commitCount / prInfo.multiPRTotal);
-      }
-
-      prGroups[key].totalCommits += commitCount;
-    });
+    // Add commits text if not already present
+    if (prInfo.commits && !prGroups[key].commits.includes(prInfo.commits)) {
+      prGroups[key].commits.push(prInfo.commits);
+    }
+    prGroups[key].dates.push(prInfo.date);
+    prGroups[key].totalCommits += prInfo.commitCount;
   });
 
   return prGroups;
@@ -234,8 +190,5 @@ async function processPREvents(events) {
 }
 
 module.exports = {
-  extractPRInfo,
-  groupEventsByPR,
-  formatPRSummary,
   processPREvents,
 };

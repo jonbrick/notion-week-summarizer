@@ -467,7 +467,8 @@ async function processWeek(weekNumber) {
     ];
 
     // Create header
-    summary = `Work Tasks (${tasksResponse.results.length}):\n`;
+    summary = `WORK TASK SUMMARY:\n`;
+    summary += `Total: ${tasksResponse.results.length} tasks\n`;
     summary += "------";
 
     // Group tasks by Work Category with smart matching

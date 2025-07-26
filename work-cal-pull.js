@@ -300,28 +300,6 @@ function parsePRSummaryForEval(prSummary) {
   return { count, names: names }; // Return all names, no truncation
 }
 
-// Function to parse Default Work Cal events for bullet points
-function parseDefaultWorkCalEvents(defaultWorkCalText) {
-  if (!defaultWorkCalText || defaultWorkCalText.includes("No default events")) {
-    return [];
-  }
-
-  const events = [];
-  const lines = defaultWorkCalText.split("\n");
-
-  for (const line of lines) {
-    // Look for bullet points with event titles
-    if (line.trim().startsWith("•")) {
-      const eventTitle = line.trim().substring(1).trim(); // Remove the bullet point
-      if (eventTitle && eventTitle.length > 0) {
-        events.push(eventTitle);
-      }
-    }
-  }
-
-  return events;
-}
-
 // Function to parse calendar hours from existing formatted calendar text
 function parseExistingCalendarHours(calendarText) {
   if (!calendarText || calendarText.includes("No ")) {
@@ -345,19 +323,38 @@ function parseExistingCalendarHours(calendarText) {
   return 0;
 }
 
+// Function to parse meeting names from Default Work Cal text
+function parseMeetingNames(defaultWorkCalText) {
+  if (!defaultWorkCalText || defaultWorkCalText.includes("No default events")) {
+    return [];
+  }
+
+  const meetingNames = [];
+  const lines = defaultWorkCalText.split("\n");
+
+  for (const line of lines) {
+    // Look for bullet points with meeting names
+    if (line.trim().startsWith("•")) {
+      const meetingName = line.trim().substring(1).trim(); // Remove the bullet point
+      if (meetingName && meetingName.length > 0) {
+        meetingNames.push(meetingName);
+      }
+    }
+  }
+
+  return meetingNames;
+}
+
 // Function to generate work calendar evaluation
 function generateWorkCalEvaluation(
   existingCalSummary,
   prSummary,
-  defaultWorkCalText
+  defaultWorkCalText = ""
 ) {
   const evaluations = [];
 
   // Parse PR data
   const prData = parsePRSummaryForEval(prSummary);
-
-  // Parse Default Work Cal events
-  const defaultEvents = parseDefaultWorkCalEvents(defaultWorkCalText);
 
   // Parse hours from Work Cal Summary format
   let defaultHours = 0;
@@ -403,6 +400,17 @@ function generateWorkCalEvaluation(
     });
   }
 
+  // MEETINGS evaluation (after PRs)
+  if (defaultWorkCalText && !defaultWorkCalText.includes("No default events")) {
+    const meetingNames = parseMeetingNames(defaultWorkCalText);
+    if (meetingNames.length > 0) {
+      evaluations.push(`✅ MEETINGS:`);
+      meetingNames.forEach((meetingName) => {
+        evaluations.push(`  • ${meetingName}`);
+      });
+    }
+  }
+
   if (codingHours > 0) {
     evaluations.push(
       `✅ CODING TIME: ${codingHours.toFixed(1)} hours (${Math.round(
@@ -418,12 +426,6 @@ function generateWorkCalEvaluation(
         1
       )} hours (${meetingPercent}%) [above 20% threshold]`
     );
-    // Add Default Work Cal events as bullet points
-    if (defaultEvents.length > 0) {
-      defaultEvents.forEach((event) => {
-        evaluations.push(`  • ${event}`);
-      });
-    }
   }
 
   // Bad evaluations
@@ -823,11 +825,12 @@ async function processWeek(weekNumber) {
     if (notionUpdates["Work Cal Summary"]) {
       const existingCalSummary = notionUpdates["Work Cal Summary"];
       const prSummary = notionUpdates["Work PR Summary"] || "";
+      const defaultWorkCalText = notionUpdates["Default Work Cal"] || "";
 
       const calEvaluations = generateWorkCalEvaluation(
         existingCalSummary,
         prSummary,
-        notionUpdates["Default Work Cal"] || ""
+        defaultWorkCalText
       );
 
       if (calEvaluations.length > 0) {
