@@ -17,6 +17,11 @@ const {
   processPersonalProjectEvents,
 } = require("./src/utils/personal-pr-processor");
 const { categorizeEventByColor } = require("./src/utils/color-mappings");
+const {
+  createPersonalAuth,
+  fetchCalendarEventsWithAuth,
+  validateAuthConfig,
+} = require("./src/utils/auth-utils");
 require("dotenv").config();
 
 // Initialize clients
@@ -33,66 +38,35 @@ let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 let includePersonalCal = true; // Default to personal calendar
 let includePRs = true; // Always include PRs
 
-// Google Auth for Personal
-function getGoogleAuth() {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.PERSONAL_GOOGLE_CLIENT_ID,
-    process.env.PERSONAL_GOOGLE_CLIENT_SECRET,
-    "urn:ietf:wg:oauth:2.0:oob"
-  );
-  oauth2Client.setCredentials({
-    refresh_token: process.env.PERSONAL_GOOGLE_REFRESH_TOKEN,
-  });
-  return oauth2Client;
-}
+// Initialize personal auth instance
+let personalAuth = null;
 
-// Fetch calendar events
+// Fetch calendar events with enhanced error handling
 async function fetchCalendarEvents(calendarId, startDate, endDate) {
   try {
-    const auth = getGoogleAuth();
-    const calendar = google.calendar({ version: "v3", auth });
+    // Initialize auth if not already done
+    if (!personalAuth) {
+      // Validate configuration first
+      if (!validateAuthConfig("personal")) {
+        console.error(
+          "❌ Personal calendar authentication not configured properly"
+        );
+        return [];
+      }
 
-    const response = await calendar.events.list({
-      calendarId: calendarId,
-      timeMin: `${startDate}T00:00:00Z`,
-      timeMax: `${endDate}T23:59:59Z`,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
+      personalAuth = createPersonalAuth();
+    }
 
-    return response.data.items || [];
+    return await fetchCalendarEventsWithAuth(
+      personalAuth,
+      calendarId,
+      startDate,
+      endDate
+    );
   } catch (error) {
     console.error(`❌ Error fetching calendar events:`, error.message);
     return [];
   }
-}
-
-// Get my response status
-function getMyResponseStatus(attendees) {
-  if (!attendees || attendees.length === 0) {
-    return null;
-  }
-
-  const myAttendance = attendees.find((attendee) => attendee.self === true);
-  return myAttendance ? myAttendance.responseStatus : null;
-}
-
-// Create event object
-function createEventObject(rawEvent, category, categoryName) {
-  const duration = extractEventDuration(rawEvent);
-
-  return {
-    title: rawEvent.summary || "Untitled",
-    duration: duration,
-    colorId: rawEvent.colorId || "default",
-    category: category,
-    categoryName: categoryName,
-    startTime: rawEvent.start?.dateTime || rawEvent.start?.date,
-    attendeeCount: rawEvent.attendees ? rawEvent.attendees.length : 0,
-    eventType: rawEvent.eventType || "default",
-    responseStatus: getMyResponseStatus(rawEvent.attendees),
-    isAllDay: duration?.isAllDay || false,
-  };
 }
 
 // Get week date range from Notion
@@ -174,7 +148,7 @@ function formatEventsForNotion(events, categoryKey) {
   const eventGroups = {};
 
   validEvents.forEach((event) => {
-    const cleanTitle = event.title.trim();
+    const cleanTitle = event.summary.trim();
 
     if (!eventGroups[cleanTitle]) {
       eventGroups[cleanTitle] = {
@@ -669,7 +643,7 @@ async function processWeek(weekNumber) {
         const sampleEvents = filteredEvents.slice(0, 5);
         sampleEvents.forEach((event, index) => {
           console.log(
-            `   ${index + 1}. "${event.title}" - ${event.categoryName}`
+            `   ${index + 1}. "${event.summary}" - ${event.categoryName}`
           );
         });
         if (filteredEvents.length > 5) {
@@ -842,7 +816,7 @@ async function processWeek(weekNumber) {
         });
 
         interpersonalEvents.forEach((event) => {
-          const eventTitle = event.title.toLowerCase();
+          const eventTitle = event.summary.toLowerCase();
 
           // Check if any woman's name is in the event title
           for (const [mainName, nicknames] of Object.entries(womenToGroup)) {
@@ -860,14 +834,14 @@ async function processWeek(weekNumber) {
 
         // Group call events
         const callEvents = interpersonalEvents.filter((event) => {
-          const eventTitle = event.title.toLowerCase();
+          const eventTitle = event.summary.toLowerCase();
           return eventTitle.includes("call");
         });
 
         if (callEvents.length > 0) {
           const callPeople = [];
           callEvents.forEach((event) => {
-            const eventTitle = event.title.toLowerCase();
+            const eventTitle = event.summary.toLowerCase();
 
             // Extract person name from call events
             // Handle patterns like "Mom Call", "call Dad", "Drew call"
@@ -1003,11 +977,11 @@ function generatePersonalCalEvaluation(
       const eventTitles = events.map((e) => {
         // Special handling for call events
         if (mainName === "Calls") {
-          return e.title; // Keep call titles as-is
+          return e.summary; // Keep call titles as-is
         }
 
         // Clean up event titles by removing any of the nicknames
-        let cleanTitle = e.title;
+        let cleanTitle = e.summary;
         const nicknames = womenToGroup[mainName];
 
         // Process longer names first to avoid partial matches
@@ -1050,13 +1024,13 @@ function generatePersonalCalEvaluation(
       });
 
       // Add original event titles to the set to exclude from full list
-      events.forEach((e) => groupedEventTitles.add(e.title));
+      events.forEach((e) => groupedEventTitles.add(e.summary));
 
       if (mainName === "Calls") {
         // Extract call people for display
         const callPeople = [];
         events.forEach((event) => {
-          const eventTitle = event.title.toLowerCase();
+          const eventTitle = event.summary.toLowerCase();
           const callPatterns = [
             /^([a-z]+)\s+call/i, // "Mom Call", "Drew call"
             /call\s+([a-z]+)/i, // "call Dad", "call Mom"
@@ -1086,11 +1060,11 @@ function generatePersonalCalEvaluation(
 
   // Add remaining interpersonal events (not in groups)
   const remainingEvents = interpersonalEvents.filter(
-    (event) => !groupedEventTitles.has(event.title)
+    (event) => !groupedEventTitles.has(event.summary)
   );
 
   if (remainingEvents.length > 0) {
-    const remainingEventTitles = remainingEvents.map((e) => e.title);
+    const remainingEventTitles = remainingEvents.map((e) => e.summary);
     groupedEvaluations.push(remainingEventTitles.join(" ... "));
   }
 
@@ -1107,7 +1081,7 @@ function generatePersonalCalEvaluation(
 
   // Check for mental health events (only show when present)
   const mentalHealthEvents = interpersonalEvents.filter((event) => {
-    const eventTitle = event.title.toLowerCase();
+    const eventTitle = event.summary.toLowerCase();
     return (
       eventTitle.includes("therapy") ||
       eventTitle.includes("meditation") ||
@@ -1116,7 +1090,7 @@ function generatePersonalCalEvaluation(
   });
 
   if (mentalHealthEvents.length > 0) {
-    const mentalHealthEventTitles = mentalHealthEvents.map((e) => e.title);
+    const mentalHealthEventTitles = mentalHealthEvents.map((e) => e.summary);
     evaluations.push(
       `✅ MENTAL HEALTH EVENTS: ${
         mentalHealthEvents.length
@@ -1228,20 +1202,67 @@ function generatePersonalCalEvaluation(
   if (notionUpdates["Personal Cal"]) {
     const personalCalText = notionUpdates["Personal Cal"];
 
+    // Debug logging for video games and reading parsing
+    if (personalCalText.includes("VIDEO GAMES")) {
+      console.log("🔍 Debug: VIDEO GAMES section found");
+    } else {
+      console.log("🔍 Debug: VIDEO GAMES section NOT found");
+    }
+    if (personalCalText.includes("READING:")) {
+      console.log("🔍 Debug: READING section found");
+    } else {
+      console.log("🔍 Debug: READING section NOT found");
+    }
+
     // Check for video games (none is GOOD, played is BAD)
-    if (personalCalText.includes("VIDEO GAMES:")) {
+    if (personalCalText.includes("VIDEO GAMES")) {
       if (personalCalText.includes("No gaming sessions this week")) {
         evaluations.push(`✅ NO VIDEO GAMES: 0 hours`);
       } else {
-        const gameMatch = personalCalText.match(
-          /VIDEO GAMES \((\d+) sessions?, ([\d.]+) hours\)/
-        );
+        // Extract video games info directly from the header line
+        const lines = personalCalText.split("\n");
+        let gameMatch = null;
+
+        for (const line of lines) {
+          if (line.includes("VIDEO GAMES")) {
+            gameMatch = line.match(
+              /VIDEO GAMES\s*\((\d+)\s*sessions?,\s*([\d.]+)\s*hours?\):?/
+            );
+            break;
+          }
+        }
+
         if (gameMatch) {
           const sessions = parseInt(gameMatch[1]);
           const hours = parseFloat(gameMatch[2]);
-          evaluations.push(
-            `❌ VIDEO GAMES: ${sessions} sessions, ${hours} hours`
-          );
+          const evaluation = `❌ VIDEO GAMES: ${sessions} sessions, ${hours} hours`;
+          evaluations.push(evaluation);
+        } else {
+          // Fallback: try to extract from bullet points
+          const bulletPoints = personalCalText.match(/• [^•\n]+/g);
+          if (bulletPoints && bulletPoints.length > 0) {
+            // Count bullet points that look like video games (not reading)
+            const gameBullets = bulletPoints.filter(
+              (bullet) =>
+                !bullet.toLowerCase().includes("reading") &&
+                bullet.includes("(") &&
+                bullet.includes("hours")
+            );
+            if (gameBullets.length > 0) {
+              evaluations.push(
+                `❌ VIDEO GAMES: ${gameBullets.length} sessions found (parsed from bullet points)`
+              );
+            } else {
+              evaluations.push(
+                `❌ VIDEO GAMES: sessions found (format parsing failed)`
+              );
+            }
+          } else {
+            // If no match found but video games section exists, add a generic evaluation
+            evaluations.push(
+              `❌ VIDEO GAMES: sessions found (format parsing failed)`
+            );
+          }
         }
       }
     }
@@ -1251,13 +1272,50 @@ function generatePersonalCalEvaluation(
       if (personalCalText.includes("No reading sessions this week")) {
         evaluations.push(`❌ NO READING: 0 sessions`);
       } else {
-        const readMatch = personalCalText.match(
-          /READING \((\d+) sessions?, ([\d.]+) hours\)/
-        );
+        // Extract reading info directly from the header line
+        let readMatch = null;
+
+        for (const line of lines) {
+          if (line.includes("READING")) {
+            readMatch = line.match(
+              /READING\s*\((\d+)\s*sessions?,\s*([\d.]+)\s*hours?\):?/
+            );
+            break;
+          }
+        }
+
         if (readMatch) {
           const sessions = parseInt(readMatch[1]);
           const hours = parseFloat(readMatch[2]);
-          evaluations.push(`✅ READING: ${sessions} sessions, ${hours} hours`);
+          const evaluation = `✅ READING: ${sessions} sessions, ${hours} hours`;
+          evaluations.push(evaluation);
+        } else {
+          // Fallback: try to extract from bullet points
+          const bulletPoints = personalCalText.match(/• [^•\n]+/g);
+          if (bulletPoints && bulletPoints.length > 0) {
+            // Count bullet points that look like reading
+            const readingBullets = bulletPoints.filter(
+              (bullet) =>
+                bullet.toLowerCase().includes("reading") ||
+                (bullet.includes("(") &&
+                  bullet.includes("hours") &&
+                  !bullet.toLowerCase().includes("game"))
+            );
+            if (readingBullets.length > 0) {
+              evaluations.push(
+                `✅ READING: ${readingBullets.length} sessions found (parsed from bullet points)`
+              );
+            } else {
+              evaluations.push(
+                `✅ READING: sessions found (format parsing failed)`
+              );
+            }
+          } else {
+            // If no match found but reading section exists, add a generic evaluation
+            evaluations.push(
+              `✅ READING: sessions found (format parsing failed)`
+            );
+          }
         }
       }
     }

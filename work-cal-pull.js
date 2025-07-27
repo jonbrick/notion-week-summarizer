@@ -14,6 +14,11 @@ const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
 const { extractEventDuration } = require("./src/utils/time-utils");
 const { processWorkProjectEvents } = require("./src/utils/pr-processor");
 const { categorizeEventByColor } = require("./src/utils/color-mappings");
+const {
+  createWorkAuth,
+  fetchCalendarEventsWithAuth,
+  validateAuthConfig,
+} = require("./src/utils/auth-utils");
 require("dotenv").config();
 
 // Initialize clients
@@ -64,33 +69,31 @@ async function runInteractiveMode() {
 }
 
 // Google Auth for Work
-function getGoogleAuth() {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.WORK_GOOGLE_CLIENT_ID,
-    process.env.WORK_GOOGLE_CLIENT_SECRET,
-    "urn:ietf:wg:oauth:2.0:oob"
-  );
-  oauth2Client.setCredentials({
-    refresh_token: process.env.WORK_GOOGLE_REFRESH_TOKEN,
-  });
-  return oauth2Client;
-}
+// Initialize work auth instance
+let workAuth = null;
 
-// Fetch calendar events
+// Fetch calendar events with enhanced error handling
 async function fetchCalendarEvents(calendarId, startDate, endDate) {
   try {
-    const auth = getGoogleAuth();
-    const calendar = google.calendar({ version: "v3", auth });
+    // Initialize auth if not already done
+    if (!workAuth) {
+      // Validate configuration first
+      if (!validateAuthConfig("work")) {
+        console.error(
+          "❌ Work calendar authentication not configured properly"
+        );
+        return [];
+      }
 
-    const response = await calendar.events.list({
-      calendarId: calendarId,
-      timeMin: `${startDate}T00:00:00Z`,
-      timeMax: `${endDate}T23:59:59Z`,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
+      workAuth = createWorkAuth();
+    }
 
-    return response.data.items || [];
+    return await fetchCalendarEventsWithAuth(
+      workAuth,
+      calendarId,
+      startDate,
+      endDate
+    );
   } catch (error) {
     console.error(`❌ Error fetching calendar events:`, error.message);
     return [];
@@ -453,62 +456,96 @@ function generateWorkCalEvaluation(
     evaluation += `🏝️ OOO: ${oooDays} Day${oooDays > 1 ? "s" : ""}\n`;
   }
 
-  // Check meeting time from Default Work Cal
-  const defaultWorkCal = summaries.default.summary;
-  let meetingHours = 0;
-  let meetingPercentage = 0;
+  // Calculate total hours and percentages for each category
   let totalHours = 0;
+  const categoryHours = {};
 
-  // Parse meetings from Default Work Cal summary
+  // Parse total hours from Default Work Cal
+  const defaultWorkCal = summaries.default.summary;
   if (defaultWorkCal && !defaultWorkCal.includes("No work events this week")) {
-    // Extract total hours from the summary
     const totalMatch = defaultWorkCal.match(
       /Total Default Work time: ([\d.]+) hours/
     );
     if (totalMatch) {
       totalHours = parseFloat(totalMatch[1]);
+    }
+  }
 
-      // Extract meeting events from the summary
-      const lines = defaultWorkCal.split("\n");
-      const meetingLines = lines.filter((line) => line.startsWith("• "));
+  // Calculate hours for each category
+  Object.keys(summaries).forEach((category) => {
+    if (category !== "default" && summaries[category].totalHours > 0) {
+      categoryHours[category] = summaries[category].totalHours;
+    }
+  });
 
-      if (meetingLines.length > 0) {
-        // Calculate meeting hours from the events
-        meetingLines.forEach((line) => {
-          const timeMatch = line.match(/\(([\d.]+)h\)/);
-          if (timeMatch) {
-            meetingHours += parseFloat(timeMatch[1]);
-          }
-        });
+  // Add meeting time threshold warning
+  if (totalHours > 0) {
+    const meetingHours = categoryHours.default || 0;
+    const meetingPercentage = Math.round((meetingHours / totalHours) * 100);
+    evaluation += `✅ MEETING TIME: ${meetingHours} hours (${meetingPercentage}%) [below 15 hour threshold]\n`;
+  }
 
-        meetingPercentage =
-          totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
+  // Add QA time
+  const qaHours = categoryHours.qa || 0;
+  if (qaHours > 0) {
+    const qaPercentage =
+      totalHours > 0 ? Math.round((qaHours / totalHours) * 100) : 0;
+    evaluation += `✅ QA TIME: ${qaHours} hours (${qaPercentage}%)\n`;
+  }
 
-        evaluation += `✅ MEETINGS (${meetingLines.length} events, ${meetingHours} hours):\n`;
+  // Add Review time
+  const reviewHours = categoryHours.review || 0;
+  if (reviewHours > 0) {
+    const reviewPercentage =
+      totalHours > 0 ? Math.round((reviewHours / totalHours) * 100) : 0;
+    evaluation += `✅ REVIEW TIME: ${reviewHours} hours (${reviewPercentage}%)\n`;
+  }
 
-        // Add meeting details
-        meetingLines.forEach((line) => {
-          evaluation += `${line}\n`;
-        });
-      } else {
-        evaluation += `❌ NO MEETINGS: 0 hours this week\n`;
-      }
+  // Add Design time
+  const designHours = categoryHours.design || 0;
+  if (designHours > 0) {
+    const designPercentage =
+      totalHours > 0 ? Math.round((designHours / totalHours) * 100) : 0;
+    evaluation += `✅ DESIGN TIME: ${designHours} hours (${designPercentage}%)\n`;
+  }
+
+  // Add Coding time
+  const codingHours = categoryHours.coding || 0;
+  if (codingHours > 0) {
+    const codingPercentage =
+      totalHours > 0 ? Math.round((codingHours / totalHours) * 100) : 0;
+    evaluation += `✅ CODING TIME: ${codingHours} hours (${codingPercentage}%)\n`;
+  } else {
+    evaluation += `❌ NO CODING TIME: 0 hours\n`;
+  }
+
+  // Add meeting details
+  let meetingHours = 0;
+  let meetingLines = [];
+  if (defaultWorkCal && !defaultWorkCal.includes("No work events this week")) {
+    const lines = defaultWorkCal.split("\n");
+    meetingLines = lines.filter((line) => line.startsWith("• "));
+
+    if (meetingLines.length > 0) {
+      // Calculate meeting hours from the events
+      meetingLines.forEach((line) => {
+        const timeMatch = line.match(/\(([\d.]+)h\)/);
+        if (timeMatch) {
+          meetingHours += parseFloat(timeMatch[1]);
+        }
+      });
+
+      evaluation += `✅ MEETINGS:\n`;
+
+      // Add meeting details
+      meetingLines.forEach((line) => {
+        evaluation += `  ${line}\n`;
+      });
     } else {
       evaluation += `❌ NO MEETINGS: 0 hours this week\n`;
     }
   } else {
     evaluation += `❌ NO MEETINGS: 0 hours this week\n`;
-  }
-
-  // Warning thresholds
-  if (meetingPercentage > 20) {
-    evaluation += `⚠️ MEETING TIME: ${meetingHours} hours (${meetingPercentage}%) [above 20% threshold]\n`;
-  }
-
-  if (totalHours < 20) {
-    evaluation += `⚠️ LOW WORK TIME: ${
-      Math.round(totalHours * 10) / 10
-    } hours this week\n`;
   }
 
   // Check for PRs shipped (from Work PR Summary) - ALWAYS LAST

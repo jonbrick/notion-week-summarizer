@@ -123,6 +123,30 @@ async function fetchWeekEvents(startDate, endDate) {
   }
 }
 
+// Event type to emoji mapping for personal events
+const PERSONAL_EVENT_TYPE_MAPPING = {
+  MSG: "🍻 Friend Events",
+  "Friend Events": "🍻 Friend Events",
+  "Family Events": "👨‍👩‍👧‍👦 Family Events",
+  Travel: "✈️ Travel",
+  Holiday: "🎉 Holiday",
+  Birthday: "🎂 Birthday",
+  Anniversary: "💕 Anniversary",
+  Dinner: "🍽️ Dinner",
+  Lunch: "🍽️ Lunch",
+  Party: "🎉 Party",
+  Concert: "🎵 Concert",
+  Movie: "🎬 Movie",
+  Game: "🎮 Game",
+  Sports: "⚽ Sports",
+  Exercise: "💪 Exercise",
+  Health: "❤️ Health",
+  Home: "🏠 Home",
+  Personal: "🌱 Personal",
+  "Mental Health": "🧠 Mental Health",
+  "Physical Health": "💪 Physical Health",
+};
+
 // Format events for Notion (same as work version but "Personal Events")
 function formatEventsForNotion(events) {
   if (events.length === 0) {
@@ -138,7 +162,11 @@ function formatEventsForNotion(events) {
         ?.map((t) => t.plain_text)
         .join("") || "Untitled Event";
     const eventStatus = event.properties["Status"]?.status?.name || "No Status";
-    const eventType = event.properties["Event Type"]?.select?.name || "";
+    const rawEventType = event.properties["Event Type"]?.select?.name || "";
+
+    // Map event type to emoji version
+    const eventType = PERSONAL_EVENT_TYPE_MAPPING[rawEventType] || rawEventType;
+
     const notes =
       event.properties.Notes?.rich_text?.map((t) => t.plain_text).join("") ||
       "";
@@ -367,8 +395,11 @@ async function processWeek(weekNumber) {
           .join("") || "Untitled Event";
       const eventStatus =
         event.properties["Status"]?.status?.name || "No Status";
+      const eventType = event.properties["Event Type"]?.select?.name || "";
       console.log(
-        `  Event ${index + 1}: "${eventName}" (Status: ${eventStatus})`
+        `  Event ${
+          index + 1
+        }: "${eventName}" (Status: ${eventStatus}, Type: ${eventType})`
       );
     });
 

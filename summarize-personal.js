@@ -289,8 +289,17 @@ function extractHealthHabits(taskEvals, calEvals) {
       }
     }
 
-    // Other health-related habits
-    if (text.includes("NO VIDEO GAMES") || text.includes("NO READING")) {
+    // Video games
+    if (text.includes("VIDEO GAMES")) {
+      if (eval.type === "good") {
+        habits.goodHabits.push(eval.text);
+      } else {
+        habits.badHabits.push(eval.text);
+      }
+    }
+
+    // Reading
+    if (text.includes("NO READING")) {
       if (eval.type === "good") {
         habits.goodHabits.push(eval.text);
       } else {
@@ -400,80 +409,7 @@ function extractCareAbouts(
     careAbouts.good.splice(1, 0, rockText + "…");
   }
 
-  // 3. Health habits evaluation - THIRD PRIORITY
-  // Format good habits into a single paragraph
-  if (healthHabits.goodHabits.length > 0) {
-    const formattedGoodHabits = healthHabits.goodHabits.map((habit) => {
-      // EARLY WAKE-UPS: 1 days -> 1 early wakeup
-      if (habit.includes("EARLY WAKE-UPS")) {
-        const match = habit.match(/(\d+) days?/);
-        return match
-          ? `${match[1]} early wakeup${match[1] === "1" ? "" : "s"}`
-          : habit;
-      }
-      // WORKOUTS: 1 sessions, 0.6 hours (Morning Workout) -> 1 workout (0.6 hours)
-      if (habit.includes("WORKOUTS")) {
-        const match = habit.match(/(\d+) sessions?, ([\d.]+) hours/);
-        if (match) {
-          return `${match[1]} workout${match[1] === "1" ? "" : "s"} (${
-            match[2]
-          } hours)`;
-        }
-        const sessionMatch = habit.match(/(\d+) sessions?/);
-        return sessionMatch
-          ? `${sessionMatch[1]} workout${sessionMatch[1] === "1" ? "" : "s"}`
-          : habit;
-      }
-      // NO VIDEO GAMES: 0 hours -> No video games
-      if (habit.includes("NO VIDEO GAMES")) {
-        return "No video games";
-      }
-      // SOBER DAYS: 2 days -> 2 days sober
-      if (habit.includes("SOBER DAYS")) {
-        const match = habit.match(/(\d+) days?/);
-        return match
-          ? `${match[1]} day${match[1] === "1" ? "" : "s"} sober`
-          : habit;
-      }
-      // BODY WEIGHT: 196.7 lbs tracked -> 196.7 lbs
-      if (habit.includes("BODY WEIGHT")) {
-        const match = habit.match(/([\d.]+) lbs/);
-        return match ? `${match[1]} lbs` : habit;
-      }
-      // Default fallback
-      return habit;
-    });
-
-    careAbouts.good.push(formattedGoodHabits.join("… "));
-  }
-
-  // Format bad habits into a single paragraph
-  if (healthHabits.badHabits.length > 0) {
-    const formattedBadHabits = healthHabits.badHabits.map((habit) => {
-      // SLEEP-INS: 6 days -> 6 sleep-ins
-      if (habit.includes("SLEEP-INS")) {
-        const match = habit.match(/(\d+) days?/);
-        return match
-          ? `${match[1]} sleep-in${match[1] === "1" ? "" : "s"}`
-          : habit;
-      }
-      // NO READING: 0 sessions -> No reading
-      if (habit.includes("NO READING")) {
-        return "No reading";
-      }
-      // DRINKING DAYS: 5 days -> 5 days drinking
-      if (habit.includes("DRINKING DAYS")) {
-        const match = habit.match(/(\d+) days?/);
-        return match
-          ? `${match[1]} day${match[1] === "1" ? "" : "s"} drinking`
-          : habit;
-      }
-      // Default fallback
-      return habit;
-    });
-
-    careAbouts.bad.push(formattedBadHabits.join("… "));
-  }
+  // 3. Personal tasks (from tasks) - Format as "Completed [task name]"
 
   // 3. Personal tasks (from tasks) - Format as "Completed [task name]"
   const personalTaskEval = taskEvals.find(
@@ -668,7 +604,112 @@ function extractCareAbouts(
     careAbouts.good.push(summaryItems.join("\n\n"));
   }
 
-  // 8. Handle empty bad items
+  // 8. Health habits evaluation - ADD AT THE BOTTOM
+  // Format good habits as distinct paragraphs with emojis
+  if (healthHabits.goodHabits.length > 0) {
+    healthHabits.goodHabits.forEach((habit) => {
+      // EARLY WAKE-UPS: 1 days -> 🌅 1 early wakeup
+      if (habit.includes("EARLY WAKE-UPS")) {
+        const match = habit.match(/(\d+) days?/);
+        if (match) {
+          careAbouts.good.push(
+            `🌅 ${match[1]} early wakeup${match[1] === "1" ? "" : "s"}`
+          );
+        }
+      }
+      // WORKOUTS: 1 sessions, 0.6 hours (Morning Workout) -> 🏋️‍♀️ 1 workout (0.6 hours)
+      else if (habit.includes("WORKOUTS")) {
+        const match = habit.match(/(\d+) sessions?, ([\d.]+) hours/);
+        if (match) {
+          careAbouts.good.push(
+            `🏋️‍♀️ ${match[1]} workout${match[1] === "1" ? "" : "s"} (${
+              match[2]
+            } hours)`
+          );
+        } else {
+          const sessionMatch = habit.match(/(\d+) sessions?/);
+          if (sessionMatch) {
+            careAbouts.good.push(
+              `🏋️‍♀️ ${sessionMatch[1]} workout${
+                sessionMatch[1] === "1" ? "" : "s"
+              }`
+            );
+          }
+        }
+      }
+      // NO VIDEO GAMES: 0 hours -> 🎮 No video games
+      else if (habit.includes("NO VIDEO GAMES")) {
+        careAbouts.good.push("🎮 No video games");
+      }
+      // SOBER DAYS: 2 days -> 💧 2 days sober
+      else if (habit.includes("SOBER DAYS")) {
+        const match = habit.match(/(\d+) days?/);
+        if (match) {
+          careAbouts.good.push(
+            `💧 ${match[1]} day${match[1] === "1" ? "" : "s"} sober`
+          );
+        }
+      }
+      // BODY WEIGHT: 196.7 lbs tracked -> ⚖️ 196.7 lbs
+      else if (habit.includes("BODY WEIGHT")) {
+        const match = habit.match(/([\d.]+) lbs/);
+        if (match) {
+          careAbouts.good.push(`⚖️ ${match[1]} lbs`);
+        }
+      }
+      // Default fallback
+      else {
+        careAbouts.good.push(habit);
+      }
+    });
+  }
+
+  // Format bad habits as distinct paragraphs with emojis
+  if (healthHabits.badHabits.length > 0) {
+    healthHabits.badHabits.forEach((habit) => {
+      // SLEEP-INS: 6 days -> 🛌 6 sleep-ins
+      if (habit.includes("SLEEP-INS")) {
+        const match = habit.match(/(\d+) days?/);
+        if (match) {
+          careAbouts.bad.push(
+            `🛌 ${match[1]} sleep-in${match[1] === "1" ? "" : "s"}`
+          );
+        }
+      }
+      // NO READING: 0 sessions -> 📖 No reading
+      else if (habit.includes("NO READING")) {
+        careAbouts.bad.push("📖 No reading");
+      }
+      // DRINKING DAYS: 5 days -> 🍻 5 days drinking
+      else if (habit.includes("DRINKING DAYS")) {
+        const match = habit.match(/(\d+) days?/);
+        if (match) {
+          careAbouts.bad.push(
+            `🍻 ${match[1]} day${match[1] === "1" ? "" : "s"} drinking`
+          );
+        }
+      }
+      // VIDEO GAMES: 4 sessions, 11.8 hours -> 🎮 Video games: 4 sessions, 11.8 hours
+      else if (habit.includes("VIDEO GAMES")) {
+        const match = habit.match(
+          /VIDEO GAMES:\s*(\d+)\s*sessions?,\s*([\d.]+)\s*hours?/
+        );
+        if (match) {
+          careAbouts.bad.push(
+            `🎮 Video games: ${match[1]} sessions, ${match[2]} hours`
+          );
+        } else {
+          careAbouts.bad.push(`🎮 ${habit}`);
+        }
+      }
+      // Default fallback
+      else {
+        careAbouts.bad.push(habit);
+      }
+    });
+  }
+
+  // 9. Handle empty bad items
   if (careAbouts.bad.length === 0) {
     careAbouts.bad.push("(Nothing of note)");
   }
@@ -678,18 +719,51 @@ function extractCareAbouts(
 
 // Update Notion with parsed summaries
 async function updateNotionSummary(pageId, goodItems, badItems) {
+  // Group health habits together with single line breaks
+  const healthEmojis = ["🌅", "🏋️‍♀️", "💧", "⚖️", "🎮", "🛌", "📖", "🍻"];
+
+  const formatItems = (items) => {
+    const formattedItems = [];
+    let currentGroup = [];
+
+    for (const item of items) {
+      const isHealthHabit = healthEmojis.some((emoji) =>
+        item.startsWith(emoji)
+      );
+
+      if (isHealthHabit) {
+        currentGroup.push(item);
+      } else {
+        // If we have a group of health habits, join them with single line breaks
+        if (currentGroup.length > 0) {
+          formattedItems.push(currentGroup.join("\n"));
+          currentGroup = [];
+        }
+        // Add non-health items with double line breaks
+        formattedItems.push(item);
+      }
+    }
+
+    // Don't forget the last group of health habits
+    if (currentGroup.length > 0) {
+      formattedItems.push(currentGroup.join("\n"));
+    }
+
+    return formattedItems.join("\n\n");
+  };
+
   const properties = {
     "Personal - What went well?": {
       rich_text: [
         {
-          text: { content: goodItems.join("\n\n") },
+          text: { content: formatItems(goodItems) },
         },
       ],
     },
     "Personal - What didn't go so well?": {
       rich_text: [
         {
-          text: { content: badItems.join("\n\n") },
+          text: { content: formatItems(badItems) },
         },
       ],
     },
