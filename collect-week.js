@@ -90,6 +90,12 @@ async function processWeek() {
     console.log("=".repeat(50));
     await runScript("collect-work.js", weekArgs);
 
+    // Run Habits Collection
+    console.log("\n" + "=".repeat(50));
+    console.log("📍 STEP 3: Habits Data Collection");
+    console.log("=".repeat(50));
+    await runScript("collect-habits.js", weekArgs);
+
     console.log("\n" + "=".repeat(50));
     console.log(
       `🎉 Week data collection complete for week${
