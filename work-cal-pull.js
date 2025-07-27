@@ -564,6 +564,60 @@ async function processWeek(weekNumber) {
       }
     }
 
+    // Fetch PR events from calendar (always included)
+    let workPrSummary = "";
+    if (process.env.WORK_PR_DATA_CALENDAR_ID) {
+      console.log("\n📥 Fetching Work PR events...");
+      const prEvents = await fetchCalendarEvents(
+        process.env.WORK_PR_DATA_CALENDAR_ID,
+        startDate,
+        endDate
+      );
+
+      if (prEvents.length > 0) {
+        const prData = await processWorkProjectEvents(prEvents);
+
+        // Format the PR data into a string
+        if (prData.length > 0) {
+          workPrSummary = `Work PRs (${prData.length} PR${
+            prData.length !== 1 ? "s" : ""
+          }):\n------\n`;
+          prData.forEach((pr, index) => {
+            // Remove "brain-app -" from the title
+            let cleanTitle = pr.title.replace(/^brain-app\s*-\s*/i, "");
+            workPrSummary += `• ${cleanTitle}\n`;
+          });
+        } else {
+          workPrSummary = "No work project commits this week.";
+        }
+
+        // Check if summary exceeds Notion's 2000 character limit
+        if (workPrSummary.length > 2000) {
+          console.log(
+            `⚠️  Work PR summary too long (${workPrSummary.length} chars), truncating...`
+          );
+
+          // Find a good breaking point before 1950 chars (leaving room for "...")
+          const maxLength = 1950;
+          let truncateAt = workPrSummary.lastIndexOf("\n", maxLength);
+
+          // If no newline found, just cut at maxLength
+          if (truncateAt === -1 || truncateAt < maxLength - 200) {
+            truncateAt = maxLength;
+          }
+
+          workPrSummary =
+            workPrSummary.substring(0, truncateAt) +
+            "\n\n... (truncated due to length)";
+        }
+
+        console.log(`🔄 Work PR Summary: ${prEvents.length} events`);
+      } else {
+        workPrSummary = "No work project commits this week.";
+        console.log(`🔄 Work PR Summary: No events`);
+      }
+    }
+
     // Generate evaluation
     console.log("📊 Generating evaluation...");
     const notionUpdates = [];
@@ -589,6 +643,7 @@ async function processWeek(weekNumber) {
       "Design & Dev QA Cal": summaries.qa.summary,
       "Rituals Cal": summaries.rituals.summary,
       "Research Cal": summaries.research.summary,
+      "Work PR Summary": workPrSummary,
     });
 
     console.log(`✅ Week ${weekNumber} work calendar summary completed!`);

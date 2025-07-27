@@ -29,7 +29,9 @@ function extractPRInfo(event) {
   const commits = commitsSection ? commitsSection.trim() : "";
 
   // Get date from event
-  const date = event.start.date || event.start.dateTime?.split("T")[0];
+  const date =
+    event.start.date ||
+    (event.start.dateTime ? event.start.dateTime.split("T")[0] : null);
 
   // Extract commit count from summary
   const commitCountMatch = event.summary.match(/(\d+) commits?/);
@@ -219,20 +221,17 @@ async function processWorkProjectEvents(workEvents, startDate, endDate) {
   // Extract PR information
   const prs = prEvents.map((event) => {
     const summary = event.summary || "";
-    const description = event.description || "";
 
-    // Try to extract PR title from summary or description
+    // Use the event title (summary) directly as the PR title
     let title = summary;
-    if (description.includes("PR:")) {
-      const prMatch = description.match(/PR:\s*(.+?)(?:\n|$)/);
-      if (prMatch) {
-        title = prMatch[1].trim();
-      }
-    }
 
     return {
       title: title,
-      date: event.start?.split("T")[0] || startDate,
+      date:
+        event.start?.date ||
+        (event.start?.dateTime
+          ? event.start.dateTime.split("T")[0]
+          : startDate),
       duration: event.duration || 0,
     };
   });
