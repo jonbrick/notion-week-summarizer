@@ -433,12 +433,12 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
 // Generate work calendar evaluation
 function generateWorkCalEvaluation(
   existingCalSummary,
-  prSummary,
-  categoryStats,
+  workPrSummary,
+  summaries,
   workEvents,
   notionUpdates
 ) {
-  let evaluation = "===== EVALUATION =====\n\n";
+  let evaluation = "===== EVALUATION =====\n";
 
   // Check for OOO days
   const oooEvents = workEvents.filter(
@@ -453,36 +453,51 @@ function generateWorkCalEvaluation(
     evaluation += `🏝️ OOO: ${oooDays} Day${oooDays > 1 ? "s" : ""}\n`;
   }
 
-  // Check meeting time
-  const meetingHours = categoryStats.meetings?.hours || 0;
-  const totalHours = Object.values(categoryStats).reduce(
-    (sum, stats) => sum + stats.hours,
-    0
-  );
-  const meetingPercentage =
-    totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
+  // Check meeting time from Default Work Cal
+  const defaultWorkCal = summaries.default.summary;
+  let meetingHours = 0;
+  let meetingPercentage = 0;
+  let totalHours = 0;
 
-  if (meetingHours > 0) {
-    evaluation += `✅ MEETINGS: ${meetingHours} hours (${meetingPercentage}%)\n`;
+  // Parse meetings from Default Work Cal summary
+  if (defaultWorkCal && !defaultWorkCal.includes("No work events this week")) {
+    // Extract total hours from the summary
+    const totalMatch = defaultWorkCal.match(
+      /Total Default Work time: ([\d.]+) hours/
+    );
+    if (totalMatch) {
+      totalHours = parseFloat(totalMatch[1]);
 
-    // Add meeting details
-    const meetingEvents = categoryStats.meetings?.events || [];
-    meetingEvents.forEach((event) => {
-      const eventHours = Math.round((event.duration / 60) * 10) / 10;
-      evaluation += `• ${event.summary} (${eventHours}h)\n`;
-    });
+      // Extract meeting events from the summary
+      const lines = defaultWorkCal.split("\n");
+      const meetingLines = lines.filter((line) => line.startsWith("• "));
+
+      if (meetingLines.length > 0) {
+        // Calculate meeting hours from the events
+        meetingLines.forEach((line) => {
+          const timeMatch = line.match(/\(([\d.]+)h\)/);
+          if (timeMatch) {
+            meetingHours += parseFloat(timeMatch[1]);
+          }
+        });
+
+        meetingPercentage =
+          totalHours > 0 ? Math.round((meetingHours / totalHours) * 100) : 0;
+
+        evaluation += `✅ MEETINGS (${meetingLines.length} events, ${meetingHours} hours):\n`;
+
+        // Add meeting details
+        meetingLines.forEach((line) => {
+          evaluation += `${line}\n`;
+        });
+      } else {
+        evaluation += `❌ NO MEETINGS: 0 hours this week\n`;
+      }
+    } else {
+      evaluation += `❌ NO MEETINGS: 0 hours this week\n`;
+    }
   } else {
     evaluation += `❌ NO MEETINGS: 0 hours this week\n`;
-  }
-
-  // Check for PRs shipped
-  if (prSummary && prSummary.length > 0) {
-    evaluation += `✅ PRs SHIPPED: ${prSummary.length} PRs this week\n`;
-    prSummary.forEach((pr) => {
-      evaluation += `• ${pr.title}\n`;
-    });
-  } else {
-    evaluation += `❌ NO PRs SHIPPED: 0 PRs this week\n`;
   }
 
   // Warning thresholds
@@ -494,6 +509,28 @@ function generateWorkCalEvaluation(
     evaluation += `⚠️ LOW WORK TIME: ${
       Math.round(totalHours * 10) / 10
     } hours this week\n`;
+  }
+
+  // Check for PRs shipped (from Work PR Summary) - ALWAYS LAST
+  if (workPrSummary && !workPrSummary.includes("No work project commits")) {
+    // Parse PR count from the Work PR Summary
+    const prMatch = workPrSummary.match(/Work PRs \((\d+) PRs?\):/);
+    if (prMatch) {
+      const prCount = parseInt(prMatch[1]);
+      evaluation += `✅ PRs SHIPPED: ${prCount} PRs this week\n`;
+
+      // Extract PR titles from the summary
+      const lines = workPrSummary.split("\n");
+      const prTitles = lines
+        .filter((line) => line.startsWith("• "))
+        .map((line) => line.replace("• ", ""));
+
+      prTitles.forEach((title) => {
+        evaluation += `• ${title}\n`;
+      });
+    }
+  } else {
+    evaluation += `❌ NO PRs SHIPPED: 0 PRs this week\n`;
   }
 
   return evaluation;
@@ -623,8 +660,8 @@ async function processWeek(weekNumber) {
     const notionUpdates = [];
     const evaluation = generateWorkCalEvaluation(
       summaries.default.summary,
-      prSummary,
-      summaries.default.categoryStats,
+      workPrSummary,
+      summaries,
       workEventsOnly,
       notionUpdates
     );
