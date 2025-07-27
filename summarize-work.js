@@ -174,6 +174,10 @@ function cleanPRTitle(prTitle) {
   return prTitle
     .replace(/\s*\(#\d+\)\s*$/, "") // Remove (#123) at end
     .replace(/\s*\[\d+\s+commits?\]\s*$/, "") // Remove [X commits] at end
+    .replace(/\s*\[[^\]]*\]\s*/g, "") // Remove anything in brackets
+    .replace(/\s*(?:CET|DSN)-\d+\s*/g, "") // Remove CET-Number and DSN-Number
+    .replace(/\s*&\s*(?:CET|DSN)-\d+\s*/g, "") // Remove & CET-Number and & DSN-Number
+    .replace(/\s*&\s*/g, "") // Remove any remaining ampersands
     .trim();
 }
 
@@ -475,7 +479,7 @@ function extractCareAbouts(taskEvals, calEvals) {
     // Clean PR titles
     const cleanPRBullets = prEval.bullets.map(cleanPRTitle);
 
-    prsText = `${prCount} PRs SHIPPED (${cleanPRBullets.join(", ")})`;
+    prsText = `${prCount} PRs SHIPPED (${cleanPRBullets.join("… ")})`;
   } else if (prEval && prEval.type === "bad") {
     // Clean up "NO PRs SHIPPED: 0 PRs this week" to "No PRs this week"
     const cleanText = prEval.text

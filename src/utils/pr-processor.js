@@ -189,6 +189,58 @@ async function processPREvents(events) {
   return formattedSummary;
 }
 
+/**
+ * Process work project events (PRs) for work calendar
+ */
+async function processWorkProjectEvents(workEvents, startDate, endDate) {
+  console.log(`📥 Processing ${workEvents.length} work events for PRs...`);
+
+  // Filter for PR-related events
+  const prEvents = workEvents.filter((event) => {
+    const summary = event.summary.toLowerCase();
+    const description = (event.description || "").toLowerCase();
+
+    return (
+      summary.includes("pr") ||
+      summary.includes("pull request") ||
+      summary.includes("merge") ||
+      description.includes("pr") ||
+      description.includes("pull request") ||
+      description.includes("merge")
+    );
+  });
+
+  console.log(`📊 Found ${prEvents.length} PR-related events`);
+
+  if (prEvents.length === 0) {
+    return [];
+  }
+
+  // Extract PR information
+  const prs = prEvents.map((event) => {
+    const summary = event.summary || "";
+    const description = event.description || "";
+
+    // Try to extract PR title from summary or description
+    let title = summary;
+    if (description.includes("PR:")) {
+      const prMatch = description.match(/PR:\s*(.+?)(?:\n|$)/);
+      if (prMatch) {
+        title = prMatch[1].trim();
+      }
+    }
+
+    return {
+      title: title,
+      date: event.start?.split("T")[0] || startDate,
+      duration: event.duration || 0,
+    };
+  });
+
+  return prs;
+}
+
 module.exports = {
   processPREvents,
+  processWorkProjectEvents,
 };

@@ -511,7 +511,7 @@ function generatePersonalTaskEvaluation(
     evaluations.push(`❌ NO HOME TASKS: 0 completed`);
   }
 
-  // Check for physical health tasks (good when present, bad when 0)
+  // Check for physical health tasks (good when present, neutral when 0)
   const physicalHealthCount =
     tasksByCategory["💪 Physical Health"]?.length || 0;
   if (physicalHealthCount > 0) {
@@ -521,9 +521,8 @@ function generatePersonalTaskEvaluation(
     evaluations.push(
       `✅ PHYSICAL HEALTH TASKS: ${physicalHealthCount} completed (${taskNames})`
     );
-  } else {
-    evaluations.push(`❌ NO PHYSICAL HEALTH TASKS: 0 completed`);
   }
+  // Note: No evaluation added when physical health tasks count is 0 (not considered bad)
 
   return evaluations;
 }

@@ -7,25 +7,53 @@
  * @param {object} summaryUpdates - { fieldName: summaryText }
  */
 async function updateAllSummaries(notion, pageId, summaryUpdates) {
-  const properties = {};
+  try {
+    // Validate that all requested properties exist on the page before attempting update
+    const page = await notion.pages.retrieve({ page_id: pageId });
 
-  // Convert summaries to Notion property format
-  for (const [fieldName, summary] of Object.entries(summaryUpdates)) {
-    properties[fieldName] = {
-      rich_text: [
-        {
-          text: {
-            content: summary,
+    // Check if all requested properties exist
+    const missingProperties = Object.keys(summaryUpdates).filter(
+      (propName) => !page.properties[propName]
+    );
+
+    if (missingProperties.length > 0) {
+      console.error(`❌ Missing properties: ${missingProperties.join(", ")}`);
+      console.error(
+        `Available properties: ${Object.keys(page.properties).join(", ")}`
+      );
+      throw new Error(`Properties not found: ${missingProperties.join(", ")}`);
+    }
+
+    const properties = {};
+
+    // Convert summaries to Notion property format
+    for (const [fieldName, summary] of Object.entries(summaryUpdates)) {
+      properties[fieldName] = {
+        rich_text: [
+          {
+            text: {
+              content: summary,
+            },
           },
-        },
-      ],
-    };
-  }
+        ],
+      };
+    }
 
-  await notion.pages.update({
-    page_id: pageId,
-    properties: properties,
-  });
+    await notion.pages.update({
+      page_id: pageId,
+      properties: properties,
+    });
+
+    console.log(`✅ Successfully updated page properties`);
+  } catch (error) {
+    console.error(`❌ Error in updateAllSummaries:`, error.message);
+    if (error.code === "validation_error") {
+      console.error(
+        `🔍 This suggests the property name might be incorrect or the property type doesn't match`
+      );
+    }
+    throw error;
+  }
 }
 
 /**
