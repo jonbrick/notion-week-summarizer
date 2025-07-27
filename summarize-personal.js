@@ -384,6 +384,11 @@ function extractCareAbouts(
 
   let rockText = "";
   rockEvals.forEach((rock) => {
+    // Skip any rock evaluation that contains "No plan"
+    if (rock.text.includes("No plan")) {
+      return;
+    }
+
     if (rock.type === "good" && rock.text.includes("ROCK ACHIEVED")) {
       // Extract the goal text from "ROCK ACHIEVED: [goal text]"
       const goalMatch = rock.text.match(/ROCK ACHIEVED:\s*(.+)/);
