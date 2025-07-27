@@ -113,7 +113,7 @@ function createEventObject(rawEvent, category, categoryName) {
     summary: rawEvent.summary || "No title",
     start: rawEvent.start?.dateTime || rawEvent.start?.date,
     end: rawEvent.end?.dateTime || rawEvent.end?.date,
-    duration: extractEventDuration(rawEvent.start, rawEvent.end),
+    duration: extractEventDuration(rawEvent),
     category: category,
     categoryName: categoryName,
     description: rawEvent.description || "",
@@ -310,7 +310,10 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
   }
 
   // Calculate stats
-  const totalDuration = events.reduce((sum, event) => sum + event.duration, 0);
+  const totalDuration = events.reduce((sum, event) => {
+    const duration = event.duration?.minutes || 0;
+    return sum + duration;
+  }, 0);
   const totalHours = Math.round((totalDuration / 60) * 10) / 10;
 
   const categoryStats = {
@@ -326,8 +329,98 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
 
   // Add events
   events.forEach((event) => {
-    const eventHours = Math.round((event.duration / 60) * 10) / 10;
-    summary += `• ${event.summary} (${eventHours}h)\n`;
+    const eventMinutes = event.duration?.minutes || 0;
+    const eventHours = Math.round((eventMinutes / 60) * 10) / 10;
+
+    // Enhance event title with attendee names for small meetings
+    let enhancedTitle = event.summary;
+    if (event.attendees && event.attendees.length > 0) {
+      const attendeeCount = event.attendees.length;
+      const eventTitle = event.summary.toLowerCase();
+
+      // Only enhance if 2-3 attendees (excluding yourself) and "Jon" is not in the title
+      const otherAttendeeCount = event.attendees.filter(
+        (attendee) => !attendee.self
+      ).length;
+      if (
+        otherAttendeeCount >= 1 &&
+        otherAttendeeCount <= 2 &&
+        !eventTitle.includes("jon")
+      ) {
+        // First, check if there are any team/group emails in the attendees
+        const hasTeamAttendees = event.attendees.some((attendee) => {
+          const email = attendee.email || attendee.displayName || "";
+
+          // Check if it's an email address
+          if (email.includes("@")) {
+            const emailPrefix = email.split("@")[0];
+
+            // Team emails typically don't have personal name patterns
+            // Personal: "chelsea.hohmann", "john.doe", "sarah.smith"
+            // Team: "insights", "engineering", "support", "team"
+
+            // If email prefix doesn't contain a dot or personal name patterns, likely a team
+            if (!emailPrefix.includes(".")) {
+              return true; // insights@cortex.io, team@cortex.io, etc.
+            }
+
+            // Check if it looks like a personal name (firstname.lastname pattern)
+            const parts = emailPrefix.split(".");
+            if (parts.length === 2) {
+              // Both parts should look like names (letters only, reasonable length)
+              const [first, last] = parts;
+              const isPersonalName =
+                first.length >= 2 &&
+                first.length <= 15 &&
+                last.length >= 2 &&
+                last.length <= 15 &&
+                /^[a-zA-Z]+$/.test(first) &&
+                /^[a-zA-Z]+$/.test(last);
+
+              return !isPersonalName; // If it doesn't look like a personal name, it's likely a team
+            }
+
+            // More than 2 parts or other patterns - likely team
+            return parts.length !== 2;
+          }
+
+          return false;
+        });
+
+        // If there are team attendees, don't add individual names
+        if (!hasTeamAttendees) {
+          const otherAttendees = event.attendees
+            .filter((attendee) => !attendee.self) // Exclude yourself
+            .map((attendee) => {
+              let name = attendee.displayName || attendee.email || "Unknown";
+
+              // Handle email addresses (extract first name from email)
+              if (name.includes("@")) {
+                const emailName = name.split("@")[0];
+                // Convert email format to proper name (e.g., "chelsea.hohmann" -> "Chelsea")
+                const firstName = emailName.split(".")[0];
+                name =
+                  firstName.charAt(0).toUpperCase() +
+                  firstName.slice(1).toLowerCase();
+              } else {
+                // Handle regular names - get first name only
+                name = name.split(" ")[0];
+              }
+
+              return name;
+            })
+            .filter((name) => name && name !== "Unknown" && name.length > 1);
+
+          if (otherAttendees.length > 0) {
+            enhancedTitle = `${event.summary} with ${otherAttendees.join(
+              ", "
+            )}`;
+          }
+        }
+      }
+    }
+
+    summary += `• ${enhancedTitle} (${eventHours}h)\n`;
   });
 
   return {

@@ -121,7 +121,7 @@ function createEventObject(rawEvent, category, categoryName) {
     summary: rawEvent.summary || "No title",
     start: rawEvent.start?.dateTime || rawEvent.start?.date,
     end: rawEvent.end?.dateTime || rawEvent.end?.date,
-    duration: extractEventDuration(rawEvent.start, rawEvent.end),
+    duration: extractEventDuration(rawEvent),
     category: category,
     categoryName: categoryName,
     description: rawEvent.description || "",
