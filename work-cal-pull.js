@@ -13,6 +13,7 @@ const {
 const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
 const { extractEventDuration } = require("./src/utils/time-utils");
 const { processWorkProjectEvents } = require("./src/utils/pr-processor");
+const { categorizeEventByColor } = require("./src/utils/color-mappings");
 require("dotenv").config();
 
 // Initialize clients
@@ -104,45 +105,6 @@ function getMyResponseStatus(attendees) {
 
   const myAttendance = attendees.find((attendee) => attendee.self === true);
   return myAttendance ? myAttendance.responseStatus : null;
-}
-
-// Categorize event by color - WORK CALENDAR MAPPING
-function categorizeEventByColor(rawEvent) {
-  const colorId = rawEvent.colorId || "default";
-  const eventType = rawEvent.eventType || "default";
-  const responseStatus = getMyResponseStatus(rawEvent.attendees);
-
-  // 1. EventType filters
-  if (eventType === "outOfOffice") {
-    return createEventObject(rawEvent, "ignored", "Out of Office");
-  }
-  if (eventType === "workingLocation") {
-    return createEventObject(rawEvent, "ignored", "Working Location");
-  }
-
-  // 2. RSVP filter - declined meetings go to ignored
-  if (responseStatus === "declined") {
-    return createEventObject(rawEvent, "ignored", "Declined Event");
-  }
-
-  // 3. Color-based categorization for work
-  const colorMapping = {
-    8: { category: "personal", name: "Personal Event Cal" }, // Gray
-    3: { category: "coding", name: "Coding & Tickets Cal" }, // Purple
-    2: { category: "design", name: "Design Work Cal" }, // Green
-    5: { category: "review", name: "Review, Feedback, Crit Cal" }, // Yellow
-    11: { category: "qa", name: "Design & Dev QA Cal" }, // Red
-    9: { category: "rituals", name: "Rituals Cal" }, // New color
-    1: { category: "research", name: "Research Cal" }, // Research color
-  };
-
-  const colorInfo = colorMapping[colorId];
-  if (colorInfo) {
-    return createEventObject(rawEvent, colorInfo.category, colorInfo.name);
-  }
-
-  // Default fallback for unmapped colors
-  return createEventObject(rawEvent, "default", "Default Work Cal");
 }
 
 function createEventObject(rawEvent, category, categoryName) {
@@ -341,7 +303,7 @@ function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
 function buildCategorySummary(events, categoryName, startDate, endDate) {
   if (!events || events.length === 0) {
     return {
-      summary: `No ${categoryName} events this week`,
+      summary: `Total ${categoryName} time: 0 hours\nNo ${categoryName} events this week`,
       categoryStats: {},
       totalHours: 0,
     };
@@ -360,8 +322,7 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
   };
 
   // Build summary text
-  let summary = `${categoryName} Summary for ${startDate} to ${endDate}\n\n`;
-  summary += `Total ${categoryName} time: ${totalHours} hours\n\n`;
+  let summary = `Total ${categoryName} time: ${totalHours} hours\n`;
 
   // Add events
   events.forEach((event) => {
@@ -471,7 +432,9 @@ async function processWeek(weekNumber) {
     console.log(`📊 Found ${workEvents.length} work events`);
 
     // Categorize work events
-    const categorizedWorkEvents = workEvents.map(categorizeEventByColor);
+    const categorizedWorkEvents = workEvents.map((event) =>
+      categorizeEventByColor(event, "work")
+    );
     const workEventsOnly = categorizedWorkEvents.filter(
       (event) => event.category !== "ignored"
     );

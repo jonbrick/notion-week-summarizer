@@ -16,6 +16,7 @@ const { extractEventDuration } = require("./src/utils/time-utils");
 const {
   processPersonalProjectEvents,
 } = require("./src/utils/personal-pr-processor");
+const { categorizeEventByColor } = require("./src/utils/color-mappings");
 require("dotenv").config();
 
 // Initialize clients
@@ -74,51 +75,6 @@ function getMyResponseStatus(attendees) {
 
   const myAttendance = attendees.find((attendee) => attendee.self === true);
   return myAttendance ? myAttendance.responseStatus : null;
-}
-
-// Categorize event by color - PERSONAL CALENDAR MAPPING
-function categorizeEventByColor(rawEvent) {
-  const colorId = rawEvent.colorId || "default";
-  const eventType = rawEvent.eventType || "default";
-  const responseStatus = getMyResponseStatus(rawEvent.attendees);
-  const eventTitle = (rawEvent.summary || "").toLowerCase();
-
-  // 1. EventType filters
-  if (eventType === "outOfOffice") {
-    return createEventObject(rawEvent, "ignored", "Out of Office");
-  }
-  if (eventType === "workingLocation") {
-    return createEventObject(rawEvent, "ignored", "Working Location");
-  }
-
-  // 2. RSVP filter - declined meetings go to ignored
-  if (responseStatus === "declined") {
-    return createEventObject(rawEvent, "ignored", "Declined Event");
-  }
-
-  // 3. Filter out any work events (color 7 or work-related titles)
-  if (
-    colorId === "7" ||
-    eventTitle.includes("work") ||
-    eventTitle.includes("meeting") ||
-    eventTitle.includes("standup") ||
-    eventTitle.includes("sync")
-  ) {
-    return createEventObject(rawEvent, "work", "Work Event");
-  }
-
-  // 4. Color mapping for personal calendar
-  const colorMapping = {
-    2: { category: "personal", name: "Personal Cal" }, // Sage/Green
-    3: { category: "interpersonal", name: "Interpersonal Cal" }, // Purple
-    5: { category: "home", name: "Home Cal" }, // Yellow
-    8: { category: "physicalHealth", name: "Physical Health Cal" }, // Gray
-    11: { category: "mentalHealth", name: "Mental Health Cal" }, // Red
-    default: { category: "personal", name: "Personal Cal" }, // No color defaults to personal
-  };
-
-  const colorInfo = colorMapping[colorId] || colorMapping.default;
-  return createEventObject(rawEvent, colorInfo.category, colorInfo.name);
 }
 
 // Create event object
@@ -202,7 +158,7 @@ function formatEventsForNotion(events, categoryKey) {
   const displayName = CATEGORY_DISPLAY_NAMES[categoryKey] || categoryKey;
 
   if (events.length === 0) {
-    return `No ${displayName} calendar events this week.`;
+    return `Total ${displayName} time: 0 hours\nNo ${displayName} calendar events this week.`;
   }
 
   // Filter out all-day events and very short events
@@ -211,7 +167,7 @@ function formatEventsForNotion(events, categoryKey) {
   );
 
   if (validEvents.length === 0) {
-    return `No ${displayName} calendar events this week.`;
+    return `Total ${displayName} time: 0 hours\nNo ${displayName} calendar events this week.`;
   }
 
   // Group events by title
@@ -243,10 +199,7 @@ function formatEventsForNotion(events, categoryKey) {
   );
   const totalHours = (totalMinutes / 60).toFixed(1);
 
-  let output = `${displayName.toUpperCase()} (${
-    validEvents.length
-  } events, ${totalHours} hours):\n`;
-  output += "------\n";
+  let output = `Total ${displayName} time: ${totalHours} hours\n`;
 
   groupedEvents.forEach((group) => {
     const { formatDuration } = require("./src/utils/time-utils");
@@ -688,7 +641,9 @@ async function processWeek(weekNumber) {
       console.log(`📥 Processing ${rawEvents.length} raw events...\n`);
 
       // Categorize all events
-      const categorizedEvents = rawEvents.map(categorizeEventByColor);
+      const categorizedEvents = rawEvents.map((event) =>
+        categorizeEventByColor(event, "personal")
+      );
 
       // Group by category
       const categories = {
