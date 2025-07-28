@@ -134,64 +134,6 @@ function parseEvaluationSection(summaryText) {
   return evaluations;
 }
 
-// Clean task names to past tense
-function makePastTense(taskNames) {
-  return taskNames
-    .replace(/\bStart\b/g, "Started")
-    .replace(/\bFinish\b/g, "Finished")
-    .replace(/\bClean\b/g, "Cleaned")
-    .replace(/\bSend\b/g, "Sent")
-    .replace(/\bCreate\b/g, "Created")
-    .replace(/\bUpdate\b/g, "Updated")
-    .replace(/\bFix\b/g, "Fixed")
-    .replace(/\bAdd\b/g, "Added")
-    .replace(/\bRemove\b/g, "Removed")
-    .replace(/\bImplement\b/g, "Implemented")
-    .replace(/\bDesign\b/g, "Designed")
-    .replace(/\bBuild\b/g, "Built")
-    .replace(/\bReview\b/g, "Reviewed")
-    .replace(/\bTest\b/g, "Tested")
-    .replace(/\bDeploy\b/g, "Deployed")
-    .replace(/\bSetup\b/g, "Set up")
-    .replace(/\bConfigure\b/g, "Configured")
-    .replace(/\bPresent\b/g, "Presented")
-    .replace(/\bMap\b/g, "Mapped")
-    .replace(/\bDemo\b/g, "Demoed")
-    .replace(/\bMapping\b/g, "Mapped")
-    .replace(/\bWork\b/g, "Worked")
-    .replace(/\bOrganize\b/g, "Organized")
-    .replace(/\bPlan\b/g, "Planned")
-    .replace(/\bCall\b/g, "Called")
-    .replace(/\bMeet\b/g, "Met")
-    .replace(/\bVisit\b/g, "Visited")
-    .replace(/\bCook\b/g, "Cooked")
-    .replace(/\bShop\b/g, "Shopped")
-    .replace(/\bExercise\b/g, "Exercised")
-    .replace(/\bRun\b/g, "Ran")
-    .replace(/\bWalk\b/g, "Walked")
-    .replace(/\bRead\b/g, "Read")
-    .replace(/\bWrite\b/g, "Wrote")
-    .replace(/\bStudy\b/g, "Studied")
-    .replace(/\bLearn\b/g, "Learned")
-    .replace(/\bPractice\b/g, "Practiced")
-    .replace(/\bPlay\b/g, "Played")
-    .replace(/\bWatch\b/g, "Watched")
-    .replace(/\bListen\b/g, "Listened")
-    .replace(/\bMeditate\b/g, "Meditated")
-    .replace(/\bRelax\b/g, "Relaxed")
-    .replace(/\bSleep\b/g, "Slept")
-    .replace(/\bWake\b/g, "Woke")
-    .replace(/\bEat\b/g, "Ate")
-    .replace(/\bDrink\b/g, "Drank")
-    .replace(/\bShower\b/g, "Showered")
-    .replace(/\bBrush\b/g, "Brushed")
-    .replace(/\bFloss\b/g, "Flossed")
-    .replace(/\bStretch\b/g, "Stretched")
-    .replace(/\bYoga\b/g, "Did yoga")
-    .replace(/\bGym\b/g, "Went to gym")
-    .replace(/\bWorkout\b/g, "Worked out");
-}
-
 // Extract health habits from evaluation sections
 function extractHealthHabits(taskEvals, calEvals) {
   const habits = {
@@ -225,7 +167,7 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Sleep-ins
-    if (text.includes("SLEEP-INS") || text.includes("SLEEPINS")) {
+    else if (text.includes("SLEEP-INS") || text.includes("SLEEPINS")) {
       const match = eval.text.match(/(\d+) days?/);
       if (match) {
         habits.sleepIns = parseInt(match[1]);
@@ -238,7 +180,7 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Workouts
-    if (text.includes("WORKOUTS")) {
+    else if (text.includes("WORKOUTS")) {
       const match = eval.text.match(/(\d+) sessions?/);
       if (match) {
         habits.workouts = parseInt(match[1]);
@@ -251,7 +193,7 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Sober days
-    if (text.includes("SOBER DAYS")) {
+    else if (text.includes("SOBER DAYS")) {
       const match = eval.text.match(/(\d+) days?/);
       if (match) {
         habits.soberDays = parseInt(match[1]);
@@ -264,7 +206,7 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Drinking days
-    if (text.includes("DRINKING DAYS")) {
+    else if (text.includes("DRINKING DAYS")) {
       const match = eval.text.match(/(\d+) days?/);
       if (match) {
         habits.drinkingDays = parseInt(match[1]);
@@ -277,7 +219,7 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Body weight
-    if (text.includes("BODY WEIGHT")) {
+    else if (text.includes("BODY WEIGHT")) {
       const match = eval.text.match(/([\d.]+) lbs/);
       if (match) {
         habits.bodyWeight = parseFloat(match[1]);
@@ -290,7 +232,7 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Video games
-    if (text.includes("VIDEO GAMES")) {
+    else if (text.includes("VIDEO GAMES")) {
       if (eval.type === "good") {
         habits.goodHabits.push(eval.text);
       } else {
@@ -299,13 +241,14 @@ function extractHealthHabits(taskEvals, calEvals) {
     }
 
     // Reading
-    if (text.includes("NO READING")) {
+    else if (text.includes("NO READING")) {
       if (eval.type === "good") {
         habits.goodHabits.push(eval.text);
       } else {
         habits.badHabits.push(eval.text);
       }
     }
+    // Note: Non-health evaluations are ignored (not added to goodHabits/badHabits)
   }
 
   return habits;
@@ -414,51 +357,13 @@ function extractCareAbouts(
     careAbouts.good.splice(1, 0, rockText + "…");
   }
 
-  // 3. Personal tasks (from tasks) - Format as "Completed [task name]"
-
-  // 3. Personal tasks (from tasks) - Format as "Completed [task name]"
-  const personalTaskEval = taskEvals.find(
-    (e) =>
-      e.text.includes("PERSONAL TASKS") || e.text.includes("NO PERSONAL TASKS")
-  );
-  let personalTasksText = "";
-  if (personalTaskEval) {
-    if (personalTaskEval.type === "good") {
-      // Extract task names
-      const taskMatch = personalTaskEval.text.match(
-        /PERSONAL TASKS:\s*\d+\s+completed\s*\(([^)]+)\)/
-      );
-      const taskNames = taskMatch ? taskMatch[1] : "";
-      if (taskNames) {
-        // Format as "Completed [first task]… [other tasks]"
-        const personalTaskNames = taskNames.split(", ");
-        if (personalTaskNames.length > 0) {
-          const firstTask = `Completed ${personalTaskNames[0].trim()}`;
-          const otherTasks = personalTaskNames
-            .slice(1)
-            .map((task) => makePastTense(task.trim()));
-          personalTasksText = [firstTask, ...otherTasks].join("… ");
-        }
-      }
-    } else {
-      // Clean up "NO PERSONAL TASKS: 0 completed" to "No personal tasks this week"
-      const cleanText = personalTaskEval.text
-        .replace(
-          /^NO\s+PERSONAL\s+TASKS:\s*\d+\s+completed$/i,
-          "No personal tasks this week"
-        )
-        .replace(/^NO\s+PERSONAL\s+TASKS$/i, "No personal tasks this week");
-      careAbouts.bad.push(cleanText);
-    }
-  }
-
   // 4. Interpersonal events (from cal) - Format as separate paragraphs
   const interpersonalEval = calEvals.find((e) =>
     e.text.includes("INTERPERSONAL")
   );
   if (interpersonalEval && interpersonalEval.type === "good") {
-    // Extract events from the parentheses in the evaluation text
-    const eventMatch = interpersonalEval.text.match(/\(([^)]+)\)/);
+    // Extract events from the parentheses in the evaluation text - capture everything inside outermost parentheses
+    const eventMatch = interpersonalEval.text.match(/\((.+)\)$/);
     if (eventMatch) {
       const eventsText = eventMatch[1];
       // Split by "..." to get individual events
@@ -517,10 +422,7 @@ function extractCareAbouts(
         const homeTaskNames = taskNames.split(", ");
         if (homeTaskNames.length > 0) {
           const firstTask = `Worked on apartment… ${homeTaskNames[0].trim()}`;
-          const otherTasks = homeTaskNames
-            .slice(1)
-            .map((task) => makePastTense(task.trim()));
-          homeTasksText = [firstTask, ...otherTasks].join("… ");
+          homeTasksText = [firstTask, ...homeTaskNames.slice(1)].join("… ");
         }
       }
     } else {
@@ -564,10 +466,9 @@ function extractCareAbouts(
 
         if (physicalTaskNames.length > 0) {
           const firstTask = `Completed ${physicalTaskNames[0].trim()}`;
-          const otherTasks = physicalTaskNames
-            .slice(1)
-            .map((task) => makePastTense(task.trim()));
-          physicalTasksText = [firstTask, ...otherTasks].join("… ");
+          physicalTasksText = [firstTask, ...physicalTaskNames.slice(1)].join(
+            "… "
+          );
         }
       }
     } else {
@@ -585,7 +486,7 @@ function extractCareAbouts(
     }
   }
 
-  // 7. Build the summary in the correct order: EVENTS -> ROCKS -> INTERPERSONAL -> PERSONAL -> APARTMENT
+  // 7. Build the summary in the correct order: EVENTS -> ROCKS -> INTERPERSONAL -> APARTMENT
   const summaryItems = [];
 
   // Note: ROCKS are now added right after events above
@@ -593,12 +494,7 @@ function extractCareAbouts(
   // 2. INTERPERSONAL EVENTS (already added above, but need to ensure they come after rocks)
   // Note: Interpersonal events are already added to careAbouts.good above
 
-  // 3. PERSONAL TASKS
-  if (personalTasksText) {
-    summaryItems.push(personalTasksText + "…");
-  }
-
-  // 4. APARTMENT TASKS (home tasks)
+  // 3. APARTMENT TASKS (home tasks)
   if (homeTasksText) {
     summaryItems.push(homeTasksText + "…");
   }
