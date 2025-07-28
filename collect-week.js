@@ -4,16 +4,17 @@ const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
 require("dotenv").config();
 
 console.log("📅 Week Data Collector");
-console.log("🔄 Runs both Personal + Work data collection\n");
+console.log("🔄 Runs Personal + Work + Habits data collection\n");
 
 // Default weeks
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 
 // Interactive mode function
 async function runInteractiveMode() {
-  console.log("📋 This will run both:");
+  console.log("📋 This will run:");
   console.log("  • Personal Calendar Pull + Personal Task Pull");
   console.log("  • Work Calendar Pull + Work Task Pull");
+  console.log("  • Habits Data Collection");
 
   // Ask for weeks
   const weekInput = await askQuestion(
