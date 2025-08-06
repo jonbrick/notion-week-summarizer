@@ -150,7 +150,7 @@ node personal-cal-pull.js
 node work-cal-pull.js
 
 # Combined processing
-node collect-week.js
+node pull-week.js
 ```
 
 The scripts will now provide clear guidance if authentication fails and help you refresh tokens when needed.

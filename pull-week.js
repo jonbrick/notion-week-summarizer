@@ -3,17 +3,18 @@ const { askQuestion, rl } = require("./src/utils/cli-utils");
 const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
 require("dotenv").config();
 
-console.log("📅 Personal Week Processor");
-console.log("🔄 Runs both Personal Calendar Pull + Personal Task Pull\n");
+console.log("📅 Week Data Puller");
+console.log("🔄 Runs Personal + Work + Habits data pull\n");
 
 // Default weeks
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 
 // Interactive mode function
 async function runInteractiveMode() {
-  console.log("📋 This will run both:");
-  console.log("  • Personal Calendar Pull");
-  console.log("  • Personal Task Pull");
+  console.log("📋 This will run:");
+  console.log("  • Personal Calendar Pull + Personal Task Pull");
+  console.log("  • Work Calendar Pull + Work Task Pull");
+  console.log("  • Habits Data Collection");
 
   // Ask for weeks
   const weekInput = await askQuestion(
@@ -67,10 +68,10 @@ function runScript(scriptName, args = []) {
 }
 
 // Main processing function
-async function processPersonalWeek() {
+async function processWeek() {
   try {
     console.log(
-      `\n📅 Processing ${TARGET_WEEKS.length} personal week${
+      `\n📅 Processing ${TARGET_WEEKS.length} week${
         TARGET_WEEKS.length > 1 ? "s" : ""
       }...\n`
     );
@@ -78,27 +79,33 @@ async function processPersonalWeek() {
     // Convert weeks to command line args
     const weekArgs = ["--weeks", TARGET_WEEKS.join(",")];
 
-    // Run Personal Calendar Pull
+    // Run Personal Pull
     console.log("=".repeat(50));
-    console.log("📍 STEP 1: Personal Calendar Pull");
+    console.log("📍 STEP 1: Personal Data Pull");
     console.log("=".repeat(50));
-    await runScript("personal-cal-pull.js", [...weekArgs, "--both"]);
+    await runScript("pull-personal.js", weekArgs);
 
-    // Run Personal Task Pull
+    // Run Work Pull
     console.log("\n" + "=".repeat(50));
-    console.log("📍 STEP 2: Personal Task Pull");
+    console.log("📍 STEP 2: Work Data Pull");
     console.log("=".repeat(50));
-    await runScript("personal-tasks-pull.js", weekArgs);
+    await runScript("pull-work.js", weekArgs);
+
+    // Run Habits Pull
+    console.log("\n" + "=".repeat(50));
+    console.log("📍 STEP 3: Habits Data Pull");
+    console.log("=".repeat(50));
+    await runScript("personal-habits-pull.js", weekArgs);
 
     console.log("\n" + "=".repeat(50));
     console.log(
-      `🎉 Personal week processing complete for week${
+      `🎉 Week data pull complete for week${
         TARGET_WEEKS.length > 1 ? "s" : ""
       }: ${TARGET_WEEKS.join(", ")}`
     );
     console.log("=".repeat(50));
   } catch (error) {
-    console.error("\n❌ Error during personal week processing:", error.message);
+    console.error("\n❌ Error during week pull:", error.message);
     process.exit(1);
   }
 }
@@ -106,6 +113,16 @@ async function processPersonalWeek() {
 // Main function with CLI support
 async function main() {
   const args = process.argv.slice(2);
+
+  // Check for --2, --3, etc. format first
+  for (const arg of args) {
+    if (arg.startsWith("--") && !isNaN(parseInt(arg.slice(2)))) {
+      const weekNumber = parseInt(arg.slice(2));
+      TARGET_WEEKS = [weekNumber];
+      await processWeek();
+      process.exit(0);
+    }
+  }
 
   // Check for --weeks argument
   const weekIndex = args.indexOf("--weeks");
@@ -119,7 +136,7 @@ async function main() {
     TARGET_WEEKS = await runInteractiveMode();
   }
 
-  await processPersonalWeek();
+  await processWeek();
 
   // Ensure clean exit
   process.exit(0);
