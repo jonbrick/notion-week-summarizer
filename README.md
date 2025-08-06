@@ -1,15 +1,15 @@
-# Notion AI Task Summary Automation
+# Notion Week Summarizer
 
-This Node.js automation script connects to Notion and Claude AI to automatically generate concise weekly summaries of completed tasks by category, turning your task lists into professional recap content for retrospectives.
+This Node.js automation suite connects to Notion and Claude AI to pull weekly data from calendars, tasks, and habits, then automatically generate professional weekly summaries and retrospectives.
 
 ## ✨ Features
 
-- **Interactive & Command-Line Modes**: Choose weeks and categories interactively or via CLI arguments
+- **Comprehensive Data Pulling**: Automatically pulls from personal/work calendars, tasks, and habits
+- **Interactive & Command-Line Modes**: Choose weeks and data sources interactively or via CLI arguments
 - **Multi-Week Processing**: Handle single weeks or batch process multiple weeks at once
-- **AI-Powered Summaries**: Uses Claude AI (Haiku) to create professional 1-3 sentence summaries
-- **Smart Category Filtering**: Process all 6 categories or select specific ones
-- **Custom Context Support**: Optional `context.md` file for AI writing style and definitions
-- **Date Range Filtering**: Automatically finds tasks within each week's date range
+- **AI-Powered Summaries**: Uses Claude AI to create professional weekly summaries and retrospectives
+- **Modular Architecture**: Separate scripts for different data sources (personal, work, habits)
+- **Custom Context Support**: Optional context files for AI writing style and definitions
 
 ## 🚀 Quick Start
 
@@ -29,20 +29,29 @@ This Node.js automation script connects to Notion and Claude AI to automatically
    WEEKS_DATABASE_ID=your_weeks_database_id
    ```
 
-3. **Run interactively**:
+3. **Pull weekly data**:
 
    ```bash
-   node summary.js
+   # Pull all data for current week
+   node pull-week.js
+
+   # Pull specific data sources
+   node pull-personal.js
+   node pull-work.js
+   node personal-habits-pull.js
    ```
 
-4. **Run with command-line args**:
+4. **Generate summaries**:
 
    ```bash
-   # Process specific weeks and categories
-   node summary.js --weeks 1,2,3 --categories 1,3,5
+   # Personal summary
+   node summarize-personal.js --weeks 1,2,3
 
-   # Process all categories for multiple weeks
-   node summary.js --weeks 15,16,17,18 --categories 0
+   # Work summary
+   node summarize-work.js --weeks 1,2,3
+
+   # Full week summary
+   node summarize-week.js --weeks 1,2,3
    ```
 
 ## 📋 Notion Database Requirements
@@ -80,24 +89,36 @@ This Node.js automation script connects to Notion and Claude AI to automatically
 
 ## 🎯 Usage Examples
 
-### Interactive Mode
+### Data Pulling
 
 ```bash
-node summary.js
-# Follow prompts to select weeks and categories
+# Pull all data for interactive week selection
+node pull-week.js
+
+# Pull all data for specific weeks
+node pull-week.js --weeks 22,23,24
+
+# Pull only personal data
+node pull-personal.js --weeks 22
+
+# Pull only work data
+node pull-work.js --weeks 22
+
+# Pull only habits data
+node personal-habits-pull.js --weeks 22
 ```
 
-### Command Line Examples
+### Summary Generation
 
 ```bash
-# Single week, all categories
-node summary.js --weeks 22 --categories 0
+# Generate personal retrospective
+node summarize-personal.js --weeks 22
 
-# Multiple weeks, specific categories (Work and Personal)
-node summary.js --weeks 1,2,3,4 --categories 1,3
+# Generate work summary
+node summarize-work.js --weeks 22
 
-# Catch up on a month
-node summary.js --weeks 15,16,17,18,19 --categories 0
+# Generate comprehensive week summary
+node summarize-week.js --weeks 22
 ```
 
 ### Category Numbers
@@ -112,91 +133,144 @@ node summary.js --weeks 15,16,17,18,19 --categories 0
 
 ## 📝 Customization
 
-### Context File (Optional)
+### Context Files (Optional)
 
-Create `context.md` to customize AI behavior:
+Create context files to customize AI behavior for different summary types:
+
+**Personal Context** (`context/context-personal.md`):
 
 ```markdown
-# AI Summary Context
+# Personal AI Summary Context
 
 ## Writing Style Rules
 
-- Use natural language, avoid corporate speak
-- Be concise and professional
-- Group similar tasks together
+- Use personal, reflective tone
+- Focus on growth and progress
+- Be honest about challenges
 
 ## Definitions
 
 - **Person Name**: Relationship context
-- **Abbreviation**: Full meaning
+- **Activity**: Personal meaning
+```
+
+**Work Context** (`context/context-work.md`):
+
+```markdown
+# Work AI Summary Context
+
+## Writing Style Rules
+
+- Use professional but natural language
+- Focus on outcomes and impact
+- Group related projects together
+
+## Definitions
+
+- **Project Name**: Context and scope
+- **Team/Role**: Relationship context
 ```
 
 ### Default Configuration
 
-Edit `summary.js` to change defaults:
+Edit configuration files to change defaults:
 
 ```javascript
-// Default weeks to process
+// In src/config/task-config.js
 const DEFAULT_TARGET_WEEKS = [1];
 
-// Default categories (all active by default)
-const DEFAULT_ACTIVE_CATEGORIES = [
-  "💼 Work",
-  "🏃‍♂️ Physical Health",
-  // ... etc
-];
+// In src/config/calendar-config.js
+const CALENDAR_CONFIGS = {
+  personal: {
+    /* settings */
+  },
+  work: {
+    /* settings */
+  },
+};
 ```
 
 ## 🔧 How It Works
 
+### Data Pulling Phase
+
+1. **Calendar Pull**: Extracts events from Google Calendar (personal/work)
+2. **Task Pull**: Queries Notion tasks database for completed items
+3. **Habits Pull**: Collects habit tracking data from Notion
+4. **Data Storage**: Saves all data to respective Notion databases
+
+### Summary Generation Phase
+
 1. **Week Discovery**: Finds recap pages by title (supports "Week 1" or "Week 01" format)
 2. **Date Range**: Gets week's start/end dates from linked Weeks database
-3. **Task Filtering**: Queries tasks with:
-   - Due Date within week range
-   - Status = "🟢 Done"
-   - Matching category type
-4. **AI Summary**: Sends task names to Claude AI with context for professional summarization
-5. **Update**: Writes generated summaries back to recap page fields
+3. **Data Aggregation**: Combines calendar events, tasks, and habits for the week
+4. **AI Processing**: Sends data to Claude AI with context for professional summarization
+5. **Update**: Writes generated summaries and retrospectives back to Notion
 
 ## 📊 Sample Output
 
+### Data Pulling
+
 ```bash
-🚀 Starting summary generation for weeks: 1, 2, 3
-📊 Processing 3 week(s)...
-📋 Active categories: 💼 Work, 🍻 Interpersonal, 🌱 Personal
+📅 Week Data Puller
+🔄 Runs Personal + Work + Habits data pull
 
-🗓️  === PROCESSING WEEK 1 ===
-✅ Found Week 01 Recap!
-📅 Week 01 date range: 2024-12-29 to 2025-01-04
+📋 This will run:
+  • Personal Calendar Pull + Personal Task Pull + Personal Habits Pull
+  • Work Calendar Pull + Work Task Pull
+  • Habits Data Pull
 
-🔄 Processing 💼 Work...
-📋 Found 5 Work tasks
-🤖 Generated summary: Completed project setup, attended team meetings, and finished Q4 documentation.
+🚀 Running pull-personal.js...
+✅ pull-personal.js completed successfully
 
-✅ Successfully updated Week 01 recap with selected category summaries!
-🎉 Successfully completed all 3 week(s)!
+🚀 Running pull-work.js...
+✅ pull-work.js completed successfully
+
+🎉 Week data pull complete for week: 22
+```
+
+### Summary Generation
+
+```bash
+🚀 Starting personal retrospective for week: 22
+📅 Week 22 date range: 2024-05-27 to 2024-06-02
+
+🔄 Processing calendar events...
+📋 Found 12 personal events
+🔄 Processing completed tasks...
+📋 Found 8 personal tasks
+🔄 Processing habits data...
+📋 Found habit tracking for 7 days
+
+🤖 Generated retrospective: This week focused on health improvements and personal projects...
+
+✅ Successfully updated Week 22 personal retrospective!
 ```
 
 ## 💰 Cost Estimation
 
-- **Claude Haiku**: ~$0.003 per week summary
-- **Annual cost** (52 weeks): ~$0.16
-- Very cost-effective for automation!
+- **Claude AI**: ~$0.01 per week (data pull + summaries)
+- **Google Calendar API**: Free (within reasonable limits)
+- **Notion API**: Free (within reasonable limits)
+- **Annual cost** (52 weeks): ~$0.52
+- Very cost-effective for comprehensive automation!
 
 ## 🛡️ Security
 
-- API keys stored securely in `.env` (gitignored)
-- Personal context file excluded from version control
-- Database IDs protected in environment variables
+- All API keys stored securely in `.env` (gitignored)
+- Context files can contain personal information (gitignored)
+- Database IDs and sensitive configs protected in environment variables
+- OAuth tokens refreshed automatically when needed
 
 ## 📄 Dependencies
 
 - `@notionhq/client` - Notion API integration
 - `@anthropic-ai/sdk` - Claude AI API
+- `googleapis` - Google Calendar API integration
 - `dotenv` - Environment variable management
 - `fs` & `readline` - File operations and user input
 
 ---
 
-**Built with**: Notion API, Claude AI, Node.js  
-**Time saved**: Automated weekly retrospectives! 🎉
+**Built with**: Notion API, Claude AI, Google Calendar API, Node.js  
+**Time saved**: Automated weekly data collection and retrospectives! 🎉
