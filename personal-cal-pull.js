@@ -149,24 +149,25 @@ function formatEventsForCategory(events, categoryName) {
     return output;
   }
 
-  // Group events by title
+  // Group events by title and track first occurrence for chronological sorting
   const eventGroups = {};
-  validEvents.forEach((event) => {
+  validEvents.forEach((event, index) => {
     const cleanTitle = event.summary.trim();
     if (!eventGroups[cleanTitle]) {
       eventGroups[cleanTitle] = {
         title: cleanTitle,
         totalMinutes: 0,
         count: 0,
+        firstOccurrenceIndex: index, // Track order for chronological sorting
       };
     }
     eventGroups[cleanTitle].totalMinutes += event.duration.minutes || 0;
     eventGroups[cleanTitle].count += 1;
   });
 
-  // Sort by total time (descending)
+  // Sort by first occurrence (chronological order: earliest -> latest)
   const groupedEvents = Object.values(eventGroups).sort(
-    (a, b) => b.totalMinutes - a.totalMinutes
+    (a, b) => a.firstOccurrenceIndex - b.firstOccurrenceIndex
   );
 
   groupedEvents.forEach((group) => {
