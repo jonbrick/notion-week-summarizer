@@ -48,28 +48,29 @@ function extractProjectInfo(event) {
 }
 
 /**
- * Remove timestamps from commit messages
- */
-function removeTimestamps(commitText) {
-  return commitText.replace(/\s*\(\d{1,2}:\d{2}(?::\d{2})?\)/g, "");
-}
-
-/**
- * Parse individual commits from commit text
+ * Parse individual commits using timestamps as anchors
  */
 function parseCommits(commitText) {
   if (!commitText) return [];
 
-  // Split by newlines and filter out empty lines
-  const lines = commitText.split("\n").filter((line) => line.trim());
+  // Split by timestamp pattern: (HH:MM:SS), or (HH:MM),
+  // This gives us commit messages separated by timestamps
+  const timestampPattern = /\s*\(\d{1,2}:\d{2}(?::\d{2})?\),?\s*/g;
 
-  return lines.map((line) => {
-    // Remove bullet points if present
-    let cleanLine = line.replace(/^[\s•\-*]+/, "").trim();
-    // Remove timestamps
-    cleanLine = removeTimestamps(cleanLine);
-    return cleanLine;
-  });
+  // Split the text using timestamps as delimiters
+  const parts = commitText.split(timestampPattern);
+
+  // Filter out empty parts and clean up each commit message
+  const commits = parts
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((commit) => {
+      // Remove any remaining timestamps that might be at the end
+      return commit.replace(/\s*\(\d{1,2}:\d{2}(?::\d{2})?\)\s*$/, "").trim();
+    })
+    .filter((commit) => commit.length > 0);
+
+  return commits;
 }
 
 /**
@@ -122,7 +123,7 @@ function formatPersonalProjectSummary(projectGroups) {
   );
 
   // Add header
-  let output = `Personal Projects (${totalProjects} ${
+  let output = `PERSONAL PRs (${totalProjects} ${
     totalProjects === 1 ? "app" : "apps"
   }, ${totalCommits} ${totalCommits === 1 ? "commit" : "commits"}):\n`;
   output += "------\n";
@@ -138,42 +139,14 @@ function formatPersonalProjectSummary(projectGroups) {
       project.totalCommits === 1 ? "commit" : "commits"
     }):\n`;
 
-    // Show first 5 commits using regex to handle any format
-    let allCommitsText = project.commits.join(" ");
-
-    // Use regex to extract first 5 commits regardless of format
-    const commitRegex =
-      /(?:^|[•\-*]\s*|,\s*|\n\s*)([^•\-*,\n]+?)(?=\s*[•\-*,\n]|$)/g;
-    const matches = [];
-    let match;
-
-    while (
-      (match = commitRegex.exec(allCommitsText)) !== null &&
-      matches.length < 5
-    ) {
-      const commit = match[1].trim();
-      if (commit && commit.length > 0) {
-        matches.push(commit);
-      }
-    }
-
-    // If regex doesn't work well, fallback to existing logic
-    if (matches.length === 0) {
-      const commitsToShow = project.commits.slice(0, 5);
-      commitsToShow.forEach((commit) => {
-        output += `• ${commit}\n`;
-      });
-    } else {
-      matches.forEach((commit) => {
-        output += `• ${commit}\n`;
-      });
-    }
+    // Show first 5 commits - now they should be properly parsed
+    const commitsToShow = project.commits.slice(0, 5);
+    commitsToShow.forEach((commit) => {
+      output += `• ${commit}\n`;
+    });
 
     // If there are more commits, indicate truncation
-    if (
-      project.commits.length > 5 ||
-      allCommitsText.split(/[,\n•\-*]/).filter((c) => c.trim()).length > 5
-    ) {
+    if (project.commits.length > 5) {
       output += `• ... (additional commits truncated)\n`;
     }
   });
