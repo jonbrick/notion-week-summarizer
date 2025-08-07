@@ -218,7 +218,7 @@ function extractSummaryForBad(summaryText) {
   let result = "===== SUMMARY =====\n";
 
   lines.forEach((line) => {
-    if (line.includes("❌") || line.includes("☑️")) {
+    if (line.includes("❌")) {
       result += `${line}\n`;
     }
   });
@@ -247,7 +247,7 @@ function combineSummaries(taskSummary, calSummary) {
     const badRocks = [];
 
     lines.forEach((line) => {
-      if (line.includes("👾 Made progress")) {
+      if (line.includes("👾 Made progress") || line.includes("✅ Went well")) {
         goodRocks.push(line);
       } else if (
         line.includes("🥊 Went bad") ||
