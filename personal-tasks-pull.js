@@ -107,9 +107,27 @@ async function fetchWeekEvents(startDate, endDate) {
             },
           },
           {
-            property: "Event Type",
-            select: {
-              does_not_equal: "💼 Work",
+            not: {
+              or: [
+                {
+                  property: "Event Type",
+                  select: {
+                    equals: "💼 Work Event",
+                  },
+                },
+                {
+                  property: "Event Type",
+                  select: {
+                    equals: "🍸 Work Social",
+                  },
+                },
+                {
+                  property: "Event Type",
+                  select: {
+                    equals: "🏝️ Work OOO",
+                  },
+                },
+              ],
             },
           },
         ],

@@ -96,8 +96,7 @@ function formatPRSummary(prGroups) {
   // Add header
   let output = `PRs (${totalPRs} PR${
     totalPRs !== 1 ? "s" : ""
-  }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):\n`;
-  output += "------\n";
+  }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):`;
 
   // Add note if commits are hidden due to high PR count
   if (!showCommits) {
@@ -123,7 +122,7 @@ function formatPRSummary(prGroups) {
       })`;
     }
 
-    output += "\n";
+    output += "";
 
     // Only show commits if PR count is 10 or fewer
     if (showCommits) {
@@ -287,7 +286,7 @@ function formatWorkPRSummary(prGroups) {
   let output = `PRs (${totalPRs} PR${
     totalPRs !== 1 ? "s" : ""
   }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):\n`;
-  output += "------\n";
+  output += "";
 
   prArray.forEach((pr, index) => {
     // Add divider between PRs (except first one)

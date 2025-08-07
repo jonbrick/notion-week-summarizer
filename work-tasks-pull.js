@@ -100,6 +100,11 @@ async function fetchWeekRocks(startDate, endDate, weekPageId) {
 // Fetch events for the week
 async function fetchWeekEvents(startDate, endDate) {
   try {
+    console.log(
+      `🔍 Fetching events from database: ${process.env.EVENTS_DATABASE_ID}`
+    );
+    console.log(`📅 Date range: ${startDate} to ${endDate}`);
+
     const eventsResponse = await notion.databases.query({
       database_id: process.env.EVENTS_DATABASE_ID, // You'll need to add this to .env
       filter: {
@@ -117,14 +122,47 @@ async function fetchWeekEvents(startDate, endDate) {
             },
           },
           {
-            property: "Event Type",
-            select: {
-              equals: "💼 Work",
-            },
+            or: [
+              {
+                property: "Event Type",
+                select: {
+                  equals: "💼 Work Event",
+                },
+              },
+              {
+                property: "Event Type",
+                select: {
+                  equals: "🍸 Work Social",
+                },
+              },
+              {
+                property: "Event Type",
+                select: {
+                  equals: "🏝️ Work OOO",
+                },
+              },
+            ],
           },
         ],
       },
     });
+
+    console.log(`📊 Found ${eventsResponse.results.length} work events`);
+
+    // Log the first few events to debug
+    if (eventsResponse.results.length > 0) {
+      console.log("📋 Sample events:");
+      eventsResponse.results.slice(0, 3).forEach((event, index) => {
+        const eventName =
+          event.properties["Event Name"]?.title
+            ?.map((t) => t.plain_text)
+            .join("") || "Untitled";
+        const eventType =
+          event.properties["Event Type"]?.select?.name || "No Type";
+        const status = event.properties["Status"]?.status?.name || "No Status";
+        console.log(`  ${index + 1}. ${eventName} (${eventType}) - ${status}`);
+      });
+    }
 
     return eventsResponse.results;
   } catch (error) {
@@ -133,14 +171,13 @@ async function fetchWeekEvents(startDate, endDate) {
   }
 }
 
-// Format rocks for Notion with evaluation-style format
+// Format rocks for Notion with simplified format
 function formatRocksForNotion(rocks) {
   if (rocks.length === 0) {
-    return "No work rocks this week.";
+    return "WORK ROCKS (0):\nNo work rocks this week";
   }
 
-  let output = `Work Rocks (${rocks.length}):\n`;
-  output += "------\n";
+  let output = `WORK ROCKS (${rocks.length}):\n`;
 
   rocks.forEach((rock) => {
     let rockTitle =
@@ -156,63 +193,72 @@ function formatRocksForNotion(rocks) {
         ?.map((t) => t.plain_text)
         .join("") || "";
 
-    // Map status to evaluation format
-    if (status.includes("Achieved")) {
-      output += `✅ ROCK ACHIEVED: ${rockTitle}${
-        description ? ` (${description.trim()})` : ""
-      }\n`;
-    } else if (status.includes("Good Progress")) {
-      output += `✅ ROCK PROGRESS: ${rockTitle}${
-        description ? ` (${description.trim()})` : ""
-      }\n`;
-    } else if (status.includes("Failed")) {
-      output += `❌ ROCK FAILED: ${rockTitle}${
-        description ? ` (${description.trim()})` : ""
-      }\n`;
-    } else if (status.includes("Little Progress")) {
-      output += `❌ ROCK LITTLE PROGRESS: ${rockTitle}${
-        description ? ` (${description.trim()})` : ""
-      }\n`;
-    }
+    // Use the actual status from the database
+    output += `${status}: ${rockTitle}${
+      description ? ` (${description.trim()})` : ""
+    }\n`;
   });
 
   return output.trim();
 }
 
-// Format events for Notion
+// Format events for Notion with evaluation-style format (similar to rocks)
 function formatEventsForNotion(events) {
   if (events.length === 0) {
-    return "No work events this week.";
+    return "WORK EVENTS (0):\nNo work events this week";
   }
 
-  let output = `Work Events (${events.length}):\n`;
-  output += "------\n";
+  // Sort events by actual date (more accurate than day of week string)
+  const sortedEvents = events.sort((a, b) => {
+    const dateA = a.properties["Date"]?.date?.start || "";
+    const dateB = b.properties["Date"]?.date?.start || "";
 
-  events.forEach((event) => {
+    // If both have dates, sort chronologically
+    if (dateA && dateB) {
+      return new Date(dateA) - new Date(dateB);
+    }
+    // If only one has a date, prioritize the one with a date
+    if (dateA) return -1;
+    if (dateB) return 1;
+    // If neither has a date, keep original order
+    return 0;
+  });
+
+  let output = `WORK EVENTS (${events.length}):\n`;
+
+  sortedEvents.forEach((event) => {
     const eventName =
       event.properties["Event Name"]?.title
         ?.map((t) => t.plain_text)
         .join("") || "Untitled Event";
     const eventStatus = event.properties["Status"]?.status?.name || "No Status";
     const eventType = event.properties["Event Type"]?.select?.name || "";
+    const dayOfWeek = event.properties["Day of week"]?.formula?.string || "";
     const notes =
       event.properties.Notes?.rich_text?.map((t) => t.plain_text).join("") ||
       "";
     const startDate = event.properties["date:Date:start"]?.date?.start || "";
 
-    output += `${eventStatus} ${eventName}`;
-    if (eventType) {
-      output += ` (${eventType})`;
-    }
-    if (startDate) {
-      output += ` - ${formatTaskDate(startDate)}`;
+    // Use the actual Status value directly (like rocks do)
+    if (dayOfWeek) {
+      output += `${eventStatus} ${dayOfWeek}: ${eventName}`;
+      if (eventType) {
+        output += ` (${eventType})`;
+      }
+    } else {
+      output += `${eventStatus}: ${eventName}`;
+      if (eventType) {
+        output += ` (${eventType})`;
+      }
+      if (startDate) {
+        output += ` - ${formatTaskDate(startDate)}`;
+      }
     }
     output += "\n";
 
     if (notes) {
       output += `  Notes: ${notes}\n`;
     }
-    output += "\n";
   });
 
   return output.trim();
@@ -335,7 +381,10 @@ function generateTaskEvaluation(tasksByType, rocks, eventsFormatted) {
           line.includes("✅") ||
           line.includes("👾") ||
           line.includes("🚧") ||
-          line.includes("🥊")
+          line.includes("🥊") ||
+          line.includes("Attended") ||
+          line.includes("Completed") ||
+          line.includes("Done")
       );
     if (eventLines.length > 0) {
       const eventCount = eventLines.length;
@@ -364,6 +413,271 @@ function generateTaskEvaluation(tasksByType, rocks, eventsFormatted) {
   }
 
   return evaluations;
+}
+
+// Helper function to filter out OOO tasks from work activity summary
+function filterOutOOOTasks(workActivitySummary) {
+  if (!workActivitySummary || workActivitySummary.includes("No work tasks")) {
+    return workActivitySummary;
+  }
+
+  const lines = workActivitySummary.split("\n");
+  const filteredLines = [];
+  let skipOOOSection = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Skip the header line (WORK ACTIVITY SUMMARY)
+    if (line.startsWith("WORK ACTIVITY SUMMARY")) {
+      filteredLines.push(line);
+      continue;
+    }
+
+    // If we encounter an OOO section, mark it to skip
+    if (line.trim().startsWith("OOO (")) {
+      skipOOOSection = true;
+      continue;
+    }
+
+    // If we're in an OOO section, skip all lines until we find the next category
+    if (skipOOOSection) {
+      // Check if this line starts a new category (ends with "(")
+      if (line.trim().endsWith("(") && !line.trim().startsWith("OOO")) {
+        skipOOOSection = false;
+        filteredLines.push(line);
+      }
+      // If it's a task line (starts with "•"), skip it
+      else if (line.trim().startsWith("•")) {
+        continue;
+      }
+      // If it's the end of the OOO section (empty line or end of file), stop skipping
+      else if (line.trim() === "" || i === lines.length - 1) {
+        skipOOOSection = false;
+      }
+      continue;
+    }
+
+    // Add the line if we're not skipping
+    filteredLines.push(line);
+  }
+
+  return filteredLines.join("\n");
+}
+
+// Helper function to clean events content for Work Task Summary
+function cleanEventsForWorkTaskSummary(eventsFormatted) {
+  if (!eventsFormatted || eventsFormatted.includes("No work events")) {
+    return eventsFormatted;
+  }
+
+  const lines = eventsFormatted.split("\n");
+  const cleanedLines = [];
+
+  lines.forEach((line) => {
+    // Remove "Done " from the beginning of lines that start with status + day
+    const cleanedLine = line.replace(/^(✅|👾|🚧|🥊)\s+Done\s+/, "$1 ");
+    cleanedLines.push(cleanedLine);
+  });
+
+  return cleanedLines.join("\n");
+}
+
+// Helper function to clean rocks content for Work Task Summary
+function cleanRocksForWorkTaskSummary(rocksFormatted) {
+  if (!rocksFormatted || rocksFormatted.includes("No work rocks")) {
+    return rocksFormatted;
+  }
+
+  const lines = rocksFormatted.split("\n");
+  const cleanedLines = [];
+
+  lines.forEach((line) => {
+    // Remove content in parentheses at the end of the line
+    const cleanedLine = line.replace(/\s*\([^)]*\)$/, "");
+    cleanedLines.push(cleanedLine);
+  });
+
+  return cleanedLines.join("\n");
+}
+
+// Generate new Work Task Summary structure
+function generateWorkTaskSummary(
+  tasksByCategory,
+  totalTasks,
+  totalUniqueTasks,
+  rocksFormatted,
+  eventsFormatted,
+  workActivitySummary
+) {
+  let summary = "";
+
+  // Add EVENTS section first (if there are events) - similar to work-cal-pull.js
+  if (eventsFormatted && !eventsFormatted.includes("No work events")) {
+    // Clean events content for Work Task Summary
+    const cleanedEvents = cleanEventsForWorkTaskSummary(eventsFormatted);
+    // Extract content after the header line
+    const lines = cleanedEvents.split("\n");
+    const eventsContent = lines.slice(1).join("\n"); // Skip the header line
+    if (eventsContent) {
+      summary += "===== EVENTS =====\n";
+      summary += eventsContent;
+      summary += "\n\n";
+    }
+  }
+
+  // Add SUMMARY section
+  summary += "===== SUMMARY =====\n";
+  summary += `Total: ${totalTasks} tasks (${totalUniqueTasks} unique)\n`;
+
+  // Add category breakdown with emojis (excluding OOO and Undefined)
+  const allCategories = [
+    "Design",
+    "Coding",
+    "Research",
+    "Feedback",
+    "QA",
+    "Admin",
+    "Social",
+  ];
+
+  allCategories.forEach((category) => {
+    const tasks = tasksByCategory[category] || [];
+    const taskCount = tasks.reduce((sum, task) => sum + task.count, 0);
+
+    // Admin, Social always get ☑️ (even when 0)
+    if (category === "Admin" || category === "Social") {
+      summary += `☑️ ${category}: ${taskCount} tasks\n`;
+    } else if (taskCount > 0) {
+      summary += `✅ ${category}: ${taskCount} tasks\n`;
+    } else {
+      summary += `❌ ${category}: 0 tasks\n`;
+    }
+  });
+
+  // Add OOO separately since it's not in the main categories
+  const oooTasks = tasksByCategory["OOO"] || [];
+  const oooCount = oooTasks.reduce((sum, task) => sum + task.count, 0);
+  summary += `☑️ OOO: ${oooCount} tasks\n`;
+
+  // Add Undefined separately (only if it has tasks) - positioned after OOO
+  const undefinedTasks = tasksByCategory["Undefined"] || [];
+  const undefinedCount = undefinedTasks.reduce(
+    (sum, task) => sum + task.count,
+    0
+  );
+  if (undefinedCount > 0) {
+    summary += `☑️ Undefined: ${undefinedCount} tasks\n`;
+  }
+
+  // Add ROCKS section (from Work Rocks Summary)
+  summary += "\n===== ROCKS =====\n";
+  if (rocksFormatted && !rocksFormatted.includes("No work rocks")) {
+    // Clean rocks content for Work Task Summary
+    const cleanedRocks = cleanRocksForWorkTaskSummary(rocksFormatted);
+    // Extract content after the header line
+    const lines = cleanedRocks.split("\n");
+    const rocksContent = lines.slice(1).join("\n"); // Skip the header line
+    if (rocksContent) {
+      summary += rocksContent;
+    }
+  } else {
+    summary += "No rocks this week\n";
+  }
+
+  // Add TASKS section (from Work Activity Summary) - filtered to exclude OOO
+  summary += "\n\n===== TASKS =====\n";
+  if (workActivitySummary && !workActivitySummary.includes("No work tasks")) {
+    // Filter out OOO tasks from the work activity summary
+    const filteredWorkActivitySummary = filterOutOOOTasks(workActivitySummary);
+
+    // Extract content after the header line
+    const lines = filteredWorkActivitySummary.split("\n");
+    const tasksContent = lines.slice(1).join("\n"); // Skip the header line
+    if (tasksContent) {
+      summary += tasksContent;
+    }
+  } else {
+    summary += "No tasks completed this week\n";
+  }
+
+  return summary.trim();
+}
+
+// Format work activity summary
+function formatWorkActivitySummary(tasks) {
+  if (tasks.length === 0) {
+    return "WORK ACTIVITY SUMMARY (0):\nNo work tasks completed this week";
+  }
+
+  // Define categories in order (including OOO for Work Activity Summary)
+  const categories = [
+    "Design",
+    "Coding",
+    "Review",
+    "QA",
+    "Research",
+    "Social",
+    "Undefined",
+    "OOO",
+  ];
+
+  // Group tasks by category with deduplication
+  const tasksByCategory = {};
+  categories.forEach((category) => {
+    tasksByCategory[category] = {};
+  });
+
+  tasks.forEach((task) => {
+    const taskTitle = task.properties.Task.title
+      .map((t) => t.plain_text)
+      .join("")
+      .trim(); // Trim whitespace to prevent duplicates
+    let category =
+      task.properties["Work Category"]?.select?.name || "Undefined";
+
+    // Smart matching for categories
+    if (category.includes("Admin")) {
+      category = "Admin";
+    } else if (category.includes("Crit") || category.includes("Feedback")) {
+      category = "Review";
+    }
+
+    // Only include predefined categories (including OOO for Work Activity Summary)
+    if (categories.includes(category)) {
+      if (!tasksByCategory[category][taskTitle]) {
+        tasksByCategory[category][taskTitle] = 0;
+      }
+      tasksByCategory[category][taskTitle]++;
+    }
+  });
+
+  let output = `WORK ACTIVITY SUMMARY (${tasks.length}):`;
+
+  // Add each category section
+  categories.forEach((category) => {
+    const categoryTasks = tasksByCategory[category];
+    const taskEntries = Object.entries(categoryTasks);
+
+    if (taskEntries.length > 0) {
+      // Calculate total tasks in this category
+      const totalTasks = taskEntries.reduce(
+        (sum, [_, count]) => sum + count,
+        0
+      );
+      output += `\n${category} (${totalTasks})\n`;
+
+      taskEntries.forEach(([taskTitle, count]) => {
+        if (count === 1) {
+          output += `• ${taskTitle}\n`;
+        } else {
+          output += `• ${taskTitle} (x${count})\n`;
+        }
+      });
+    }
+  });
+
+  return output.trim();
 }
 
 // Process a single week
@@ -524,24 +838,13 @@ async function processWeek(weekNumber) {
     const totalTasks = tasksResponse.results.length;
     const totalUniqueTasks = Object.values(taskGroups).length;
 
-    // Create simplified summary format
-    summary = `WORK TASK SUMMARY:\n`;
-    summary += `Total: ${totalTasks} tasks (${totalUniqueTasks} unique)\n`;
-
-    // Add category breakdown
-    allCategories.forEach((category) => {
-      const tasks = tasksByCategory[category];
-      const taskCount = tasks.length;
-      if (taskCount > 0) {
-        summary += `- ${category}: ${taskCount} tasks\n`;
-      }
-    });
-
-    // Remove trailing newline
-    summary = summary.trim();
-
     console.log(
       `\n📝 Generated summary with ${tasksResponse.results.length} tasks`
+    );
+
+    // Create Work Activity Summary
+    const workActivitySummary = formatWorkActivitySummary(
+      tasksResponse.results
     );
 
     // 6. Fetch rocks and events
@@ -553,38 +856,22 @@ async function processWeek(weekNumber) {
     const events = await fetchWeekEvents(startDate, endDate);
     const eventsFormatted = formatEventsForNotion(events);
 
-    // 7. Generate evaluation (excluding rocks since they're in their own summary)
-    const evaluations = generateTaskEvaluation(
+    // 7. Generate new Work Task Summary structure
+    const workTaskSummary = generateWorkTaskSummary(
       tasksByCategory,
-      [], // Empty array since rocks are handled separately
-      eventsFormatted
+      totalTasks,
+      totalUniqueTasks,
+      rocksFormatted,
+      eventsFormatted,
+      workActivitySummary
     );
-
-    // Add evaluation section to summary
-    summary += "\n\n===== EVALUATION =====\n";
-
-    // Add rocks content to evaluation first (excluding header)
-    if (rocksFormatted && !rocksFormatted.includes("No work rocks")) {
-      // Extract content after the "------" line
-      const rocksContent = rocksFormatted.split("------\n")[1];
-      if (rocksContent) {
-        summary += rocksContent;
-      }
-    }
-
-    // Add task evaluations after rocks
-    if (evaluations.length > 0) {
-      if (rocksFormatted && !rocksFormatted.includes("No work rocks")) {
-        summary += "\n"; // Add separator between rocks and task evaluations
-      }
-      summary += evaluations.join("\n");
-    }
 
     // 8. Update Notion
     const summaryUpdates = {
-      "Work Task Summary": summary,
+      "Work Task Summary": workTaskSummary,
       "Work Rocks Summary": rocksFormatted,
       "Work Events Summary": eventsFormatted,
+      "Work Activity Summary": workActivitySummary,
     };
 
     await updateAllSummaries(notion, targetWeekPage.id, summaryUpdates);

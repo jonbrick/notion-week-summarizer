@@ -215,43 +215,41 @@ function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
     return {
       default: {
         summary:
-          "DEFAULT WORK (0 events, 0 hours):\n------\nNo Default Work events this week",
+          "DEFAULT WORK (0 events, 0 hours):\nNo Default Work events this week",
         categoryStats: {},
         totalHours: 0,
       },
       design: {
         summary:
-          "DESIGN WORK (0 events, 0 hours):\n------\nNo Design Work events this week",
+          "DESIGN WORK (0 events, 0 hours):\nNo Design Work events this week",
         categoryStats: {},
         totalHours: 0,
       },
       coding: {
         summary:
-          "CODING & TICKETS (0 events, 0 hours):\n------\nNo Coding & Tickets events this week",
+          "CODING & TICKETS (0 events, 0 hours):\nNo Coding & Tickets events this week",
         categoryStats: {},
         totalHours: 0,
       },
       review: {
         summary:
-          "REVIEW & FEEDBACK (0 events, 0 hours):\n------\nNo Review & Feedback events this week",
+          "REVIEW & FEEDBACK (0 events, 0 hours):\nNo Review & Feedback events this week",
         categoryStats: {},
         totalHours: 0,
       },
       qa: {
         summary:
-          "DESIGN & DEV QA (0 events, 0 hours):\n------\nNo Design & Dev QA events this week",
+          "DESIGN & DEV QA (0 events, 0 hours):\nNo Design & Dev QA events this week",
         categoryStats: {},
         totalHours: 0,
       },
       rituals: {
-        summary:
-          "RITUALS (0 events, 0 hours):\n------\nNo Rituals events this week",
+        summary: "RITUALS (0 events, 0 hours):\nNo Rituals events this week",
         categoryStats: {},
         totalHours: 0,
       },
       research: {
-        summary:
-          "RESEARCH (0 events, 0 hours):\n------\nNo Research events this week",
+        summary: "RESEARCH (0 events, 0 hours):\nNo Research events this week",
         categoryStats: {},
         totalHours: 0,
       },
@@ -340,7 +338,7 @@ function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
 function buildCategorySummary(events, categoryName, startDate, endDate) {
   if (!events || events.length === 0) {
     return {
-      summary: `${categoryName.toUpperCase()} (0 events, 0 hours):\n------\nNo ${categoryName} events this week`,
+      summary: `${categoryName.toUpperCase()} (0 events, 0 hours):\nNo ${categoryName} events this week`,
       categoryStats: {},
       totalHours: 0,
     };
@@ -364,7 +362,7 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
   // Build summary text with new format
   let summary = `${categoryName.toUpperCase()} (${events.length} ${
     events.length === 1 ? "event" : "events"
-  }, ${totalHours} ${totalHours === 1 ? "hour" : "hours"}):\n------\n`;
+  }, ${totalHours} ${totalHours === 1 ? "hour" : "hours"}):\n`;
 
   // Sort events chronologically (earliest to latest)
   const sortedEvents = [...events].sort((a, b) => {
@@ -474,6 +472,324 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
     categoryStats,
     totalHours,
   };
+}
+
+// Check for OOO events
+function detectOOOEvents(workEvents) {
+  const oooEvents = workEvents.filter(
+    (event) =>
+      event.summary.toLowerCase().includes("out of office") ||
+      event.summary.toLowerCase().includes("ooo") ||
+      event.summary.toLowerCase().includes("vacation") ||
+      event.summary.toLowerCase().includes("pto") ||
+      event.summary.toLowerCase().includes("jb ooo") ||
+      event.summary.toLowerCase().includes("jb ooo") ||
+      event.summary.toLowerCase().includes("out of office")
+  );
+
+  // Calculate actual OOO days by checking start and end dates
+  const oooDays = new Set();
+
+  oooEvents.forEach((event) => {
+    // Parse dates more carefully to handle timezone issues
+    let startDate, endDate;
+
+    if (event.start.includes("T")) {
+      // Time-specific event
+      startDate = new Date(event.start);
+      endDate = new Date(event.end);
+    } else {
+      // All-day event - parse date components directly to avoid timezone issues
+      const startParts = event.start.split("-").map(Number);
+      const endParts = event.end.split("-").map(Number);
+
+      // Create dates using UTC to avoid timezone shifts
+      startDate = new Date(
+        Date.UTC(startParts[0], startParts[1] - 1, startParts[2])
+      );
+      endDate = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2]));
+
+      // For all-day events, the end date is exclusive, so we need to handle it differently
+      endDate.setUTCDate(endDate.getUTCDate() - 1);
+    }
+
+    // Iterate through the date range
+    const currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      // Only count weekdays (Monday = 1, Sunday = 0)
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        // Use UTC date string to avoid timezone issues
+        const dateStr = currentDate.toISOString().split("T")[0];
+        oooDays.add(dateStr);
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  });
+
+  // Convert to sorted array of dates
+  const sortedOOODays = Array.from(oooDays).sort();
+
+  // Format OOO days for display - parse dates using UTC to avoid timezone issues
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const formattedOOODays = sortedOOODays.map((dateStr) => {
+    // Parse date components directly to avoid timezone issues
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return dayNames[date.getUTCDay()];
+  });
+
+  return {
+    isOOO: oooDays.size > 0,
+    oooDays: oooDays.size,
+    oooEvents: oooEvents,
+    oooDayNames: formattedOOODays,
+    oooDates: sortedOOODays,
+  };
+}
+
+// Generate simplified Work Cal Summary
+function generateSimplifiedWorkCalSummary(
+  summaries,
+  workPrSummary,
+  workEvents
+) {
+  // Check for OOO events
+  const oooInfo = detectOOOEvents(workEvents);
+
+  // Calculate totals
+  let totalHours = 0;
+  let totalEvents = 0;
+  const categoryHours = {};
+
+  // Extract hours and events from each category
+  Object.keys(summaries).forEach((category) => {
+    const categoryData = summaries[category];
+    categoryHours[category] = categoryData.totalHours || 0;
+    totalHours += categoryData.totalHours || 0;
+
+    // Count events from the summary
+    const eventMatch = categoryData.summary.match(/\((\d+) events?/);
+    if (eventMatch) {
+      totalEvents += parseInt(eventMatch[1]);
+    }
+  });
+
+  // Extract PR information
+  let prCount = 0;
+  let commitCount = 0;
+  if (workPrSummary && !workPrSummary.includes("No work project commits")) {
+    const prMatch = workPrSummary.match(/PRs \((\d+) PRs?, (\d+) commits?\):/);
+    if (prMatch) {
+      prCount = parseInt(prMatch[1]);
+      commitCount = parseInt(prMatch[2]);
+    }
+  }
+
+  // Build summary
+  let summary = "";
+
+  // Add OOO section first if present
+  if (oooInfo.isOOO) {
+    summary += "===== OOO =====\n";
+    summary += `🏝️ OOO: ${oooInfo.oooDays} Day${
+      oooInfo.oooDays > 1 ? "s" : ""
+    } (${oooInfo.oooDayNames.join(", ")})\n\n`;
+  }
+
+  summary += "===== SUMMARY =====\n";
+  summary += `Total: ${totalHours.toFixed(1)} hours (${totalEvents} events)\n`;
+
+  // Only show category breakdowns if not fully OOO (less than 5 days OOO)
+  if (!oooInfo.isOOO || oooInfo.oooDays < 5) {
+    // Add category breakdowns in order
+    const designHours = categoryHours.design || 0;
+    const designPercent =
+      totalHours > 0 ? Math.round((designHours / totalHours) * 100) : 0;
+    const designEmoji = designHours > 0 ? "✅" : "❌";
+    summary += `${designEmoji} Design: ${designHours.toFixed(
+      1
+    )} hours (${designPercent}%)\n`;
+
+    // Coding
+    const codingHours = categoryHours.coding || 0;
+    const codingPercent =
+      totalHours > 0 ? Math.round((codingHours / totalHours) * 100) : 0;
+    const codingEmoji = codingHours > 0 ? "✅" : "❌";
+    summary += `${codingEmoji} Coding: ${codingHours.toFixed(
+      1
+    )} hours (${codingPercent}%)\n`;
+
+    // Review
+    const reviewHours = categoryHours.review || 0;
+    const reviewPercent =
+      totalHours > 0 ? Math.round((reviewHours / totalHours) * 100) : 0;
+    const reviewEmoji = reviewHours > 0 ? "✅" : "❌";
+    summary += `${reviewEmoji} Review: ${reviewHours.toFixed(
+      1
+    )} hours (${reviewPercent}%)\n`;
+
+    // QA
+    const qaHours = categoryHours.qa || 0;
+    const qaPercent =
+      totalHours > 0 ? Math.round((qaHours / totalHours) * 100) : 0;
+    const qaEmoji = qaHours > 0 ? "✅" : "❌";
+    summary += `${qaEmoji} QA: ${qaHours.toFixed(1)} hours (${qaPercent}%)\n`;
+
+    // Research
+    const researchHours = categoryHours.research || 0;
+    const researchPercent =
+      totalHours > 0 ? Math.round((researchHours / totalHours) * 100) : 0;
+    const researchEmoji = researchHours > 0 ? "✅" : "❌";
+    summary += `${researchEmoji} Research: ${researchHours.toFixed(
+      1
+    )} hours (${researchPercent}%)\n`;
+
+    // Rituals
+    const ritualsHours = categoryHours.rituals || 0;
+    const ritualsPercent =
+      totalHours > 0 ? Math.round((ritualsHours / totalHours) * 100) : 0;
+    const ritualsEmoji = ritualsPercent > 20 ? "⚠️" : "☑️";
+    summary += `${ritualsEmoji} Rituals: ${ritualsHours.toFixed(
+      1
+    )} hours (${ritualsPercent}%)\n`;
+  }
+
+  // Combine similar meeting titles
+  function combineSimilarMeetings(meetingLines) {
+    const meetingGroups = {};
+
+    meetingLines.forEach((line) => {
+      // Extract title and hours from the line
+      const match = line.match(/• (.+?) \((\d+\.?\d*)h\)/);
+      if (match) {
+        let title = match[1];
+        const hours = parseFloat(match[2]);
+
+        // Clean up the title for grouping
+        let cleanTitle = title;
+
+        // Remove attendee names and other variations
+        cleanTitle = cleanTitle.replace(/with [^,]+(?:, [^,]+)*/, "");
+        cleanTitle = cleanTitle.replace(/Jon <> [^:]+ ::: /, "");
+        cleanTitle = cleanTitle.replace(/^[^:]+ ::: /, "");
+
+        // Remove additional context after + or ::
+        cleanTitle = cleanTitle.replace(/\s*\+\s*[^,]+/, "");
+        cleanTitle = cleanTitle.replace(/\s*::\s*[^,]+/, "");
+
+        // Trim whitespace
+        cleanTitle = cleanTitle.trim();
+
+        // Convert to lowercase for matching duplicates
+        const cleanTitleLower = cleanTitle.toLowerCase();
+
+        if (!meetingGroups[cleanTitleLower]) {
+          meetingGroups[cleanTitleLower] = {
+            title: cleanTitle, // Keep original case for display
+            totalHours: 0,
+            count: 0,
+            originalTitles: [],
+          };
+        }
+
+        meetingGroups[cleanTitleLower].totalHours += hours;
+        meetingGroups[cleanTitleLower].count += 1;
+        meetingGroups[cleanTitleLower].originalTitles.push(title);
+      }
+    });
+
+    // Convert back to formatted lines
+    const combinedLines = Object.values(meetingGroups).map((group) => {
+      const hours = Math.round(group.totalHours * 10) / 10;
+      return `• ${group.title} (${hours}h)`;
+    });
+
+    return combinedLines;
+  }
+
+  // Add meetings section
+  summary += "\n===== MEETINGS =====\n";
+
+  // Extract meetings from Default Work Cal
+  const defaultSummary = summaries.default.summary;
+  if (
+    defaultSummary &&
+    !defaultSummary.includes("No Default Work events this week")
+  ) {
+    const lines = defaultSummary.split("\n");
+    const meetingLines = lines.filter((line) => line.startsWith("• "));
+
+    if (meetingLines.length > 0) {
+      // Combine similar meetings
+      const combinedMeetings = combineSimilarMeetings(meetingLines);
+
+      // Calculate total hours from combined meetings
+      const totalMeetingHours = combinedMeetings.reduce((total, line) => {
+        const match = line.match(/\((\d+\.?\d*)h\)/);
+        return total + (match ? parseFloat(match[1]) : 0);
+      }, 0);
+
+      summary += `${
+        combinedMeetings.length
+      } events, ${totalMeetingHours.toFixed(1)} hours\n`;
+
+      combinedMeetings.forEach((line) => {
+        summary += `${line}\n`;
+      });
+    } else {
+      summary += "0 events, 0.0 hours\n";
+    }
+  } else {
+    summary += "0 events, 0.0 hours\n";
+  }
+
+  // Add PRs section
+  summary += "\n===== PRs =====\n";
+  if (workPrSummary && !workPrSummary.includes("No work project commits")) {
+    // Extract PR titles from the Work PR Summary
+    const lines = workPrSummary.split("\n");
+    const prTitles = [];
+    let currentPrTitle = null;
+
+    lines.forEach((line) => {
+      // Look for lines that contain [X commits] - these are PR titles
+      if (line.match(/\[\d+ commits?\]/)) {
+        // This is a PR title line
+        currentPrTitle = line.trim();
+      } else if (line === "---" && currentPrTitle) {
+        // We hit a separator, so the previous title is complete
+        prTitles.push(currentPrTitle);
+        currentPrTitle = null;
+      }
+    });
+
+    // Don't forget the last PR if there's no trailing separator
+    if (currentPrTitle) {
+      prTitles.push(currentPrTitle);
+    }
+
+    // Add PR summary header
+    if (prCount > 0) {
+      summary += `${prCount} shipped, ${commitCount} commits\n`;
+    } else {
+      summary += "0 shipped, 0 commits\n";
+    }
+
+    // Add PR titles as bullets
+    if (prTitles.length > 0) {
+      prTitles.forEach((title) => {
+        summary += `• ${title}\n`;
+      });
+    } else {
+      summary += "No PRs shipped this week\n";
+    }
+  } else {
+    summary += "0 shipped, 0 commits\n";
+  }
+
+  return summary.trim();
 }
 
 // Generate work calendar evaluation
@@ -708,7 +1024,7 @@ async function processWeek(weekNumber) {
           // Legacy format - convert to new format
           workPrSummary = `Work PRs (${prData.length} PR${
             prData.length !== 1 ? "s" : ""
-          }):\n------\n`;
+          }):\n`;
           prData.forEach((pr, index) => {
             // Remove "brain-app -" from the title
             let cleanTitle = pr.title.replace(/^brain-app\s*-\s*/i, "");
@@ -753,6 +1069,16 @@ async function processWeek(weekNumber) {
       workEventsOnly
     );
 
+    // Log OOO information
+    const oooInfo = detectOOOEvents(workEventsOnly);
+    if (oooInfo.isOOO) {
+      console.log(
+        `🏝️ OOO detected: ${oooInfo.oooDays} days (${oooInfo.oooDayNames.join(
+          ", "
+        )})`
+      );
+    }
+
     // Update Notion with all work calendar fields
     console.log("📝 Updating Notion...");
     await updateAllSummaries(notion, weekPageId, {
@@ -765,6 +1091,11 @@ async function processWeek(weekNumber) {
       "Rituals Cal": summaries.rituals.summary,
       "Research Cal": summaries.research.summary,
       "Work PR Summary": workPrSummary,
+      "OOO Cal": oooInfo.isOOO
+        ? `OOO (${oooInfo.oooEvents.length} events, ${
+            oooInfo.oooDays
+          } days):\n${oooInfo.oooDayNames.join(", ")}`
+        : "OOO (0 events, 0 days):\nNo OOO events this week",
     });
 
     console.log(`✅ Week ${weekNumber} work calendar summary completed!`);
@@ -773,6 +1104,7 @@ async function processWeek(weekNumber) {
       workEvents: workEventsOnly.length,
       totalHours: summaries.default.totalHours,
       prs: prSummary.length,
+      oooDays: oooInfo.oooDays,
     };
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error.message);
