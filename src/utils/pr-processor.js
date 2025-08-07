@@ -197,7 +197,20 @@ async function processPREvents(events) {
 async function processWorkProjectEvents(workEvents, startDate, endDate) {
   console.log(`📥 Processing ${workEvents.length} work events for PRs...`);
 
-  // Filter for PR-related events
+  // If this is being called with calendar events that have descriptions (PR data calendar)
+  // Then use the enhanced processing
+  const hasDetailedPrData = workEvents.some(
+    (event) =>
+      event.description &&
+      (event.description.includes("📝 Commits:") ||
+        event.description.includes("🔀 PR:"))
+  );
+
+  if (hasDetailedPrData) {
+    return processDetailedWorkPREvents(workEvents);
+  }
+
+  // Legacy processing for basic PR detection
   const prEvents = workEvents.filter((event) => {
     const summary = event.summary.toLowerCase();
     const description = (event.description || "").toLowerCase();
@@ -237,6 +250,114 @@ async function processWorkProjectEvents(workEvents, startDate, endDate) {
   });
 
   return prs;
+}
+
+/**
+ * Process detailed work PR events with commit information
+ */
+function processDetailedWorkPREvents(events) {
+  console.log(`📥 Processing ${events.length} detailed work PR events...`);
+
+  // Group by PR using the same logic as regular PR processor
+  const prGroups = groupEventsByPR(events);
+  console.log(`📊 Grouped into ${Object.keys(prGroups).length} unique PRs`);
+
+  // Format for work PR summary with commit details
+  return formatWorkPRSummary(prGroups);
+}
+
+/**
+ * Format work PR summary with commits for Notion
+ */
+function formatWorkPRSummary(prGroups) {
+  const prArray = Object.values(prGroups);
+
+  if (prArray.length === 0) {
+    return "No work project commits this week.";
+  }
+
+  // Sort PRs by total commits (most active first)
+  prArray.sort((a, b) => b.totalCommits - a.totalCommits);
+
+  // Calculate totals for header
+  const totalPRs = prArray.length;
+  const totalCommits = prArray.reduce((sum, pr) => sum + pr.totalCommits, 0);
+
+  // Add header in the format: PRs (7 PRs, 34 commits):
+  let output = `PRs (${totalPRs} PR${
+    totalPRs !== 1 ? "s" : ""
+  }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):\n`;
+  output += "------\n";
+
+  prArray.forEach((pr, index) => {
+    // Add divider between PRs (except first one)
+    if (index > 0) {
+      output += "---\n";
+    }
+
+    // Clean the PR title (remove "brain-app -" prefix if present)
+    let cleanTitle = pr.prTitle.replace(/^brain-app\s*-\s*/i, "");
+
+    // PR Header: Title [X commits]
+    output += `${cleanTitle} [${pr.totalCommits} commit${
+      pr.totalCommits !== 1 ? "s" : ""
+    }]\n`;
+
+    // Process commits - combine all commit text and extract individual commits
+    let allCommitText = pr.commits.join(" ");
+
+    // Remove timestamps
+    allCommitText = removeTimestamps(allCommitText);
+
+    // Extract individual commits (limit to 5)
+    const commits = extractCommitsFromText(allCommitText);
+    const commitsToShow = commits.slice(0, 5);
+
+    if (commitsToShow.length > 0) {
+      output += commitsToShow.join(", ");
+
+      // Add truncation notice if there are more commits
+      if (commits.length > 5) {
+        output += ", ... (additional commits truncated)";
+      }
+    }
+
+    output += "\n";
+  });
+
+  return output.trim();
+}
+
+/**
+ * Extract individual commits from combined commit text
+ */
+function extractCommitsFromText(commitText) {
+  if (!commitText) return [];
+
+  // Try multiple approaches to split commits
+  let commits = [];
+
+  // First try: split by common delimiters and clean up
+  const rawCommits = commitText
+    .split(/[,\n•\-*]/)
+    .map((commit) => commit.trim())
+    .filter((commit) => commit.length > 0)
+    .filter((commit) => !commit.match(/^\d+:\d+/)) // Remove any remaining timestamps
+    .filter((commit) => commit.length > 10); // Filter out very short fragments
+
+  // Clean up each commit message
+  commits = rawCommits
+    .map((commit) => {
+      // Remove leading bullets or dashes
+      commit = commit.replace(/^[•\-*\s]+/, "");
+      // Remove trailing punctuation if it's just a period or comma
+      commit = commit.replace(/[.,]$/, "");
+      // Trim whitespace
+      return commit.trim();
+    })
+    .filter((commit) => commit.length > 0);
+
+  return commits;
 }
 
 module.exports = {

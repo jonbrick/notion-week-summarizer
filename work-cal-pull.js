@@ -212,15 +212,49 @@ function formatEventsForNotion(events, categoryKey) {
 // Build work summaries for each category
 function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
   if (!workEvents || workEvents.length === 0) {
-    const emptySummary = "No work events this week";
     return {
-      default: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
-      design: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
-      coding: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
-      review: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
-      qa: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
-      rituals: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
-      research: { summary: emptySummary, categoryStats: {}, totalHours: 0 },
+      default: {
+        summary:
+          "DEFAULT WORK (0 events, 0 hours):\n------\nNo Default Work events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
+      design: {
+        summary:
+          "DESIGN WORK (0 events, 0 hours):\n------\nNo Design Work events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
+      coding: {
+        summary:
+          "CODING & TICKETS (0 events, 0 hours):\n------\nNo Coding & Tickets events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
+      review: {
+        summary:
+          "REVIEW & FEEDBACK (0 events, 0 hours):\n------\nNo Review & Feedback events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
+      qa: {
+        summary:
+          "DESIGN & DEV QA (0 events, 0 hours):\n------\nNo Design & Dev QA events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
+      rituals: {
+        summary:
+          "RITUALS (0 events, 0 hours):\n------\nNo Rituals events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
+      research: {
+        summary:
+          "RESEARCH (0 events, 0 hours):\n------\nNo Research events this week",
+        categoryStats: {},
+        totalHours: 0,
+      },
     };
   }
 
@@ -306,7 +340,7 @@ function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
 function buildCategorySummary(events, categoryName, startDate, endDate) {
   if (!events || events.length === 0) {
     return {
-      summary: `Total ${categoryName} time: 0 hours\nNo ${categoryName} events this week`,
+      summary: `${categoryName.toUpperCase()} (0 events, 0 hours):\n------\nNo ${categoryName} events this week`,
       categoryStats: {},
       totalHours: 0,
     };
@@ -327,11 +361,20 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
     },
   };
 
-  // Build summary text
-  let summary = `Total ${categoryName} time: ${totalHours} hours\n`;
+  // Build summary text with new format
+  let summary = `${categoryName.toUpperCase()} (${events.length} ${
+    events.length === 1 ? "event" : "events"
+  }, ${totalHours} ${totalHours === 1 ? "hour" : "hours"}):\n------\n`;
+
+  // Sort events chronologically (earliest to latest)
+  const sortedEvents = [...events].sort((a, b) => {
+    const dateA = new Date(a.start);
+    const dateB = new Date(b.start);
+    return dateA.getTime() - dateB.getTime();
+  });
 
   // Add events
-  events.forEach((event) => {
+  sortedEvents.forEach((event) => {
     const eventMinutes = event.duration?.minutes || 0;
     const eventHours = Math.round((eventMinutes / 60) * 10) / 10;
 
@@ -462,9 +505,13 @@ function generateWorkCalEvaluation(
 
   // Parse total hours from Default Work Cal
   const defaultWorkCal = summaries.default.summary;
-  if (defaultWorkCal && !defaultWorkCal.includes("No work events this week")) {
+  if (
+    defaultWorkCal &&
+    !defaultWorkCal.includes("No Default Work events this week")
+  ) {
+    // New format: DEFAULT WORK (X events, Y hours):
     const totalMatch = defaultWorkCal.match(
-      /Total Default Work time: ([\d.]+) hours/
+      /DEFAULT WORK \(\d+ events?, ([\d.]+) hours?\):/
     );
     if (totalMatch) {
       totalHours = parseFloat(totalMatch[1]);
@@ -522,7 +569,10 @@ function generateWorkCalEvaluation(
   // Add meeting details
   let meetingHours = 0;
   let meetingLines = [];
-  if (defaultWorkCal && !defaultWorkCal.includes("No work events this week")) {
+  if (
+    defaultWorkCal &&
+    !defaultWorkCal.includes("No Default Work events this week")
+  ) {
     const lines = defaultWorkCal.split("\n");
     meetingLines = lines.filter((line) => line.startsWith("• "));
 
@@ -651,8 +701,11 @@ async function processWeek(weekNumber) {
       if (prEvents.length > 0) {
         const prData = await processWorkProjectEvents(prEvents);
 
-        // Format the PR data into a string
-        if (prData.length > 0) {
+        // If prData is a string (new detailed format), use it directly
+        if (typeof prData === "string") {
+          workPrSummary = prData;
+        } else if (Array.isArray(prData) && prData.length > 0) {
+          // Legacy format - convert to new format
           workPrSummary = `Work PRs (${prData.length} PR${
             prData.length !== 1 ? "s" : ""
           }):\n------\n`;
@@ -692,19 +745,13 @@ async function processWeek(weekNumber) {
       }
     }
 
-    // Generate evaluation
-    console.log("📊 Generating evaluation...");
-    const notionUpdates = [];
-    const evaluation = generateWorkCalEvaluation(
-      summaries.default.summary,
-      workPrSummary,
+    // Generate new simplified Work Cal Summary
+    console.log("📊 Generating Work Cal Summary...");
+    const fullSummary = generateSimplifiedWorkCalSummary(
       summaries,
-      workEventsOnly,
-      notionUpdates
+      workPrSummary,
+      workEventsOnly
     );
-
-    // Combine summary and evaluation for main summary
-    const fullSummary = summaries.default.summary + "\n\n" + evaluation;
 
     // Update Notion with all work calendar fields
     console.log("📝 Updating Notion...");

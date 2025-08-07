@@ -462,7 +462,7 @@ async function processWeek(weekNumber) {
 
     // Create main Personal Cal Summary
     const totalHours = totalMinutes / 60;
-    let personalCalSummary = `PERSONAL CAL SUMMARY:\n`;
+    let personalCalSummary = `PERSONAL CAL SUMMARY:\n------\n`;
     personalCalSummary += `Total: ${totalHours.toFixed(
       1
     )} hours (${totalEvents} events)\n`;
