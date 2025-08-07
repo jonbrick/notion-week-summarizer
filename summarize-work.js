@@ -11,7 +11,7 @@ const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 // Default week (will be overridden by user input)
 let TARGET_WEEK = 1;
 
-console.log("📊 Work Summary Generator (Parsing Only)");
+console.log("📊 Work Summary Generator (Reorganizing Only)");
 
 // Interactive mode function
 async function runInteractiveMode() {
@@ -79,499 +79,227 @@ async function fetchWeekData(weekNumber) {
   return weekData;
 }
 
-// Parse evaluation section from summary text
-function parseEvaluationSection(summaryText) {
-  if (!summaryText.includes("===== EVALUATION =====")) {
-    return [];
+// Extract section from summary text using regex
+function extractSection(summaryText, sectionName) {
+  // First try the original pattern
+  const pattern = new RegExp(`${sectionName}[\\s\\S]*?(?=\\n=====|$)`, "i");
+  const match = summaryText.match(pattern);
+  if (match) {
+    return match[0].trim();
   }
 
-  const evaluationSection = summaryText.split("===== EVALUATION =====")[1];
-  if (!evaluationSection) {
-    return [];
-  }
+  // If no match, try a more specific pattern for sections that might be at the end
+  const endPattern = new RegExp(`${sectionName}[\\s\\S]*`, "i");
+  const endMatch = summaryText.match(endPattern);
+  return endMatch ? endMatch[0].trim() : "";
+}
 
-  const lines = evaluationSection.split("\n");
-  const evaluations = [];
+// Extract tasks section with category breakdown
+function extractTasksWithHours(taskSummary, calSummary, prsData) {
+  // Extract tasks section from task summary
+  const tasksSection = extractSection(taskSummary, "===== TASKS =====");
+  if (!tasksSection) return "";
 
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (
-      trimmedLine.startsWith("✅") ||
-      trimmedLine.startsWith("❌") ||
-      trimmedLine.startsWith("⚠️") ||
-      trimmedLine.startsWith("🏝️")
-    ) {
-      evaluations.push({
-        type: trimmedLine.startsWith("✅") ? "good" : "bad",
-        text: trimmedLine.substring(2).trim(), // Remove the emoji and space
-        rawLine: trimmedLine,
-      });
-    }
-    // Also capture bullet points under main items (for meetings, PRs, etc.)
-    else if (trimmedLine.startsWith("•") && evaluations.length > 0) {
-      const lastEval = evaluations[evaluations.length - 1];
-      if (!lastEval.bullets) {
-        lastEval.bullets = [];
+  // Extract summary section from cal summary for hours
+  const calSummarySection = extractSection(calSummary, "===== SUMMARY =====");
+
+  // Parse hours from cal summary
+  const hoursMap = {};
+  if (calSummarySection) {
+    const lines = calSummarySection.split("\n");
+    lines.forEach((line) => {
+      const match = line.match(/([A-Za-z]+):\s*([\d.]+)\s*hours?\s*\((\d+)%\)/);
+      if (match) {
+        const category = match[1];
+        const hours = match[2];
+        const percent = match[3];
+        hoursMap[category] = { hours, percent };
       }
-      lastEval.bullets.push(trimmedLine.substring(1).trim()); // Remove bullet and space
-    }
+    });
   }
 
-  return evaluations;
-}
-
-// Clean meeting name by removing Jon references and formatting
-function cleanMeetingName(meetingName) {
-  // Remove time/duration info and (all day)
-  let cleaned = meetingName
-    .replace(/\s*\(\d+(?:\.\d+)?\s*hours?\)\s*$/, "")
-    .replace(/\s*\(\d+(?:\.\d+)?\s*minutes?\)\s*$/, "")
-    .replace(/\s*\(\d+:\d+(?::\d+)?\)\s*$/, "")
-    .replace(/\s*\(\d+:\d+\)\s*$/, "")
-    .replace(/\s*\(\d+(?:\.\d+)?\s*h\)\s*$/, "")
-    .replace(/\s*\(\d+(?:\.\d+)?\s*m\)\s*$/, "")
-    .replace(/\s*\(all day\)\s*$/i, "")
-    .trim();
-
-  // Handle "Jon <> Doug" or "Jon <> Zac" patterns
-  const jonPattern = /^Jon\s*<>\s*([^:]+)(?:\s*::\s*(.+))?$/;
-  const jonMatch = cleaned.match(jonPattern);
-  if (jonMatch) {
-    const person = jonMatch[1].trim();
-    const topic = jonMatch[2] ? jonMatch[2].trim() : "";
-    return topic ? `Met with ${person} (${topic})` : `Met with ${person}`;
-  }
-
-  // Handle "Jon/Christine" patterns
-  const jonSlashPattern = /^Jon\s*\/\s*([^:]+)(?:\s*::\s*(.+))?$/;
-  const jonSlashMatch = cleaned.match(jonSlashPattern);
-  if (jonSlashMatch) {
-    const person = jonSlashMatch[1].trim();
-    const topic = jonSlashMatch[2] ? jonSlashMatch[2].trim() : "";
-    return topic ? `Met with ${person} (${topic})` : `Met with ${person}`;
-  }
-
-  // Handle "Christine/Jon" patterns (reverse order)
-  const reverseSlashPattern = /^([^\/]+)\s*\/\s*Jon(?:\s*::\s*(.+))?$/;
-  const reverseSlashMatch = cleaned.match(reverseSlashPattern);
-  if (reverseSlashMatch) {
-    const person = reverseSlashMatch[1].trim();
-    const topic = reverseSlashMatch[2] ? reverseSlashMatch[2].trim() : "";
-    return topic ? `Met with ${person} (${topic})` : `Met with ${person}`;
-  }
-
-  // Convert present tense to past tense for meeting names
-  cleaned = cleaned
-    .replace(/\bPresent\b/g, "Presented")
-    .replace(/\bDemo\b/g, "Demoed")
-    .replace(/\bMap\b/g, "Mapped");
-
-  return cleaned;
-}
-
-// Clean PR title by removing hash numbers and formatting
-function cleanPRTitle(prTitle) {
-  return prTitle
-    .replace(/\s*\(#\d+\)\s*$/, "") // Remove (#123) at end
-    .replace(/\s*\[\d+\s+commits?\]\s*$/, "") // Remove [X commits] at end
-    .replace(/\s*\[[^\]]*\]\s*/g, "") // Remove anything in brackets
-    .replace(/\s*(?:CET|DSN)-\d+\s*/g, "") // Remove CET-Number and DSN-Number
-    .replace(/\s*&\s*(?:CET|DSN)-\d+\s*/g, "") // Remove & CET-Number and & DSN-Number
-    .replace(/\s*&\s*/g, "") // Remove any remaining ampersands
-    .trim();
-}
-
-// Clean warning messages for better readability
-function cleanWarningMessage(warningText) {
-  // Handle meeting time warnings
-  if (warningText.includes("MEETING TIME:")) {
-    // Extract hours and percentage from "⚠️ MEETING TIME: 23.5 hours (51%) [above 20% threshold]"
-    const match = warningText.match(
-      /MEETING TIME:\s*([\d.]+)\s*hours?\s*\((\d+)%\)/
+  // Parse PRs data
+  let prsCount = 0;
+  let commitCount = 0;
+  let prsList = [];
+  if (prsData) {
+    const prsLines = prsData.split("\n");
+    prsLines.forEach((line, index) => {
+      // Extract PR count from header like "1 shipped, 30 commits"
+      const headerMatch = line.match(/(\d+)\s+shipped,\s*(\d+)\s+commits/);
+      if (headerMatch) {
+        prsCount = parseInt(headerMatch[1]);
+        commitCount = parseInt(headerMatch[2]);
+      }
+      // Extract PR titles (lines starting with •)
+      if (line.trim().startsWith("•")) {
+        prsList.push(line.trim());
+      }
+    });
+    console.log(
+      `PRs parsed: ${prsCount} PRs, ${commitCount} commits, ${prsList.length} PR titles`
     );
-    if (match) {
-      const hours = match[1];
-      const percentage = match[2];
-      return `${hours} hours of meetings (${percentage}%)`;
-    }
   }
 
-  // Handle other warning patterns
-  if (warningText.includes("NO CODING TIME:")) {
-    return "No coding time this week";
-  }
+  // Parse tasks and add hours
+  const lines = tasksSection.split("\n");
+  let result = "===== TASKS =====\n";
+  let currentCategory = "";
+  let currentTasks = [];
 
-  if (warningText.includes("NO DESIGN TIME:")) {
-    return "No design time this week";
-  }
-
-  // For other warnings, just remove the ⚠️ and clean up
-  return warningText
-    .replace(/^⚠️\s*/, "") // Remove warning emoji
-    .replace(/\s*\[.*?\]\s*$/, "") // Remove bracketed explanations
-    .trim();
-}
-
-// Convert task names to past tense
-function makePastTense(taskNames) {
-  return taskNames
-    .replace(/\bStart\b/g, "Started")
-    .replace(/\bFinish\b/g, "Finished")
-    .replace(/\bClean\b/g, "Cleaned")
-    .replace(/\bSend\b/g, "Sent")
-    .replace(/\bCreate\b/g, "Created")
-    .replace(/\bUpdate\b/g, "Updated")
-    .replace(/\bFix\b/g, "Fixed")
-    .replace(/\bAdd\b/g, "Added")
-    .replace(/\bRemove\b/g, "Removed")
-    .replace(/\bImplement\b/g, "Implemented")
-    .replace(/\bDesign\b/g, "Designed")
-    .replace(/\bBuild\b/g, "Built")
-    .replace(/\bReview\b/g, "Reviewed")
-    .replace(/\bTest\b/g, "Tested")
-    .replace(/\bDeploy\b/g, "Deployed")
-    .replace(/\bSetup\b/g, "Set up")
-    .replace(/\bConfigure\b/g, "Configured")
-    .replace(/\bPresent\b/g, "Presented")
-    .replace(/\bMap\b/g, "Mapped")
-    .replace(/\bDemo\b/g, "Demoed")
-    .replace(/\bMapping\b/g, "Mapped");
-}
-
-// Extract specific care-abouts from evaluations
-function extractCareAbouts(taskEvals, calEvals) {
-  const careAbouts = {
-    good: [],
-    bad: [],
-  };
-
-  // NEW: Look for warning signs (⚠️) in both task and calendar evaluations
-  const allWarnings = [];
-
-  // Check task evaluations for warnings
-  taskEvals.forEach((eval) => {
-    if (eval.rawLine && eval.rawLine.includes("⚠️")) {
-      allWarnings.push(cleanWarningMessage(eval.text));
-    }
-  });
-
-  // Check calendar evaluations for warnings
-  calEvals.forEach((eval) => {
-    if (eval.rawLine && eval.rawLine.includes("⚠️")) {
-      allWarnings.push(cleanWarningMessage(eval.text));
-    }
-  });
-
-  // Add all warnings to bad items
-  careAbouts.bad.push(...allWarnings);
-
-  // 1. Rock status (from tasks) - TOP PRIORITY
-  const rockEvals = taskEvals.filter(
-    (e) =>
-      e.text.includes("ROCK ACHIEVED") ||
-      e.text.includes("ROCK PROGRESS") ||
-      e.text.includes("ROCK FAILED") ||
-      e.text.includes("ROCK LITTLE PROGRESS")
-  );
-
-  let rockText = "";
-  rockEvals.forEach((rock) => {
-    if (rock.type === "good" && rock.text.includes("ROCK ACHIEVED")) {
-      // Extract the goal text from "ROCK ACHIEVED: [goal text]"
-      const goalMatch = rock.text.match(/ROCK ACHIEVED:\s*(.+)/);
-      if (goalMatch) {
-        rockText = `Achieved goal of "${goalMatch[1].trim()}"`;
+  lines.forEach((line) => {
+    if (line.trim() && !line.startsWith("•")) {
+      // This is a category line - output previous category if exists
+      if (currentCategory && currentTasks.length > 0) {
+        // Add all tasks for the previous category
+        currentTasks.forEach((task) => {
+          result += `${task}\n`;
+        });
+        result += "\n"; // Add newline after all tasks for this category
       }
-    } else if (rock.type === "good" && rock.text.includes("ROCK PROGRESS")) {
-      // Extract the goal text from "ROCK PROGRESS: [goal text]"
-      const goalMatch = rock.text.match(/ROCK PROGRESS:\s*(.+)/);
-      if (goalMatch) {
-        rockText = `Made progress on ${goalMatch[1].trim()}`;
+
+      const categoryMatch = line.match(/^([A-Za-z]+)\s*\((\d+)\)/);
+      if (categoryMatch) {
+        currentCategory = categoryMatch[1];
+        const taskCount = categoryMatch[2];
+        const hours = hoursMap[currentCategory]?.hours || "0.0";
+        const percent = hoursMap[currentCategory]?.percent || "0";
+        const emoji = taskCount > 0 ? "✅" : "❌";
+
+        // Special handling for Coding category - combine with PRs
+        if (currentCategory === "Coding" && prsCount > 0) {
+          result += `${emoji} ${currentCategory}: ${taskCount} PR shipped, ${commitCount} commits, ${hours} hours (${percent}%)\n`;
+          // Add PRs immediately for Coding category
+          prsList.forEach((pr) => {
+            result += `${pr}\n`;
+          });
+          // Add extra newline after the last PR
+          result += "\n";
+        } else {
+          result += `${emoji} ${currentCategory}: ${taskCount} tasks, ${hours} hours (${percent}%)\n`;
+        }
+
+        // Reset tasks for new category
+        currentTasks = [];
       }
-    } else if (rock.type === "good") {
-      rockText = rock.text;
-    } else {
-      // Add rock failures to bad column (will be reordered later)
-      careAbouts.bad.push(rock.text);
-    }
-  });
-
-  // 2. OOO Days (from cal) - HIGH PRIORITY
-  const oooEval = calEvals.find((e) => e.text.includes("OOO:"));
-  let oooDays = 0;
-  if (oooEval) {
-    // Extract the number of days from the OOO text
-    const dayMatch = oooEval.text.match(/OOO: (\d+) Days?/);
-    if (dayMatch) {
-      oooDays = parseInt(dayMatch[1]);
-      const oooText = `🏝️ Out of office ${oooDays} day${
-        oooDays === 1 ? "" : "s"
-      } this week`;
-
-      if (oooDays === 1) {
-        // 1 day OOO goes in "what went well" at the top
-        careAbouts.good.unshift(oooText);
+    } else if (line.startsWith("•")) {
+      // This is a task line
+      // For Coding category, show PRs instead of regular tasks
+      if (currentCategory === "Coding" && prsList.length > 0) {
+        // Don't add regular coding tasks, we'll add PRs instead
       } else {
-        // Multiple days OOO goes in both columns at the top
-        careAbouts.good.unshift(oooText);
-        careAbouts.bad.unshift(oooText);
+        currentTasks.push(line);
       }
+    }
+  });
+
+  // Handle the last category
+  if (currentTasks.length > 0) {
+    // Add remaining tasks for the last category
+    currentTasks.forEach((task) => {
+      result += `${task}\n`;
+    });
+  }
+
+  // Add final newline if we had any content
+  if (currentCategory) {
+    result += "\n";
+  }
+
+  return result.trim();
+}
+
+// Extract summary section for "what didn't go well"
+function extractSummaryForBad(summaryText) {
+  const summarySection = extractSection(summaryText, "===== SUMMARY =====");
+  if (!summarySection) return "";
+
+  const lines = summarySection.split("\n");
+  let result = "===== SUMMARY =====\n";
+
+  lines.forEach((line) => {
+    if (line.includes("❌") || line.includes("☑️")) {
+      result += `${line}\n`;
+    }
+  });
+
+  return result.trim();
+}
+
+// Combine summaries into "what went well" and "what didn't go well"
+function combineSummaries(taskSummary, calSummary) {
+  const goodItems = [];
+  const badItems = [];
+
+  // Extract sections for "what went well"
+
+  // 1. EVENTS from task summary
+  const eventsSection = extractSection(taskSummary, "===== EVENTS =====");
+  if (eventsSection) {
+    goodItems.push(eventsSection);
+  }
+
+  // 2. ROCKS from task summary - separate good and bad
+  const rocksSection = extractSection(taskSummary, "===== ROCKS =====");
+  if (rocksSection) {
+    const lines = rocksSection.split("\n");
+    const goodRocks = [];
+    const badRocks = [];
+
+    lines.forEach((line) => {
+      if (line.includes("👾 Made progress")) {
+        goodRocks.push(line);
+      } else if (
+        line.includes("🥊 Went bad") ||
+        line.includes("🚧 Didn't go so well")
+      ) {
+        badRocks.push(line);
+      }
+    });
+
+    // Add good rocks to good items
+    if (goodRocks.length > 0) {
+      goodItems.push("===== ROCKS =====\n" + goodRocks.join("\n"));
+    }
+
+    // Add bad rocks to bad items
+    if (badRocks.length > 0) {
+      badItems.push("===== ROCKS =====\n" + badRocks.join("\n"));
     }
   }
 
-  // 3. Design Tasks (from tasks) - Format as "Designed [task name]"
-  const designTaskEval = taskEvals.find(
-    (e) => e.text.includes("DESIGN TASKS") || e.text.includes("NO DESIGN TASKS")
+  // 3. PRs from cal summary - will be combined with Coding tasks
+  const prsSection = extractSection(calSummary, "===== PRs =====");
+  let prsData = "";
+  if (prsSection) {
+    prsData = prsSection;
+    console.log("Found PRs section:", prsSection.substring(0, 100) + "...");
+  } else {
+    console.log("No PRs section found in cal summary");
+  }
+
+  // 4. TASKS with hours (combined from both summaries)
+  const tasksWithHours = extractTasksWithHours(
+    taskSummary,
+    calSummary,
+    prsData
   );
-  let designTasksText = "";
-  if (designTaskEval) {
-    if (designTaskEval.type === "good") {
-      // Extract task names
-      const taskMatch = designTaskEval.text.match(
-        /DESIGN TASKS:\s*\d+\s+completed\s*\(([^)]+)\)/
-      );
-      const taskNames = taskMatch ? taskMatch[1] : "";
-      if (taskNames) {
-        // Format as "Designed [first task]… [other tasks]"
-        const designTaskNames = taskNames.split(", ");
-        if (designTaskNames.length > 0) {
-          const firstTask = `Designed ${designTaskNames[0].trim()}`;
-          const otherTasks = designTaskNames
-            .slice(1)
-            .map((task) => task.trim());
-          designTasksText = [firstTask, ...otherTasks].join("… ");
-        }
-      }
-    } else {
-      // Clean up "NO DESIGN TASKS: 0 completed" to "No design tasks this week"
-      const cleanText = designTaskEval.text
-        .replace(
-          /^NO\s+DESIGN\s+TASKS:\s*\d+\s+completed$/i,
-          "No design tasks this week"
-        )
-        .replace(/^NO\s+DESIGN\s+TASKS$/i, "No design tasks this week");
-      careAbouts.bad.push(cleanText);
-    }
+  if (tasksWithHours) {
+    goodItems.push(tasksWithHours);
   }
 
-  // 4. Misc Meetings (from cal) - ALL meetings, condensed format in one paragraph
-  const meetingEval = calEvals.find((e) => e.text.includes("MEETINGS"));
-  let meetingsText = "";
-  if (meetingEval && meetingEval.type === "good" && meetingEval.bullets) {
-    // Clean and format meeting names, ensure they're in one paragraph
-    const cleanMeetingBullets = meetingEval.bullets.map(cleanMeetingName);
-    meetingsText = cleanMeetingBullets.join("… ");
+  // Extract sections for "what didn't go well"
+
+  // 1. Summary items with ❌ or ☑️
+  const badSummary = extractSummaryForBad(taskSummary);
+  if (badSummary) {
+    badItems.push(badSummary);
   }
 
-  // 5. Feedback Tasks (from tasks) - Format as "Feedback on [task name]"
-  const feedbackTaskEval = taskEvals.find(
-    (e) =>
-      e.text.includes("FEEDBACK TASKS") || e.text.includes("NO FEEDBACK TASKS")
-  );
-  let feedbackTasksText = "";
-  if (feedbackTaskEval) {
-    if (feedbackTaskEval.type === "good") {
-      // Extract task names
-      const taskMatch = feedbackTaskEval.text.match(
-        /FEEDBACK TASKS:\s*\d+\s+completed\s*\(([^)]+)\)/
-      );
-      const taskNames = taskMatch ? taskMatch[1] : "";
-      if (taskNames) {
-        // Format as "Feedback on [first task]… [other tasks]"
-        const feedbackTaskNames = taskNames.split(", ");
-        if (feedbackTaskNames.length > 0) {
-          const firstTask = `Feedback on ${feedbackTaskNames[0].trim()}`;
-          const otherTasks = feedbackTaskNames
-            .slice(1)
-            .map((task) => task.trim());
-          feedbackTasksText = [firstTask, ...otherTasks].join("… ");
-        }
-      }
-    } else {
-      // Clean up "NO FEEDBACK TASKS: 0 completed" to "No feedback tasks this week"
-      const cleanText = feedbackTaskEval.text
-        .replace(
-          /^NO\s+FEEDBACK\s+TASKS:\s*\d+\s+completed$/i,
-          "No feedback tasks this week"
-        )
-        .replace(/^NO\s+FEEDBACK\s+TASKS$/i, "No feedback tasks this week");
-      careAbouts.bad.push(cleanText);
-    }
-  }
-
-  // 6. Research Tasks (from tasks) - Format as "Researched [task name]"
-  const researchTaskEval = taskEvals.find(
-    (e) =>
-      e.text.includes("RESEARCH TASKS") || e.text.includes("NO RESEARCH TASKS")
-  );
-  let researchTasksText = "";
-  if (researchTaskEval) {
-    if (researchTaskEval.type === "good") {
-      // Extract task names
-      const taskMatch = researchTaskEval.text.match(
-        /RESEARCH TASKS:\s*\d+\s+completed\s*\(([^)]+)\)/
-      );
-      const taskNames = taskMatch ? taskMatch[1] : "";
-      if (taskNames) {
-        // Format as "Researched [first task]… [other tasks]"
-        const researchTaskNames = taskNames.split(", ");
-        if (researchTaskNames.length > 0) {
-          const firstTask = `Researched ${researchTaskNames[0].trim()}`;
-          const otherTasks = researchTaskNames
-            .slice(1)
-            .map((task) => task.trim());
-          researchTasksText = [firstTask, ...otherTasks].join("… ");
-        }
-      }
-    } else {
-      // Clean up "NO RESEARCH TASKS: 0 completed" to "No research tasks this week"
-      const cleanText = researchTaskEval.text
-        .replace(
-          /^NO\s+RESEARCH\s+TASKS:\s*\d+\s+completed$/i,
-          "No research tasks this week"
-        )
-        .replace(/^NO\s+RESEARCH\s+TASKS$/i, "No research tasks this week");
-      careAbouts.bad.push(cleanText);
-    }
-  }
-
-  // 7. QA Tasks (from tasks) - Format as "QA'd [task name]"
-  const qaTaskEval = taskEvals.find(
-    (e) => e.text.includes("QA TASKS") || e.text.includes("NO QA TASKS")
-  );
-  let qaTasksText = "";
-  if (qaTaskEval) {
-    if (qaTaskEval.type === "good") {
-      // Extract task names
-      const taskMatch = qaTaskEval.text.match(
-        /QA TASKS:\s*\d+\s+completed\s*\(([^)]+)\)/
-      );
-      const taskNames = taskMatch ? taskMatch[1] : "";
-      if (taskNames) {
-        // Format as "QA'd [first task]… [other tasks]"
-        const qaTaskNames = taskNames.split(", ");
-        if (qaTaskNames.length > 0) {
-          const firstTask = `QA'd ${qaTaskNames[0].trim()}`;
-          const otherTasks = qaTaskNames.slice(1).map((task) => task.trim());
-          qaTasksText = [firstTask, ...otherTasks].join("… ");
-        }
-      }
-    } else {
-      // Clean up "NO QA TASKS: 0 completed" to "No qa tasks this week"
-      const cleanText = qaTaskEval.text
-        .replace(
-          /^NO\s+QA\s+TASKS:\s*\d+\s+completed$/i,
-          "No qa tasks this week"
-        )
-        .replace(/^NO\s+QA\s+TASKS$/i, "No qa tasks this week");
-      careAbouts.bad.push(cleanText);
-    }
-  }
-
-  // 6. PRs shipped (from cal) - LAST, condensed format
-  const prEval = calEvals.find((e) => e.text.includes("PRs SHIPPED"));
-  let prsText = "";
-  if (prEval && prEval.type === "good" && prEval.bullets) {
-    // Extract PR count from header
-    const prCountMatch = prEval.text.match(/(\d+)\s+PRs?\s+SHIPPED/);
-    const prCount = prCountMatch ? prCountMatch[1] : "0";
-
-    // Clean PR titles
-    const cleanPRBullets = prEval.bullets.map(cleanPRTitle);
-
-    prsText = `${prCount} PRs SHIPPED (${cleanPRBullets.join("… ")})`;
-  } else if (prEval && prEval.type === "bad") {
-    // Clean up "NO PRs SHIPPED: 0 PRs this week" to "No PRs this week"
-    const cleanText = prEval.text
-      .replace(
-        /^NO\s+PRs?\s+SHIPPED:\s*0\s+PRs?\s+this\s+week$/i,
-        "No PRs this week"
-      )
-      .replace(
-        /^NO\s+PRs?\s+SHIPPED:\s*\d+\s+PRs?\s+this\s+week$/i,
-        "No PRs this week"
-      );
-    careAbouts.bad.push(cleanText);
-  }
-
-  // 7. Build the summary in the correct order: ROCK -> TASKS -> EVENTS -> PRS
-  const summaryItems = [];
-
-  // 1. ROCK (first!)
-  if (rockText) {
-    summaryItems.push(rockText + "…");
-  }
-
-  // 2. TASK SUMMARY - Each task type gets its own paragraph
-  // Add design tasks
-  if (designTasksText) {
-    summaryItems.push(designTasksText + "…");
-  }
-
-  // Add feedback tasks
-  if (feedbackTasksText) {
-    summaryItems.push(feedbackTasksText + "…");
-  }
-
-  // Add research tasks
-  if (researchTasksText) {
-    summaryItems.push(researchTasksText + "…");
-  }
-
-  // Add QA tasks
-  if (qaTasksText) {
-    summaryItems.push(qaTasksText + "…");
-  }
-
-  // 3. CAL EVENTS (meetings only) - All meetings in one paragraph
-  if (meetingsText) {
-    summaryItems.push(meetingsText + "…");
-  }
-
-  // 7. PRS SHIPPED
-  if (prsText) {
-    summaryItems.push(prsText);
-  }
-
-  // Combine everything with proper spacing
-  if (summaryItems.length > 0) {
-    careAbouts.good.unshift(summaryItems.join("\n\n"));
-  }
-
-  // 8. OOO Cleanup - If 5+ days OOO, remove all bad items except OOO itself
-  if (oooDays >= 5) {
-    // Keep only the OOO entry in bad items
-    const oooBadItem = careAbouts.bad.find((item) =>
-      item.includes("Out of office")
-    );
-    careAbouts.bad = oooBadItem ? [oooBadItem] : [];
-  }
-
-  // 9. Ensure OOO is always at the top of both columns
-  if (oooDays > 0) {
-    const oooText = `🏝️ Out of office ${oooDays} day${
-      oooDays === 1 ? "" : "s"
-    } this week`;
-
-    // Remove any existing OOO entries
-    careAbouts.good = careAbouts.good.filter(
-      (item) => !item.includes("Out of office")
-    );
-    careAbouts.bad = careAbouts.bad.filter(
-      (item) => !item.includes("Out of office")
-    );
-
-    // Add OOO at the top of both columns
-    careAbouts.good.unshift(oooText);
-    careAbouts.bad.unshift(oooText);
-  }
-
-  // 10. Handle empty bad items
-  if (careAbouts.bad.length === 0) {
-    careAbouts.bad.push("(Nothing of note)");
-  }
-
-  return careAbouts;
+  return {
+    good: goodItems,
+    bad: badItems,
+  };
 }
 
 // Update Notion with parsed summaries
@@ -607,36 +335,31 @@ async function processSummary(weekNumber) {
     const weekData = await fetchWeekData(weekNumber);
     console.log(`✅ Found Week ${weekNumber} data!`);
 
-    // Parse evaluation sections
-    console.log("📊 Parsing evaluation sections...");
-    const taskEvaluations = parseEvaluationSection(weekData.workTaskSummary);
-    const calEvaluations = parseEvaluationSection(weekData.workCalSummary);
+    // Combine summaries
+    console.log("📊 Combining summaries...");
+    const combined = combineSummaries(
+      weekData.workTaskSummary,
+      weekData.workCalSummary
+    );
 
-    console.log(`   Task evaluations found: ${taskEvaluations.length}`);
-    console.log(`   Calendar evaluations found: ${calEvaluations.length}`);
-
-    // Extract care-abouts
-    console.log("🎯 Extracting care-abouts...");
-    const careAbouts = extractCareAbouts(taskEvaluations, calEvaluations);
-
-    console.log(`   Good items: ${careAbouts.good.length}`);
-    console.log(`   Bad items: ${careAbouts.bad.length}`);
+    console.log(`   Good items: ${combined.good.length}`);
+    console.log(`   Bad items: ${combined.bad.length}`);
 
     // Show preview
     console.log("\n📄 Summary Preview:");
     console.log("================");
     console.log("What went well:");
-    careAbouts.good.forEach((item, idx) => {
+    combined.good.forEach((item, idx) => {
       console.log(`${idx + 1}. ${item.split("\n")[0]}...`);
     });
     console.log("\nWhat didn't go well:");
-    careAbouts.bad.forEach((item, idx) => {
+    combined.bad.forEach((item, idx) => {
       console.log(`${idx + 1}. ${item}`);
     });
 
     // Update Notion
     console.log("\n📝 Updating Notion...");
-    await updateNotionSummary(weekData.id, careAbouts.good, careAbouts.bad);
+    await updateNotionSummary(weekData.id, combined.good, combined.bad);
     console.log(`✅ Successfully updated Week ${weekNumber} summary!`);
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error.message);
