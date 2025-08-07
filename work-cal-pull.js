@@ -268,10 +268,20 @@ function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
   // Build summaries for each category
   const summaries = {};
 
-  // Default Work Cal
+  // Default Work Cal - filter out OOO/PTO events
   const defaultEvents = eventsByCategory["default"] || [];
+  const filteredDefaultEvents = defaultEvents.filter((event) => {
+    const eventTitle = event.summary.toLowerCase();
+    return !(
+      eventTitle.includes("out of office") ||
+      eventTitle.includes("ooo") ||
+      eventTitle.includes("vacation") ||
+      eventTitle.includes("pto") ||
+      eventTitle.includes("jb ooo")
+    );
+  });
   summaries.default = buildCategorySummary(
-    defaultEvents,
+    filteredDefaultEvents,
     "Default Work",
     startDate,
     endDate
@@ -334,6 +344,100 @@ function buildWorkSummariesByCategory(workEvents, startDate, endDate) {
   return summaries;
 }
 
+// Helper function to determine if we should add attendees to an event title
+function shouldAddAttendees(event) {
+  if (!event.attendees || event.attendees.length === 0) {
+    return false;
+  }
+
+  const eventTitle = event.summary.toLowerCase();
+
+  // Rule 1: If "Jon" is in the invite title, don't add attendees
+  if (eventTitle.includes("jon")) {
+    return false;
+  }
+
+  // Get other attendees (excluding yourself)
+  const otherAttendees = event.attendees.filter((attendee) => !attendee.self);
+
+  // Rule 2: If more than 4 attendees, don't add attendees
+  if (otherAttendees.length > 4) {
+    return false;
+  }
+
+  // Rule 3: Check for team emails (like insights@cortex.io)
+  const hasTeamAttendees = event.attendees.some((attendee) => {
+    const email = attendee.email || attendee.displayName || "";
+
+    // Check if it's an email address
+    if (email.includes("@")) {
+      const emailPrefix = email.split("@")[0];
+
+      // Team emails typically don't have personal name patterns
+      // Personal: "chelsea.hohmann", "john.doe", "sarah.smith"
+      // Team: "insights", "engineering", "support", "team"
+
+      // If email prefix doesn't contain a dot or personal name patterns, likely a team
+      if (!emailPrefix.includes(".")) {
+        return true; // insights@cortex.io, team@cortex.io, etc.
+      }
+
+      // Check if it looks like a personal name (firstname.lastname pattern)
+      const parts = emailPrefix.split(".");
+      if (parts.length === 2) {
+        // Both parts should look like names (letters only, reasonable length)
+        const [first, last] = parts;
+        const isPersonalName =
+          first.length >= 2 &&
+          first.length <= 15 &&
+          last.length >= 2 &&
+          last.length <= 15 &&
+          /^[a-zA-Z]+$/.test(first) &&
+          /^[a-zA-Z]+$/.test(last);
+
+        return !isPersonalName; // If it doesn't look like a personal name, it's likely a team
+      }
+
+      // More than 2 parts or other patterns - likely team
+      return parts.length !== 2;
+    }
+
+    return false;
+  });
+
+  // If there are team attendees, don't add individual names
+  if (hasTeamAttendees) {
+    return false;
+  }
+
+  // If we get here, we should add attendees
+  return true;
+}
+
+// Helper function to format attendee names
+function formatAttendeeNames(attendees) {
+  return attendees
+    .filter((attendee) => !attendee.self) // Exclude yourself
+    .map((attendee) => {
+      let name = attendee.displayName || attendee.email || "Unknown";
+
+      // Handle email addresses (extract first name from email)
+      if (name.includes("@")) {
+        const emailName = name.split("@")[0];
+        // Convert email format to proper name (e.g., "chelsea.hohmann" -> "Chelsea")
+        const firstName = emailName.split(".")[0];
+        name =
+          firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+      } else {
+        // Handle regular names - get first name only
+        name = name.split(" ")[0];
+      }
+
+      return name;
+    })
+    .filter((name) => name && name !== "Unknown" && name.length > 1);
+}
+
 // Build summary for a specific category
 function buildCategorySummary(events, categoryName, startDate, endDate) {
   if (!events || events.length === 0) {
@@ -376,91 +480,13 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
     const eventMinutes = event.duration?.minutes || 0;
     const eventHours = Math.round((eventMinutes / 60) * 10) / 10;
 
-    // Enhance event title with attendee names for small meetings
+    // Enhance event title with attendee names based on new rules
     let enhancedTitle = event.summary;
-    if (event.attendees && event.attendees.length > 0) {
-      const attendeeCount = event.attendees.length;
-      const eventTitle = event.summary.toLowerCase();
 
-      // Only enhance if 2-3 attendees (excluding yourself) and "Jon" is not in the title
-      const otherAttendeeCount = event.attendees.filter(
-        (attendee) => !attendee.self
-      ).length;
-      if (
-        otherAttendeeCount >= 1 &&
-        otherAttendeeCount <= 2 &&
-        !eventTitle.includes("jon")
-      ) {
-        // First, check if there are any team/group emails in the attendees
-        const hasTeamAttendees = event.attendees.some((attendee) => {
-          const email = attendee.email || attendee.displayName || "";
-
-          // Check if it's an email address
-          if (email.includes("@")) {
-            const emailPrefix = email.split("@")[0];
-
-            // Team emails typically don't have personal name patterns
-            // Personal: "chelsea.hohmann", "john.doe", "sarah.smith"
-            // Team: "insights", "engineering", "support", "team"
-
-            // If email prefix doesn't contain a dot or personal name patterns, likely a team
-            if (!emailPrefix.includes(".")) {
-              return true; // insights@cortex.io, team@cortex.io, etc.
-            }
-
-            // Check if it looks like a personal name (firstname.lastname pattern)
-            const parts = emailPrefix.split(".");
-            if (parts.length === 2) {
-              // Both parts should look like names (letters only, reasonable length)
-              const [first, last] = parts;
-              const isPersonalName =
-                first.length >= 2 &&
-                first.length <= 15 &&
-                last.length >= 2 &&
-                last.length <= 15 &&
-                /^[a-zA-Z]+$/.test(first) &&
-                /^[a-zA-Z]+$/.test(last);
-
-              return !isPersonalName; // If it doesn't look like a personal name, it's likely a team
-            }
-
-            // More than 2 parts or other patterns - likely team
-            return parts.length !== 2;
-          }
-
-          return false;
-        });
-
-        // If there are team attendees, don't add individual names
-        if (!hasTeamAttendees) {
-          const otherAttendees = event.attendees
-            .filter((attendee) => !attendee.self) // Exclude yourself
-            .map((attendee) => {
-              let name = attendee.displayName || attendee.email || "Unknown";
-
-              // Handle email addresses (extract first name from email)
-              if (name.includes("@")) {
-                const emailName = name.split("@")[0];
-                // Convert email format to proper name (e.g., "chelsea.hohmann" -> "Chelsea")
-                const firstName = emailName.split(".")[0];
-                name =
-                  firstName.charAt(0).toUpperCase() +
-                  firstName.slice(1).toLowerCase();
-              } else {
-                // Handle regular names - get first name only
-                name = name.split(" ")[0];
-              }
-
-              return name;
-            })
-            .filter((name) => name && name !== "Unknown" && name.length > 1);
-
-          if (otherAttendees.length > 0) {
-            enhancedTitle = `${event.summary} with ${otherAttendees.join(
-              ", "
-            )}`;
-          }
-        }
+    if (shouldAddAttendees(event)) {
+      const attendeeNames = formatAttendeeNames(event.attendees);
+      if (attendeeNames.length > 0) {
+        enhancedTitle = `${event.summary} with ${attendeeNames.join(", ")}`;
       }
     }
 
@@ -621,6 +647,15 @@ function generateSimplifiedWorkCalSummary(
       1
     )} hours (${codingPercent}%)\n`;
 
+    // Research
+    const researchHours = categoryHours.research || 0;
+    const researchPercent =
+      totalHours > 0 ? Math.round((researchHours / totalHours) * 100) : 0;
+    const researchEmoji = researchHours > 0 ? "✅" : "❌";
+    summary += `${researchEmoji} Research: ${researchHours.toFixed(
+      1
+    )} hours (${researchPercent}%)\n`;
+
     // Review
     const reviewHours = categoryHours.review || 0;
     const reviewPercent =
@@ -637,14 +672,14 @@ function generateSimplifiedWorkCalSummary(
     const qaEmoji = qaHours > 0 ? "✅" : "❌";
     summary += `${qaEmoji} QA: ${qaHours.toFixed(1)} hours (${qaPercent}%)\n`;
 
-    // Research
-    const researchHours = categoryHours.research || 0;
-    const researchPercent =
-      totalHours > 0 ? Math.round((researchHours / totalHours) * 100) : 0;
-    const researchEmoji = researchHours > 0 ? "✅" : "❌";
-    summary += `${researchEmoji} Research: ${researchHours.toFixed(
+    // Default
+    const defaultHours = categoryHours.default || 0;
+    const defaultPercent =
+      totalHours > 0 ? Math.round((defaultHours / totalHours) * 100) : 0;
+    const defaultEmoji = "☑️";
+    summary += `${defaultEmoji} Default: ${defaultHours.toFixed(
       1
-    )} hours (${researchPercent}%)\n`;
+    )} hours (${defaultPercent}%)\n`;
 
     // Rituals
     const ritualsHours = categoryHours.rituals || 0;
@@ -656,8 +691,8 @@ function generateSimplifiedWorkCalSummary(
     )} hours (${ritualsPercent}%)\n`;
   }
 
-  // Combine similar meeting titles
-  function combineSimilarMeetings(meetingLines) {
+  // Combine similar meeting titles while preserving attendee names
+  function combineSimilarMeetingsWithAttendees(meetingLines) {
     const meetingGroups = {};
 
     meetingLines.forEach((line) => {
@@ -667,10 +702,10 @@ function generateSimplifiedWorkCalSummary(
         let title = match[1];
         const hours = parseFloat(match[2]);
 
-        // Clean up the title for grouping
+        // Clean up the title for grouping (but preserve attendee names)
         let cleanTitle = title;
 
-        // Remove attendee names and other variations
+        // Remove attendee names for grouping purposes only
         cleanTitle = cleanTitle.replace(/with [^,]+(?:, [^,]+)*/, "");
         cleanTitle = cleanTitle.replace(/Jon <> [^:]+ ::: /, "");
         cleanTitle = cleanTitle.replace(/^[^:]+ ::: /, "");
@@ -691,19 +726,38 @@ function generateSimplifiedWorkCalSummary(
             totalHours: 0,
             count: 0,
             originalTitles: [],
+            attendeeGroups: [], // Track different attendee combinations
           };
         }
 
         meetingGroups[cleanTitleLower].totalHours += hours;
         meetingGroups[cleanTitleLower].count += 1;
         meetingGroups[cleanTitleLower].originalTitles.push(title);
+
+        // Extract attendee information for this instance
+        const attendeeMatch = title.match(/with (.+)$/);
+        if (attendeeMatch) {
+          const attendees = attendeeMatch[1];
+          if (
+            !meetingGroups[cleanTitleLower].attendeeGroups.includes(attendees)
+          ) {
+            meetingGroups[cleanTitleLower].attendeeGroups.push(attendees);
+          }
+        }
       }
     });
 
     // Convert back to formatted lines
     const combinedLines = Object.values(meetingGroups).map((group) => {
       const hours = Math.round(group.totalHours * 10) / 10;
-      return `• ${group.title} (${hours}h)`;
+
+      // If there are multiple attendee groups, combine them
+      if (group.attendeeGroups.length > 0) {
+        const allAttendees = group.attendeeGroups.join(", ");
+        return `• ${group.title} with ${allAttendees} (${hours}h)`;
+      } else {
+        return `• ${group.title} (${hours}h)`;
+      }
     });
 
     return combinedLines;
@@ -712,7 +766,7 @@ function generateSimplifiedWorkCalSummary(
   // Add meetings section
   summary += "\n===== MEETINGS =====\n";
 
-  // Extract meetings from Default Work Cal
+  // Use the Default Work Cal content directly (which has proper attendee names)
   const defaultSummary = summaries.default.summary;
   if (
     defaultSummary &&
@@ -722,10 +776,11 @@ function generateSimplifiedWorkCalSummary(
     const meetingLines = lines.filter((line) => line.startsWith("• "));
 
     if (meetingLines.length > 0) {
-      // Combine similar meetings
-      const combinedMeetings = combineSimilarMeetings(meetingLines);
+      // Combine similar meetings while preserving attendee names
+      const combinedMeetings =
+        combineSimilarMeetingsWithAttendees(meetingLines);
 
-      // Calculate total hours from combined meetings
+      // Calculate total hours from the combined meetings
       const totalMeetingHours = combinedMeetings.reduce((total, line) => {
         const match = line.match(/\((\d+\.?\d*)h\)/);
         return total + (match ? parseFloat(match[1]) : 0);
@@ -735,6 +790,7 @@ function generateSimplifiedWorkCalSummary(
         combinedMeetings.length
       } events, ${totalMeetingHours.toFixed(1)} hours\n`;
 
+      // Use the combined meeting lines
       combinedMeetings.forEach((line) => {
         summary += `${line}\n`;
       });

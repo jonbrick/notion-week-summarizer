@@ -345,12 +345,12 @@ function generateTaskEvaluation(tasksByType, rocks, eventsFormatted) {
     evaluations.push(`✅ QA TASKS: ${qaCount} completed (${taskNames})`);
   }
 
-  // Check for feedback tasks (good when present, not bad when absent)
-  const feedbackCount = tasksByType["Feedback"]?.length || 0;
-  if (feedbackCount > 0) {
-    const taskNames = tasksByType["Feedback"].map((t) => t.title).join(", ");
+  // Check for review tasks (good when present, not bad when absent)
+  const reviewCount = tasksByType["Review"]?.length || 0;
+  if (reviewCount > 0) {
+    const taskNames = tasksByType["Review"].map((t) => t.title).join(", ");
     evaluations.push(
-      `✅ FEEDBACK TASKS: ${feedbackCount} completed (${taskNames})`
+      `✅ REVIEW TASKS: ${reviewCount} completed (${taskNames})`
     );
   }
 
@@ -535,7 +535,7 @@ function generateWorkTaskSummary(
     "Design",
     "Coding",
     "Research",
-    "Feedback",
+    "Review",
     "QA",
     "Admin",
     "Social",
@@ -773,7 +773,7 @@ async function processWeek(weekNumber) {
       "Research",
       "Design",
       "Coding",
-      "Feedback",
+      "Review",
       "QA",
       "Admin",
       "Social",
@@ -795,11 +795,11 @@ async function processWeek(weekNumber) {
       let category =
         task.properties["Work Category"]?.select?.name || "No Category";
 
-      // Smart matching for Admin and Feedback
+      // Smart matching for Admin and Review
       if (category.includes("Admin")) {
         category = "Admin";
       } else if (category.includes("Crit")) {
-        category = "Feedback";
+        category = "Review";
       }
 
       // Only add to predefined categories, ignore others
