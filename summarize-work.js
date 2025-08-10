@@ -125,8 +125,8 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
   if (prsData) {
     const prsLines = prsData.split("\n");
     prsLines.forEach((line, index) => {
-      // Extract PR count from header like "1 shipped, 30 commits"
-      const headerMatch = line.match(/(\d+)\s+shipped,\s*(\d+)\s+commits/);
+      // Extract PR count from header like "1 shipped, 1 commits" or "1 shipped, 30 commits"
+      const headerMatch = line.match(/(\d+)\s+shipped,\s*(\d+)\s+commits?/);
       if (headerMatch) {
         prsCount = parseInt(headerMatch[1]);
         commitCount = parseInt(headerMatch[2]);
@@ -168,7 +168,7 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
 
         // Special handling for Coding category - combine with PRs
         if (currentCategory === "Coding" && prsCount > 0) {
-          result += `${emoji} ${currentCategory}: ${taskCount} PR shipped, ${commitCount} commits, ${hours} hours (${percent}%)\n`;
+          result += `${emoji} ${currentCategory}: ${prsCount} PR shipped, ${commitCount} commits, ${hours} hours (${percent}%)\n`;
           // Add PRs immediately for Coding category
           prsList.forEach((pr) => {
             result += `${pr}\n`;

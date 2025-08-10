@@ -127,6 +127,12 @@ async function fetchWeekEvents(startDate, endDate) {
                     equals: "🏝️ Work OOO",
                   },
                 },
+                {
+                  property: "Event Type",
+                  select: {
+                    equals: "🚀 Work Milestone",
+                  },
+                },
               ],
             },
           },

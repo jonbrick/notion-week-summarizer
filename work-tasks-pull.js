@@ -141,6 +141,12 @@ async function fetchWeekEvents(startDate, endDate) {
                   equals: "🏝️ Work OOO",
                 },
               },
+              {
+                property: "Event Type",
+                select: {
+                  equals: "🚀 Work Milestone",
+                },
+              },
             ],
           },
         ],
@@ -639,7 +645,7 @@ function formatWorkActivitySummary(tasks) {
     // Smart matching for categories
     if (category.includes("Admin")) {
       category = "Admin";
-    } else if (category.includes("Crit") || category.includes("Feedback")) {
+    } else if (category.includes("Crit") || category.includes("Review")) {
       category = "Review";
     }
 
