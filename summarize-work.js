@@ -146,6 +146,7 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
   let result = "===== TASKS =====\n";
   let currentCategory = "";
   let currentTasks = [];
+  let processedCategories = new Set();
 
   lines.forEach((line) => {
     if (line.trim() && !line.startsWith("•")) {
@@ -165,6 +166,7 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
         const hours = hoursMap[currentCategory]?.hours || "0.0";
         const percent = hoursMap[currentCategory]?.percent || "0";
         const emoji = taskCount > 0 ? "✅" : "❌";
+        processedCategories.add(currentCategory);
 
         // Special handling for Coding category - combine with PRs
         if (currentCategory === "Coding" && prsCount > 0) {
@@ -177,6 +179,8 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
           result += "\n";
         } else {
           result += `${emoji} ${currentCategory}: ${taskCount} tasks, ${hours} hours (${percent}%)\n`;
+          // For non-Coding categories, we'll add tasks later, but we need to ensure
+          // we have a newline after the category header for proper spacing
         }
 
         // Reset tasks for new category
@@ -199,10 +203,24 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
     currentTasks.forEach((task) => {
       result += `${task}\n`;
     });
+    // Add newline after the last category's tasks
+    result += "\n";
+  }
+
+  // Special case: If we have PRs but no Coding category was processed, add it
+  if (prsCount > 0 && !processedCategories.has("Coding")) {
+    const hours = hoursMap["Coding"]?.hours || "0.0";
+    const percent = hoursMap["Coding"]?.percent || "0";
+    result += `✅ Coding: ${prsCount} PR shipped, ${commitCount} commits, ${hours} hours (${percent}%)\n`;
+    // Add PRs immediately for Coding category
+    prsList.forEach((pr) => {
+      result += `${pr}\n`;
+    });
+    result += "\n";
   }
 
   // Add final newline if we had any content
-  if (currentCategory) {
+  if (currentCategory || prsCount > 0) {
     result += "\n";
   }
 
@@ -210,7 +228,7 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
 }
 
 // Extract summary section for "what didn't go well"
-function extractSummaryForBad(summaryText) {
+function extractSummaryForBad(summaryText, hasPRs = false) {
   const summarySection = extractSection(summaryText, "===== SUMMARY =====");
   if (!summarySection) return "";
 
@@ -219,6 +237,10 @@ function extractSummaryForBad(summaryText) {
 
   lines.forEach((line) => {
     if (line.includes("❌")) {
+      // Skip Coding category if there are PRs
+      if (hasPRs && line.includes("Coding:")) {
+        return;
+      }
       result += `${line}\n`;
     }
   });
@@ -291,7 +313,7 @@ function combineSummaries(taskSummary, calSummary) {
   // Extract sections for "what didn't go well"
 
   // 1. Summary items with ❌ or ☑️
-  const badSummary = extractSummaryForBad(taskSummary);
+  const badSummary = extractSummaryForBad(taskSummary, prsData.length > 0);
   if (badSummary) {
     badItems.push(badSummary);
   }
