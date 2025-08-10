@@ -228,7 +228,7 @@ function extractTasksWithHours(taskSummary, calSummary, prsData) {
 }
 
 // Extract summary section for "what didn't go well"
-function extractSummaryForBad(summaryText, hasPRs = false) {
+function extractSummaryForBad(summaryText, hasPRs = false, prsCount = 0) {
   const summarySection = extractSection(summaryText, "===== SUMMARY =====");
   if (!summarySection) return "";
 
@@ -237,9 +237,16 @@ function extractSummaryForBad(summaryText, hasPRs = false) {
 
   lines.forEach((line) => {
     if (line.includes("❌")) {
-      // Skip Coding category if there are PRs
-      if (hasPRs && line.includes("Coding:")) {
-        return;
+      // For Coding category: only skip if there are actual PRs shipped
+      if (line.includes("Coding:")) {
+        if (prsCount > 0) {
+          // Skip if there are PRs (it's shown in TASKS section)
+          return;
+        } else {
+          // Show as "0 PRs" instead of "0 tasks"
+          result += line.replace("0 tasks", "0 PRs") + "\n";
+          return;
+        }
       }
       result += `${line}\n`;
     }
@@ -293,9 +300,19 @@ function combineSummaries(taskSummary, calSummary) {
   // 3. PRs from cal summary - will be combined with Coding tasks
   const prsSection = extractSection(calSummary, "===== PRs =====");
   let prsData = "";
+  let prsCount = 0;
   if (prsSection) {
     prsData = prsSection;
     console.log("Found PRs section:", prsSection.substring(0, 100) + "...");
+
+    // Extract PR count from header like "1 shipped, 1 commits" or "1 shipped, 30 commits"
+    const prsLines = prsSection.split("\n");
+    prsLines.forEach((line) => {
+      const headerMatch = line.match(/(\d+)\s+shipped,\s*(\d+)\s+commits?/);
+      if (headerMatch) {
+        prsCount = parseInt(headerMatch[1]);
+      }
+    });
   } else {
     console.log("No PRs section found in cal summary");
   }
@@ -313,7 +330,11 @@ function combineSummaries(taskSummary, calSummary) {
   // Extract sections for "what didn't go well"
 
   // 1. Summary items with ❌ or ☑️
-  const badSummary = extractSummaryForBad(taskSummary, prsData.length > 0);
+  const badSummary = extractSummaryForBad(
+    taskSummary,
+    prsData.length > 0,
+    prsCount
+  );
   if (badSummary) {
     badItems.push(badSummary);
   }
