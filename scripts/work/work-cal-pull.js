@@ -502,6 +502,8 @@ function buildCategorySummary(events, categoryName, startDate, endDate) {
 
 // Check for OOO events
 function detectOOOEvents(workEvents) {
+  console.log(`🔍 Filtering ${workEvents.length} events for OOO patterns...`);
+
   const oooEvents = workEvents.filter(
     (event) =>
       event.summary.toLowerCase().includes("out of office") ||
@@ -512,6 +514,13 @@ function detectOOOEvents(workEvents) {
       event.summary.toLowerCase().includes("jb ooo") ||
       event.summary.toLowerCase().includes("out of office")
   );
+
+  console.log(`🔍 Found ${oooEvents.length} OOO events:`);
+  oooEvents.forEach((event, index) => {
+    console.log(
+      `   ${index + 1}. "${event.summary}" (${event.start} to ${event.end})`
+    );
+  });
 
   // Calculate actual OOO days by checking start and end dates
   const oooDays = new Set();
@@ -535,23 +544,69 @@ function detectOOOEvents(workEvents) {
       );
       endDate = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2]));
 
-      // For all-day events, the end date is exclusive, so we need to handle it differently
-      endDate.setUTCDate(endDate.getUTCDate() - 1);
+      // For all-day events, the end date is exclusive, so we need to handle it correctly
+      // Don't subtract 1 day - the end date is already the last day of the event
     }
 
-    // Iterate through the date range
-    const currentDate = new Date(startDate);
+    console.log(`🔍 OOO Event: "${event.summary}"`);
+    console.log(
+      `   Start: ${event.start} -> ${startDate.toISOString().split("T")[0]}`
+    );
+    console.log(
+      `   End: ${event.end} -> ${endDate.toISOString().split("T")[0]}`
+    );
 
-    while (currentDate <= endDate) {
-      // Only count weekdays (Monday = 1, Sunday = 0)
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        // Use UTC date string to avoid timezone issues
-        const dateStr = currentDate.toISOString().split("T")[0];
-        oooDays.add(dateStr);
+    // Iterate through the date range using UTC to avoid timezone issues
+    const countedDays = [];
+    
+    // Convert to UTC date strings for iteration
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    // Parse the date strings to get year, month, day components
+    const [startYear, startMonth, startDay] = startDateStr.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDateStr.split('-').map(Number);
+    
+    // Create a current date for iteration
+    let currentYear = startYear;
+    let currentMonth = startMonth;
+    let currentDay = startDay;
+    
+    while (true) {
+      // Create current date string
+      const currentDateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+      
+      // Check if we've passed the end date
+      if (currentDateStr > endDateStr) {
+        break;
       }
-      currentDate.setDate(currentDate.getDate() + 1);
+      
+      // Create a date object to check the day of week
+      const currentDate = new Date(Date.UTC(currentYear, currentMonth - 1, currentDay));
+      const dayOfWeek = currentDate.getUTCDay();
+      
+      // Only count weekdays (Monday = 1, Sunday = 0)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        oooDays.add(currentDateStr);
+        countedDays.push(currentDateStr);
+      }
+      
+      // Move to next day
+      currentDay++;
+      
+      // Handle month/year rollover
+      const daysInMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
+      if (currentDay > daysInMonth) {
+        currentDay = 1;
+        currentMonth++;
+        if (currentMonth > 12) {
+          currentMonth = 1;
+          currentYear++;
+        }
+      }
     }
+
+    console.log(`   Counted OOO days: ${countedDays.join(", ")}`);
   });
 
   // Convert to sorted array of dates
@@ -565,6 +620,11 @@ function detectOOOEvents(workEvents) {
     const date = new Date(Date.UTC(year, month - 1, day));
     return dayNames[date.getUTCDay()];
   });
+
+  console.log(`📊 Final OOO Summary:`);
+  console.log(`   Total OOO days: ${oooDays.size}`);
+  console.log(`   OOO dates: ${sortedOOODays.join(", ")}`);
+  console.log(`   OOO day names: ${formattedOOODays.join(", ")}`);
 
   return {
     isOOO: oooDays.size > 0,
@@ -582,6 +642,9 @@ function generateSimplifiedWorkCalSummary(
   workEvents
 ) {
   // Check for OOO events
+  console.log(
+    `🔍 Checking for OOO events in ${workEvents.length} work events...`
+  );
   const oooInfo = detectOOOEvents(workEvents);
 
   // Calculate totals
