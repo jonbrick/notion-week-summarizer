@@ -265,10 +265,25 @@ function combineSummaries(taskSummary, calSummary) {
   // 1. EVENTS from task summary
   const eventsSection = extractSection(taskSummary, "===== EVENTS =====");
   if (eventsSection) {
+    console.log(
+      "Found EVENTS section:",
+      eventsSection.substring(0, 100) + "..."
+    );
     goodItems.push(eventsSection);
+  } else {
+    console.log("No EVENTS section found in task summary");
   }
 
-  // 2. ROCKS from task summary - separate good and bad
+  // 2. OOO from cal summary (add to what went well)
+  const oooSection = extractSection(calSummary, "===== OOO =====");
+  if (oooSection) {
+    console.log("Found OOO section:", oooSection.substring(0, 100) + "...");
+    goodItems.push(oooSection);
+  } else {
+    console.log("No OOO section found in cal summary");
+  }
+
+  // 3. ROCKS from task summary - separate good and bad
   const rocksSection = extractSection(taskSummary, "===== ROCKS =====");
   if (rocksSection) {
     const lines = rocksSection.split("\n");
@@ -297,7 +312,7 @@ function combineSummaries(taskSummary, calSummary) {
     }
   }
 
-  // 3. PRs from cal summary - will be combined with Coding tasks
+  // 4. PRs from cal summary - will be combined with Coding tasks
   const prsSection = extractSection(calSummary, "===== PRs =====");
   let prsData = "";
   let prsCount = 0;
@@ -317,7 +332,7 @@ function combineSummaries(taskSummary, calSummary) {
     console.log("No PRs section found in cal summary");
   }
 
-  // 4. TASKS with hours (combined from both summaries)
+  // 5. TASKS with hours (combined from both summaries)
   const tasksWithHours = extractTasksWithHours(
     taskSummary,
     calSummary,

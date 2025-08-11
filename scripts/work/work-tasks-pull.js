@@ -166,8 +166,17 @@ async function fetchWeekEvents(startDate, endDate) {
         const eventType =
           event.properties["Event Type"]?.select?.name || "No Type";
         const status = event.properties["Status"]?.status?.name || "No Status";
-        console.log(`  ${index + 1}. ${eventName} (${eventType}) - ${status}`);
+        const date = event.properties["Date"]?.date?.start || "No Date";
+        console.log(`  ${index + 1}. ${eventName} (${eventType}) - ${status} - ${date}`);
       });
+      
+      // Log all event types found to ensure we're getting the right ones
+      const eventTypes = [...new Set(eventsResponse.results.map(event => 
+        event.properties["Event Type"]?.select?.name || "No Type"
+      ))];
+      console.log(`🎯 Event types found: ${eventTypes.join(", ")}`);
+    } else {
+      console.log("⚠️  No work events found for this week");
     }
 
     return eventsResponse.results;
@@ -243,7 +252,7 @@ function formatEventsForNotion(events) {
     const notes =
       event.properties.Notes?.rich_text?.map((t) => t.plain_text).join("") ||
       "";
-    const startDate = event.properties["date:Date:start"]?.date?.start || "";
+    const startDate = event.properties["Date"]?.date?.start || "";
 
     // Use the actual Status value directly (like rocks do)
     if (dayOfWeek) {
@@ -266,6 +275,9 @@ function formatEventsForNotion(events) {
       output += `  Notes: ${notes}\n`;
     }
   });
+
+  console.log(`📝 Formatted ${events.length} events for Notion`);
+  console.log(`📄 Events output preview: ${output.split('\n').slice(0, 3).join(' | ')}`);
 
   return output.trim();
 }
@@ -380,21 +392,14 @@ function generateTaskEvaluation(tasksByType, rocks, eventsFormatted) {
 
   // Check for work events (good when present)
   if (eventsFormatted && !eventsFormatted.includes("No work events")) {
+    // Count all work events regardless of status
     const eventLines = eventsFormatted
       .split("\n")
-      .filter(
-        (line) =>
-          line.includes("✅") ||
-          line.includes("👾") ||
-          line.includes("🚧") ||
-          line.includes("🥊") ||
-          line.includes("Attended") ||
-          line.includes("Completed") ||
-          line.includes("Done")
-      );
+      .filter((line) => line.trim() && !line.startsWith("WORK EVENTS"));
+
     if (eventLines.length > 0) {
       const eventCount = eventLines.length;
-      evaluations.push(`✅ WORK EVENTS: ${eventCount} attended`);
+      evaluations.push(`✅ WORK EVENTS: ${eventCount} total work events`);
     }
   }
 
@@ -481,8 +486,9 @@ function cleanEventsForWorkTaskSummary(eventsFormatted) {
   const cleanedLines = [];
 
   lines.forEach((line) => {
-    // Remove "Done " from the beginning of lines that start with status + day
-    const cleanedLine = line.replace(/^(✅|👾|🚧|🥊)\s+Done\s+/, "$1 ");
+    // Remove "Done " from the beginning of lines that start with any status + day
+    // This handles various status formats like "✅ Done Mon:", "👾 Done Tue:", etc.
+    const cleanedLine = line.replace(/^([✅👾🚧🥊])\s+Done\s+/, "$1 ");
     cleanedLines.push(cleanedLine);
   });
 
@@ -802,9 +808,11 @@ async function processWeek(weekNumber) {
       let category =
         task.properties["Work Category"]?.select?.name || "No Category";
 
-      // Smart matching for Review (keep Admin categories as-is)
+      // Smart matching for Review and Admin categories
       if (category.includes("Crit")) {
         category = "Review";
+      } else if (category.includes("Admin")) {
+        category = "Admin";
       }
 
       // Only add to predefined categories, ignore others
@@ -878,6 +886,12 @@ async function processWeek(weekNumber) {
       "Work Events Summary": eventsFormatted,
       "Work Activity Summary": workActivitySummary,
     };
+
+    console.log(`\n📊 Summary of updates for Week ${paddedWeek}:`);
+    console.log(`  • Work Task Summary: ${workTaskSummary.split('\n').length} lines`);
+    console.log(`  • Work Rocks Summary: ${rocksFormatted.split('\n').length} lines`);
+    console.log(`  • Work Events Summary: ${eventsFormatted.split('\n').length} lines`);
+    console.log(`  • Work Activity Summary: ${workActivitySummary.split('\n').length} lines`);
 
     await updateAllSummaries(notion, targetWeekPage.id, summaryUpdates);
     console.log(
