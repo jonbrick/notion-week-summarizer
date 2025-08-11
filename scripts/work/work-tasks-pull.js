@@ -551,8 +551,8 @@ function generateWorkTaskSummary(
     const tasks = tasksByCategory[category] || [];
     const taskCount = tasks.reduce((sum, task) => sum + task.count, 0);
 
-    // Admin, Social always get ☑️ (even when 0)
-    if (category === "Admin" || category === "Social") {
+    // Social always get ☑️ (even when 0)
+    if (category === "Social") {
       summary += `☑️ ${category}: ${taskCount} tasks\n`;
     } else if (taskCount > 0) {
       summary += `✅ ${category}: ${taskCount} tasks\n`;
@@ -623,6 +623,7 @@ function formatWorkActivitySummary(tasks) {
     "Review",
     "QA",
     "Research",
+    "Admin",
     "Social",
     "Undefined",
     "OOO",
@@ -645,7 +646,7 @@ function formatWorkActivitySummary(tasks) {
     // Smart matching for categories
     if (category.includes("Admin")) {
       category = "Admin";
-    } else if (category.includes("Crit") || category.includes("Review")) {
+    } else if (category.includes("Review")) {
       category = "Review";
     }
 
@@ -801,10 +802,8 @@ async function processWeek(weekNumber) {
       let category =
         task.properties["Work Category"]?.select?.name || "No Category";
 
-      // Smart matching for Admin and Review
-      if (category.includes("Admin")) {
-        category = "Admin";
-      } else if (category.includes("Crit")) {
+      // Smart matching for Review (keep Admin categories as-is)
+      if (category.includes("Crit")) {
         category = "Review";
       }
 
