@@ -1,5 +1,5 @@
 const { spawn } = require("child_process");
-const { askQuestion, rl } = require("./src/utils/cli-utils");
+const { askQuestion, rl } = require(".  /src/utils/cli-utils");
 const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
 require("dotenv").config();
 

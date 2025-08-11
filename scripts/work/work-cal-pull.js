@@ -5,20 +5,20 @@ const {
   checkInteractiveMode,
   rl,
   askQuestion,
-} = require("./src/utils/cli-utils");
+} = require("../../src/utils/cli-utils");
 const {
   updateAllSummaries,
   findWeekRecapPage,
-} = require("./src/utils/notion-utils");
-const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
-const { extractEventDuration } = require("./src/utils/time-utils");
-const { processWorkProjectEvents } = require("./src/utils/pr-processor");
-const { categorizeEventByColor } = require("./src/utils/color-mappings");
+} = require("../../src/utils/notion-utils");
+const { DEFAULT_TARGET_WEEKS } = require("../../src/config/task-config");
+const { extractEventDuration } = require("../../src/utils/time-utils");
+const { processWorkProjectEvents } = require("../../src/utils/pr-processor");
+const { categorizeEventByColor } = require("../../src/utils/color-mappings");
 const {
   createWorkAuth,
   fetchCalendarEventsWithAuth,
   validateAuthConfig,
-} = require("./src/utils/auth-utils");
+} = require("../../src/utils/auth-utils");
 require("dotenv").config();
 
 // Initialize clients

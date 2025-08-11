@@ -5,22 +5,22 @@ const {
   checkInteractiveMode,
   rl,
   askQuestion,
-} = require("./src/utils/cli-utils");
+} = require("../../src/utils/cli-utils");
 const {
   updateAllSummaries,
   findWeekRecapPage,
-} = require("./src/utils/notion-utils");
-const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
-const { extractEventDuration } = require("./src/utils/time-utils");
+} = require("../../src/utils/notion-utils");
+const { DEFAULT_TARGET_WEEKS } = require("../../src/config/task-config");
+const { extractEventDuration } = require("../../src/utils/time-utils");
 const {
   processPersonalProjectEvents,
-} = require("./src/utils/personal-pr-processor");
-const { categorizeEventByColor } = require("./src/utils/color-mappings");
+} = require("../../src/utils/personal-pr-processor");
+const { categorizeEventByColor } = require("../../src/utils/color-mappings");
 const {
   createPersonalAuth,
   fetchCalendarEventsWithAuth,
   validateAuthConfig,
-} = require("./src/utils/auth-utils");
+} = require("../../src/utils/auth-utils");
 require("dotenv").config();
 
 // Initialize clients
@@ -171,7 +171,7 @@ function formatEventsForCategory(events, categoryName) {
   );
 
   groupedEvents.forEach((group) => {
-    const { formatDuration } = require("./src/utils/time-utils");
+    const { formatDuration } = require("../../src/utils/time-utils");
     const duration = formatDuration(group.totalMinutes);
     const countText = group.count > 1 ? ` (${group.count}x)` : "";
     output += `• ${group.title}${countText} (${duration})\n`;

@@ -1,5 +1,5 @@
 const { spawn } = require("child_process");
-const { askQuestion, rl } = require("./src/utils/cli-utils");
+const { askQuestion, rl } = require("../../src/utils/cli-utils");
 require("dotenv").config();
 
 console.log("📊 Week Summary Generator (Personal + Work)");

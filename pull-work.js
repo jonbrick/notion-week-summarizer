@@ -45,8 +45,21 @@ function runScript(scriptName, args = []) {
   return new Promise((resolve, reject) => {
     console.log(`\n🚀 Running ${scriptName}...`);
 
-    const child = spawn("node", [scriptName, ...args], {
+    // Determine the working directory for the script
+    let scriptCwd = process.cwd();
+    let scriptPath = scriptName;
+
+    if (scriptName.startsWith("scripts/")) {
+      // For scripts in subdirectories, change to the script's directory
+      const scriptDir = scriptName.substring(0, scriptName.lastIndexOf("/"));
+      scriptCwd = scriptDir;
+      // Use just the filename when changing directory
+      scriptPath = scriptName.substring(scriptName.lastIndexOf("/") + 1);
+    }
+
+    const child = spawn("node", [scriptPath, ...args], {
       stdio: "inherit", // This will show the output in real-time
+      cwd: scriptCwd, // Use the script's directory as working directory
     });
 
     child.on("close", (code) => {
@@ -82,13 +95,13 @@ async function processWorkWeek() {
     console.log("=".repeat(50));
     console.log("📍 STEP 1: Work Calendar Pull");
     console.log("=".repeat(50));
-    await runScript("work-cal-pull.js", [...weekArgs, "--both"]);
+    await runScript("scripts/work/work-cal-pull.js", [...weekArgs, "--both"]);
 
     // Run Work Task Pull
     console.log("\n" + "=".repeat(50));
     console.log("📍 STEP 2: Work Task Pull");
     console.log("=".repeat(50));
-    await runScript("work-tasks-pull.js", weekArgs);
+    await runScript("scripts/work/work-tasks-pull.js", weekArgs);
 
     console.log("\n" + "=".repeat(50));
     console.log(

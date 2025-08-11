@@ -5,12 +5,12 @@ const {
   runInteractiveMode,
   rl,
   askQuestion,
-} = require("./src/utils/cli-utils");
+} = require("../../src/utils/cli-utils");
 const {
   updateAllSummaries,
   findWeekRecapPage,
-} = require("./src/utils/notion-utils");
-const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
+} = require("../../src/utils/notion-utils");
+const { DEFAULT_TARGET_WEEKS } = require("../../src/config/task-config");
 require("dotenv").config();
 
 // Configuration - using environment variables

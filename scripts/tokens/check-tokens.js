@@ -5,7 +5,7 @@ const {
   createPersonalAuth,
   createWorkAuth,
   validateAuthConfig,
-} = require("../src/utils/auth-utils");
+} = require("../../src/utils/auth-utils");
 require("dotenv").config();
 
 async function checkTokenStatus(tokenType) {
