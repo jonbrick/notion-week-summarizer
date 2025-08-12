@@ -110,7 +110,7 @@ function formatEventsColumn(events, columnName, eventType = "events") {
 
   const totalHours = (totalMinutes / 60).toFixed(1);
 
-  let output = `${columnName.toUpperCase()} (${events.length} ${eventType}`;
+  let output = `${columnName.toUpperCase()} (${events.length} event`;
   if (events.length !== 1) output += "s";
   output += `, ${totalHours} hour`;
   if (totalHours !== "1.0") output += "s";
