@@ -7,6 +7,9 @@ const {
 const { findWeekRecapPage } = require("./src/utils/notion-utils");
 const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
 const { pullPersonalTasks } = require("./data-pulls/pull-personal-tasks");
+const {
+  pullPersonalPREvents,
+} = require("./data-pulls/pull-personal-pr-events");
 require("dotenv").config();
 
 // Initialize clients
@@ -19,6 +22,7 @@ console.log("📥 Personal Data Fetcher - Modular Version");
 
 // Script configuration
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
+let SELECTED_DATA_SOURCES = "all"; // Default to all
 
 /**
  * Process a single week - fetch data and update Notion
@@ -45,14 +49,25 @@ async function processWeek(weekNumber) {
     // Object to store all column updates
     const columnUpdates = {};
 
-    // 1. Pull Personal Tasks
-    const tasksData = await pullPersonalTasks(weekNumber);
-    Object.assign(columnUpdates, tasksData);
+    // Pull data based on selected sources
+    if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "tasks") {
+      const tasksData = await pullPersonalTasks(weekNumber);
+      Object.assign(columnUpdates, tasksData);
+    }
+
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "pr-events"
+    ) {
+      const prEventsData = await pullPersonalPREvents(weekNumber);
+      Object.assign(columnUpdates, prEventsData);
+    }
 
     // TODO: Add other data pulls here as we build them
-    // const personalCalData = await pullPersonalCalendar(weekNumber);
-    // const workoutData = await pullWorkoutCalendar(weekNumber);
-    // etc.
+    // if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "personal-calendar") {
+    //   const personalCalData = await pullPersonalCalendar(weekNumber);
+    //   Object.assign(columnUpdates, personalCalData);
+    // }
 
     // Update Notion with all columns
     console.log("\n📝 Updating Notion columns...");
@@ -112,7 +127,38 @@ async function main() {
   const result = await checkInteractiveMode(args, [], DEFAULT_TARGET_WEEKS, []);
 
   if (result.isInteractive) {
-    console.log(`📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
+    // First, choose data sources
+    console.log("📊 What data would you like to sync?\n");
+    console.log("1. All data sources");
+    console.log("2. Tasks only");
+    console.log("3. PR Events only");
+    // TODO: Add more options as we build them
+    // console.log("4. Personal Calendar only");
+    // console.log("5. Workout Calendar only");
+
+    const dataSourceInput = await askQuestion("\n? Choose data source (1-3): ");
+
+    switch (dataSourceInput.trim()) {
+      case "1":
+        SELECTED_DATA_SOURCES = "all";
+        console.log("✅ Selected: All data sources");
+        break;
+      case "2":
+        SELECTED_DATA_SOURCES = "tasks";
+        console.log("✅ Selected: Tasks only");
+        break;
+      case "3":
+        SELECTED_DATA_SOURCES = "pr-events";
+        console.log("✅ Selected: PR Events only");
+        break;
+      default:
+        SELECTED_DATA_SOURCES = "all";
+        console.log("✅ Selected: All data sources (default)");
+        break;
+    }
+
+    // Then choose weeks
+    console.log(`\n📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
 
     const weeksInput = await askQuestion(
       "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
@@ -126,6 +172,7 @@ async function main() {
     }
 
     console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+    console.log(`📊 Data sources: ${SELECTED_DATA_SOURCES}`);
     const confirm = await askQuestion("Continue? (y/n): ");
 
     if (confirm.toLowerCase() !== "y") {
@@ -136,6 +183,9 @@ async function main() {
     console.log("");
   } else {
     TARGET_WEEKS = result.targetWeeks;
+    // TODO: Add command line args for data source selection
+    // For now, default to all when running non-interactively
+    SELECTED_DATA_SOURCES = "all";
   }
 
   await processAllWeeks();
