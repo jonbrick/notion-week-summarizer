@@ -10,6 +10,7 @@ const { pullPersonalTasks } = require("./data-pulls/pull-personal-tasks");
 const {
   pullPersonalPREvents,
 } = require("./data-pulls/pull-personal-pr-events");
+const { pullPersonalCalendar } = require("./data-pulls/pull-personal-calendar");
 require("dotenv").config();
 
 // Initialize clients
@@ -63,10 +64,18 @@ async function processWeek(weekNumber) {
       Object.assign(columnUpdates, prEventsData);
     }
 
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "personal-calendar"
+    ) {
+      const personalCalData = await pullPersonalCalendar(weekNumber);
+      Object.assign(columnUpdates, personalCalData);
+    }
+
     // TODO: Add other data pulls here as we build them
-    // if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "personal-calendar") {
-    //   const personalCalData = await pullPersonalCalendar(weekNumber);
-    //   Object.assign(columnUpdates, personalCalData);
+    // if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "workout-calendar") {
+    //   const workoutData = await pullWorkoutCalendar(weekNumber);
+    //   Object.assign(columnUpdates, workoutData);
     // }
 
     // Update Notion with all columns
@@ -132,11 +141,11 @@ async function main() {
     console.log("1. All data sources");
     console.log("2. Tasks only");
     console.log("3. PR Events only");
+    console.log("4. Personal Calendar only");
     // TODO: Add more options as we build them
-    // console.log("4. Personal Calendar only");
     // console.log("5. Workout Calendar only");
 
-    const dataSourceInput = await askQuestion("\n? Choose data source (1-3): ");
+    const dataSourceInput = await askQuestion("\n? Choose data source (1-4): ");
 
     switch (dataSourceInput.trim()) {
       case "1":
@@ -150,6 +159,10 @@ async function main() {
       case "3":
         SELECTED_DATA_SOURCES = "pr-events";
         console.log("✅ Selected: PR Events only");
+        break;
+      case "4":
+        SELECTED_DATA_SOURCES = "personal-calendar";
+        console.log("✅ Selected: Personal Calendar only");
         break;
       default:
         SELECTED_DATA_SOURCES = "all";
