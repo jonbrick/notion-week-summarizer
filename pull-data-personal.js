@@ -11,6 +11,18 @@ const {
   pullPersonalPREvents,
 } = require("./data-pulls/pull-personal-pr-events");
 const { pullPersonalCalendar } = require("./data-pulls/pull-personal-calendar");
+const {
+  pullWorkoutCalendar,
+} = require("./data-pulls/pull-personal-workout-calendar");
+const {
+  pullReadingCalendar,
+} = require("./data-pulls/pull-personal-reading-calendar");
+const {
+  pullVideoGamesCalendar,
+} = require("./data-pulls/pull-personal-video-games-calendar");
+const {
+  pullPersonalHabits,
+} = require("./data-pulls/pull-personal-habit-calendars");
 require("dotenv").config();
 
 // Initialize clients
@@ -49,6 +61,7 @@ async function processWeek(weekNumber) {
 
     // Object to store all column updates
     const columnUpdates = {};
+    const habitUpdates = {};
 
     // Pull data based on selected sources
     if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "tasks") {
@@ -72,16 +85,40 @@ async function processWeek(weekNumber) {
       Object.assign(columnUpdates, personalCalData);
     }
 
-    // TODO: Add other data pulls here as we build them
-    // if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "workout-calendar") {
-    //   const workoutData = await pullWorkoutCalendar(weekNumber);
-    //   Object.assign(columnUpdates, workoutData);
-    // }
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "workout-calendar"
+    ) {
+      const workoutData = await pullWorkoutCalendar(weekNumber);
+      Object.assign(columnUpdates, workoutData);
+    }
+
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "reading-calendar"
+    ) {
+      const readingData = await pullReadingCalendar(weekNumber);
+      Object.assign(columnUpdates, readingData);
+    }
+
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "video-games-calendar"
+    ) {
+      const videoGamesData = await pullVideoGamesCalendar(weekNumber);
+      Object.assign(columnUpdates, videoGamesData);
+    }
+
+    if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "habits") {
+      const habitsData = await pullPersonalHabits(weekNumber);
+      Object.assign(habitUpdates, habitsData);
+    }
 
     // Update Notion with all columns
     console.log("\n📝 Updating Notion columns...");
     const properties = {};
 
+    // Handle rich text columns (existing data)
     for (const [fieldName, content] of Object.entries(columnUpdates)) {
       // Ensure content is a string
       const contentStr =
@@ -95,6 +132,13 @@ async function processWeek(weekNumber) {
             },
           },
         ],
+      };
+    }
+
+    // Handle number columns (habits)
+    for (const [fieldName, count] of Object.entries(habitUpdates)) {
+      properties[fieldName] = {
+        number: count,
       };
     }
 
@@ -142,10 +186,12 @@ async function main() {
     console.log("2. Tasks only");
     console.log("3. PR Events only");
     console.log("4. Personal Calendar only");
-    // TODO: Add more options as we build them
-    // console.log("5. Workout Calendar only");
+    console.log("5. Workout Calendar only");
+    console.log("6. Reading Calendar only");
+    console.log("7. Video Games Calendar only");
+    console.log("8. Habits only");
 
-    const dataSourceInput = await askQuestion("\n? Choose data source (1-4): ");
+    const dataSourceInput = await askQuestion("\n? Choose data source (1-8): ");
 
     switch (dataSourceInput.trim()) {
       case "1":
@@ -163,6 +209,22 @@ async function main() {
       case "4":
         SELECTED_DATA_SOURCES = "personal-calendar";
         console.log("✅ Selected: Personal Calendar only");
+        break;
+      case "5":
+        SELECTED_DATA_SOURCES = "workout-calendar";
+        console.log("✅ Selected: Workout Calendar only");
+        break;
+      case "6":
+        SELECTED_DATA_SOURCES = "reading-calendar";
+        console.log("✅ Selected: Reading Calendar only");
+        break;
+      case "7":
+        SELECTED_DATA_SOURCES = "video-games-calendar";
+        console.log("✅ Selected: Video Games Calendar only");
+        break;
+      case "8":
+        SELECTED_DATA_SOURCES = "habits";
+        console.log("✅ Selected: Habits only");
         break;
       default:
         SELECTED_DATA_SOURCES = "all";
