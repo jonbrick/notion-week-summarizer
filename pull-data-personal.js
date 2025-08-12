@@ -1,165 +1,154 @@
-// pull-data-personal.js
 const { Client } = require("@notionhq/client");
-const { pullPersonalTasks } = require("./data-pulls/pull-personal-tasks");
-const {
-  findWeekRecapPage,
-  updateAllSummaries,
-} = require("./src/utils/notion-utils");
 const {
   checkInteractiveMode,
   rl,
   askQuestion,
 } = require("./src/utils/cli-utils");
+const { findWeekRecapPage } = require("./src/utils/notion-utils");
 const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
+const { pullPersonalTasks } = require("./data-pulls/pull-personal-tasks");
 require("dotenv").config();
 
-// Initialize Notion client
+// Initialize clients
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
 // Database IDs
 const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 
-console.log("📥 Personal Data Pull - Modular Version");
+console.log("📥 Personal Data Fetcher - Modular Version");
 
 // Script configuration
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 
-// Interactive mode function
-async function runInteractiveMode() {
-  console.log("\n📋 Personal Data Pull Options:");
-  console.log("  1. Tasks - Pull completed tasks from Notion");
-  console.log("  2. Calendars - Pull all calendar events (coming soon)");
-  console.log("  3. All - Pull everything");
-
-  const modeChoice = await askQuestion(
-    "\n? What to pull? (1-3, default is 3): "
-  );
-  const mode = modeChoice.trim() || "3";
-
-  const weekInput = await askQuestion(
-    "? Which weeks to process? (comma-separated, e.g., 26,27,28): "
-  );
-
-  if (weekInput.trim()) {
-    TARGET_WEEKS = weekInput
-      .split(",")
-      .map((w) => parseInt(w.trim()))
-      .filter((w) => !isNaN(w));
-  }
-
-  console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
-  const confirm = await askQuestion("Continue? (y/n): ");
-
-  if (confirm.toLowerCase() !== "y") {
-    console.log("❌ Cancelled by user");
-    rl.close();
-    process.exit(0);
-  }
-
-  rl.close();
-  return { mode, weeks: TARGET_WEEKS };
-}
-
-// Main processing function
-async function processWeek(weekNumber, mode = "all") {
-  console.log(`\n📅 Processing Week ${weekNumber}...`);
-
+/**
+ * Process a single week - fetch data and update Notion
+ */
+async function processWeek(weekNumber) {
   try {
-    // Find the recap page for this week
-    const recapPage = await findWeekRecapPage(
+    console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
+
+    // Find the week recap page
+    const targetWeekPage = await findWeekRecapPage(
       notion,
       RECAP_DATABASE_ID,
       weekNumber
     );
 
-    if (!recapPage) {
-      console.error(`❌ Week ${weekNumber} recap page not found`);
+    if (!targetWeekPage) {
+      console.log(`❌ Could not find Week ${weekNumber} Recap`);
       return;
     }
 
-    // Collect all column updates
+    const paddedWeek = weekNumber.toString().padStart(2, "0");
+    console.log(`✅ Found Week ${paddedWeek} Recap!`);
+
+    // Object to store all column updates
     const columnUpdates = {};
 
-    // Pull tasks if requested
-    if (mode === "all" || mode === "1") {
-      console.log("\n🔄 Pulling personal tasks...");
-      try {
-        const taskData = await pullPersonalTasks(weekNumber);
-        Object.assign(columnUpdates, taskData);
-        console.log("   ✅ Tasks pulled successfully");
-      } catch (error) {
-        console.error("   ❌ Failed to pull tasks:", error.message);
-      }
+    // 1. Pull Personal Tasks
+    const tasksData = await pullPersonalTasks(weekNumber);
+    Object.assign(columnUpdates, tasksData);
+
+    // TODO: Add other data pulls here as we build them
+    // const personalCalData = await pullPersonalCalendar(weekNumber);
+    // const workoutData = await pullWorkoutCalendar(weekNumber);
+    // etc.
+
+    // Update Notion with all columns
+    console.log("\n📝 Updating Notion columns...");
+    const properties = {};
+
+    for (const [fieldName, content] of Object.entries(columnUpdates)) {
+      // Ensure content is a string
+      const contentStr =
+        typeof content === "string" ? content : String(content);
+
+      properties[fieldName] = {
+        rich_text: [
+          {
+            text: {
+              content: contentStr.substring(0, 2000), // Notion limit
+            },
+          },
+        ],
+      };
     }
 
-    // Pull calendars if requested (TODO)
-    if (mode === "all" || mode === "2") {
-      console.log("\n🔄 Pulling personal calendars...");
-      console.log("   ⚠️  Calendar pulling not yet implemented");
-      // TODO: const calendarData = await pullPersonalCalendars(weekNumber);
-      // Object.assign(columnUpdates, calendarData);
-    }
+    await notion.pages.update({
+      page_id: targetWeekPage.id,
+      properties: properties,
+    });
 
-    // Update Notion with all collected data
-    if (Object.keys(columnUpdates).length > 0) {
-      console.log("\n📝 Updating Notion page...");
-      await updateAllSummaries(notion, recapPage.id, columnUpdates);
-      console.log(`✅ Week ${weekNumber} updated successfully!`);
-    } else {
-      console.log(`⚠️  No data to update for Week ${weekNumber}`);
-    }
+    console.log(
+      `✅ Successfully updated Week ${paddedWeek} with personal data!`
+    );
   } catch (error) {
-    console.error(`❌ Error processing week ${weekNumber}:`, error.message);
+    console.error(`❌ Error processing Week ${weekNumber}:`, error.message);
   }
 }
 
-// Main execution
-async function main() {
-  let mode = "all";
+/**
+ * Process all selected weeks
+ */
+async function processAllWeeks() {
+  console.log(`\n🚀 Processing ${TARGET_WEEKS.length} week(s)...`);
 
-  // Check for command line arguments vs interactive mode
+  for (const weekNumber of TARGET_WEEKS) {
+    await processWeek(weekNumber);
+  }
+
+  console.log(
+    `\n🎉 Successfully completed all ${TARGET_WEEKS.length} week(s)!`
+  );
+}
+
+/**
+ * Main execution
+ */
+async function main() {
   const args = process.argv.slice(2);
+
+  // Check if running in interactive mode
   const result = await checkInteractiveMode(args, [], DEFAULT_TARGET_WEEKS, []);
 
   if (result.isInteractive) {
-    const config = await runInteractiveMode();
-    mode = config.mode;
-    TARGET_WEEKS = config.weeks;
-  } else {
-    // Use weeks from the result
-    TARGET_WEEKS = result.targetWeeks;
+    console.log(`📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
 
-    // Parse additional command line arguments for mode
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] === "--mode" && args[i + 1]) {
-        mode = args[i + 1];
-      }
+    const weeksInput = await askQuestion(
+      "? Which weeks to process? (comma-separated, e.g., 1,2,3): "
+    );
+
+    if (weeksInput.trim()) {
+      TARGET_WEEKS = weeksInput
+        .split(",")
+        .map((w) => parseInt(w.trim()))
+        .filter((w) => !isNaN(w));
     }
+
+    console.log(`\n📊 Processing weeks: ${TARGET_WEEKS.join(", ")}`);
+    const confirm = await askQuestion("Continue? (y/n): ");
+
+    if (confirm.toLowerCase() !== "y") {
+      console.log("❌ Cancelled by user");
+      process.exit(0);
+    }
+
+    console.log("");
+  } else {
+    TARGET_WEEKS = result.targetWeeks;
   }
 
-  console.log(
-    `\n🚀 Starting personal data pull for ${TARGET_WEEKS.length} week(s)`
-  );
-  console.log(
-    `   Mode: ${
-      mode === "1" ? "Tasks only" : mode === "2" ? "Calendars only" : "All data"
-    }`
-  );
-
-  // Process each week
-  for (const weekNumber of TARGET_WEEKS) {
-    await processWeek(weekNumber, mode);
-  }
-
-  console.log("\n🎉 Personal data pull complete!");
-
-  if (!result.isInteractive) {
-    process.exit(0);
-  }
+  await processAllWeeks();
 }
 
 // Run the script
-main().catch((error) => {
-  console.error("❌ Fatal error:", error);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    rl.close();
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error(error);
+    rl.close();
+    process.exit(1);
+  });
