@@ -386,6 +386,8 @@ async function generatePersonalCalSummary(
       } else {
         emoji = "✅";
       }
+    } else if (name === "Personal Cal" || name === "Home Cal") {
+      emoji = "☑️"; // Always silver for Personal Cal and Home Cal
     } else if (stats[key].hours > 0) {
       emoji = "✅";
     } else if (useRedX) {

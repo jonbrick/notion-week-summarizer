@@ -208,10 +208,13 @@ function generatePersonalTaskSummary(
 
     // Special rules:
     // - Interpersonal is ALWAYS ☑️ (even if > 0)
+    // - Physical Health: ✅ if tasks > 0, ☑️ if 0
     // - Other categories: ✅ if tasks > 0, ☑️ if 0
     let emoji;
     if (name === "Interpersonal") {
       emoji = "☑️"; // Always silver for Interpersonal
+    } else if (name === "Physical Health") {
+      emoji = taskCount > 0 ? "✅" : "☑️"; // Always follow standard rule for Physical Health
     } else {
       emoji = taskCount > 0 ? "✅" : "☑️";
     }
@@ -369,7 +372,16 @@ async function processWeek(weekNumber) {
     const excludedPersonalTasks = [
       "shower",
       "shave",
+      "groceries",
+      "grocery store",
       // Add more excluded personal tasks here as needed
+    ];
+
+    // Tasks to exclude from Physical Health category (case-insensitive)
+    const excludedPhysicalHealthTasks = [
+      "run",
+      "workout",
+      // Add more excluded physical health tasks here as needed
     ];
 
     // Initialize categories
@@ -402,6 +414,16 @@ async function processWeek(weekNumber) {
           taskType === "🌱 Personal" &&
           excludedPersonalTasks.some(
             (excluded) => taskTitle.toLowerCase() === excluded.toLowerCase()
+          )
+        ) {
+          return;
+        }
+
+        // Skip excluded Physical Health tasks
+        if (
+          taskType === "💪 Physical Health" &&
+          excludedPhysicalHealthTasks.some((excluded) =>
+            taskTitle.toLowerCase().includes(excluded.toLowerCase())
           )
         ) {
           return;
