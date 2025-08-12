@@ -268,10 +268,10 @@ function formatInterpersonalEvents(events) {
   return output;
 }
 
-// Format PRs section
+// Format Personal PRs section (adapted for apps instead of PRs)
 async function formatPersonalPRs(prEvents) {
   if (!prEvents || prEvents.length === 0) {
-    return "0 apps, 0 commits\n";
+    return "Personal PRs (0 apps, 0 commits):\nNo personal project commits this week.";
   }
 
   const prSummary = await processPersonalProjectEvents(prEvents);
@@ -281,7 +281,7 @@ async function formatPersonalPRs(prEvents) {
     /PERSONAL PRs \((\d+) apps?, (\d+) commits?\)/
   );
   if (!headerMatch) {
-    return "0 apps, 0 commits\n";
+    return "Personal PRs (0 apps, 0 commits):\nNo personal project commits this week.";
   }
 
   const appCount = parseInt(headerMatch[1]);
@@ -290,25 +290,48 @@ async function formatPersonalPRs(prEvents) {
   // Extract the content after the divider
   const contentParts = prSummary.split("------\n");
   if (contentParts.length < 2) {
-    return `${appCount} apps, ${commitCount} commits\n`;
+    return `Personal PRs (${appCount} app${
+      appCount !== 1 ? "s" : ""
+    }, ${commitCount} commits):\nNo detailed commit information available.`;
   }
 
-  // Format output like work PRs
-  let output = `${appCount} apps, ${commitCount} commits\n`;
+  // Start with the header
+  let output = `Personal PRs (${appCount} app${
+    appCount !== 1 ? "s" : ""
+  }, ${commitCount} commits):\n`;
 
   // Parse projects and their commits
   const projectContent = contentParts[1].trim();
   const projectLines = projectContent.split("\n\n");
 
-  projectLines.forEach((projectSection) => {
+  projectLines.forEach((projectSection, index) => {
     const lines = projectSection.split("\n");
     if (lines.length > 0) {
       // First line is the project header
       const projectHeader = lines[0];
-      // Extract just the project name and commit count
+      // Extract project name and commit count
       const match = projectHeader.match(/(.+?)\s*\((\d+) commits?\)/);
       if (match) {
-        output += `• ${match[1]} [${match[2]} commits]\n`;
+        const projectName = match[1];
+        const commitCount = parseInt(match[2]);
+
+        // Add project header
+        output += `${projectName} [${commitCount} commits]\n`;
+
+        // Add commit messages (skip the first line which is the header)
+        const commitLines = lines.slice(1).filter((line) => line.trim() !== "");
+        if (commitLines.length > 0) {
+          // Join all commit messages with commas, removing bullet points
+          const commitMessages = commitLines
+            .map((line) => line.trim().replace(/^•\s*/, "")) // Remove bullet points
+            .join(", ");
+          output += `${commitMessages}\n`;
+        }
+
+        // Add separator only if there are more projects
+        if (index < projectLines.length - 1) {
+          output += `---\n`;
+        }
       }
     }
   });
@@ -575,6 +598,30 @@ async function processWeek(weekNumber) {
       );
     }
 
+    // Generate Personal PR Summary separately
+    console.log("📊 Generating Personal PR Summary...");
+    let personalPrSummary = await formatPersonalPRs(prEvents);
+
+    // Check if summary exceeds Notion's 2000 character limit and truncate if needed
+    if (personalPrSummary.length > 2000) {
+      console.log(
+        `⚠️  Personal PR summary too long (${personalPrSummary.length} chars), truncating...`
+      );
+
+      // Find a good breaking point before 1950 chars (leaving room for "...")
+      const maxLength = 1950;
+      let truncateAt = personalPrSummary.lastIndexOf("\n", maxLength);
+
+      // If no newline found, just cut at maxLength
+      if (truncateAt === -1 || truncateAt < maxLength - 200) {
+        truncateAt = maxLength;
+      }
+
+      personalPrSummary =
+        personalPrSummary.substring(0, truncateAt) +
+        "\n\n... (truncated due to length)";
+    }
+
     // Generate simplified Personal Cal Summary
     console.log("📊 Generating Personal Cal Summary...");
     const personalCalSummary = await generatePersonalCalSummary(
@@ -589,10 +636,11 @@ async function processWeek(weekNumber) {
     console.log("📝 Updating Notion...");
     await updateAllSummaries(notion, pageId, {
       "Personal Cal Summary": personalCalSummary,
+      "Personal PR Cal": personalPrSummary,
     });
 
     console.log(
-      `✅ Successfully updated Week ${paddedWeek} Personal Cal Summary!`
+      `✅ Successfully updated Week ${paddedWeek} Personal Cal Summary and Personal PR Cal!`
     );
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error);

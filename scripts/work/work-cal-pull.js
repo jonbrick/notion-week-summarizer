@@ -12,7 +12,7 @@ const {
 } = require("../../src/utils/notion-utils");
 const { DEFAULT_TARGET_WEEKS } = require("../../src/config/task-config");
 const { extractEventDuration } = require("../../src/utils/time-utils");
-const { processWorkProjectEvents } = require("../../src/utils/pr-processor");
+const { processWorkProjectEvents } = require("../../src/utils/work-pr-processor");
 const { categorizeEventByColor } = require("../../src/utils/color-mappings");
 const {
   createWorkAuth,
@@ -558,44 +558,53 @@ function detectOOOEvents(workEvents) {
 
     // Iterate through the date range using UTC to avoid timezone issues
     const countedDays = [];
-    
+
     // Convert to UTC date strings for iteration
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
-    
+    const startDateStr = startDate.toISOString().split("T")[0];
+    const endDateStr = endDate.toISOString().split("T")[0];
+
     // Parse the date strings to get year, month, day components
-    const [startYear, startMonth, startDay] = startDateStr.split('-').map(Number);
-    const [endYear, endMonth, endDay] = endDateStr.split('-').map(Number);
-    
+    const [startYear, startMonth, startDay] = startDateStr
+      .split("-")
+      .map(Number);
+    const [endYear, endMonth, endDay] = endDateStr.split("-").map(Number);
+
     // Create a current date for iteration
     let currentYear = startYear;
     let currentMonth = startMonth;
     let currentDay = startDay;
-    
+
     while (true) {
       // Create current date string
-      const currentDateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
-      
+      const currentDateStr = `${currentYear}-${String(currentMonth).padStart(
+        2,
+        "0"
+      )}-${String(currentDay).padStart(2, "0")}`;
+
       // Check if we've passed the end date
       if (currentDateStr > endDateStr) {
         break;
       }
-      
+
       // Create a date object to check the day of week
-      const currentDate = new Date(Date.UTC(currentYear, currentMonth - 1, currentDay));
+      const currentDate = new Date(
+        Date.UTC(currentYear, currentMonth - 1, currentDay)
+      );
       const dayOfWeek = currentDate.getUTCDay();
-      
+
       // Only count weekdays (Monday = 1, Sunday = 0)
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         oooDays.add(currentDateStr);
         countedDays.push(currentDateStr);
       }
-      
+
       // Move to next day
       currentDay++;
-      
+
       // Handle month/year rollover
-      const daysInMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
+      const daysInMonth = new Date(
+        Date.UTC(currentYear, currentMonth, 0)
+      ).getUTCDate();
       if (currentDay > daysInMonth) {
         currentDay = 1;
         currentMonth++;
@@ -669,7 +678,9 @@ function generateSimplifiedWorkCalSummary(
   let prCount = 0;
   let commitCount = 0;
   if (workPrSummary && !workPrSummary.includes("No work project commits")) {
-    const prMatch = workPrSummary.match(/PRs \((\d+) PRs?, (\d+) commits?\):/);
+    const prMatch = workPrSummary.match(
+      /Work PRs \((\d+) PRs?, (\d+) commits?\):/
+    );
     if (prMatch) {
       prCount = parseInt(prMatch[1]);
       commitCount = parseInt(prMatch[2]);
@@ -1036,9 +1047,12 @@ function generateWorkCalEvaluation(
   // Check for PRs shipped (from Work PR Summary) - ALWAYS LAST
   if (workPrSummary && !workPrSummary.includes("No work project commits")) {
     // Parse PR count from the Work PR Summary
-    const prMatch = workPrSummary.match(/Work PRs \((\d+) PRs?\):/);
+    const prMatch = workPrSummary.match(
+      /Work PRs \((\d+) PRs?, (\d+) commits?\):/
+    );
     if (prMatch) {
       const prCount = parseInt(prMatch[1]);
+      const commitCount = parseInt(prMatch[2]);
       evaluation += `✅ PRs SHIPPED: ${prCount} PRs this week\n`;
 
       // Extract PR titles from the summary
@@ -1209,7 +1223,7 @@ async function processWeek(weekNumber) {
       "Design & Dev QA Cal": summaries.qa.summary,
       "Rituals Cal": summaries.rituals.summary,
       "Research Cal": summaries.research.summary,
-      "Work PR Summary": workPrSummary,
+      "Work PR Cal": workPrSummary,
       "OOO Cal": oooInfo.isOOO
         ? `OOO (${oooInfo.oooEvents.length} events, ${
             oooInfo.oooDays

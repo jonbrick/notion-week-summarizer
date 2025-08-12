@@ -1,4 +1,4 @@
-// src/utils/pr-processor.js
+// src/utils/work-pr-processor.js
 // Handles PR calendar event processing and formatting
 
 /**
@@ -94,7 +94,7 @@ function formatPRSummary(prGroups) {
   const showCommits = totalPRs <= 10; // Hide commits if more than 10 PRs
 
   // Add header
-  let output = `PRs (${totalPRs} PR${
+  let output = `Work PRs (${totalPRs} PR${
     totalPRs !== 1 ? "s" : ""
   }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):`;
 
@@ -282,8 +282,8 @@ function formatWorkPRSummary(prGroups) {
   const totalPRs = prArray.length;
   const totalCommits = prArray.reduce((sum, pr) => sum + pr.totalCommits, 0);
 
-  // Add header in the format: PRs (7 PRs, 34 commits):
-  let output = `PRs (${totalPRs} PR${
+  // Add header in the format: Work PRs (7 PRs, 34 commits):
+  let output = `Work PRs (${totalPRs} PR${
     totalPRs !== 1 ? "s" : ""
   }, ${totalCommits} commit${totalCommits !== 1 ? "s" : ""}):\n`;
   output += "";

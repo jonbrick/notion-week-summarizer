@@ -86,70 +86,28 @@ function formatTripsAndEvents(rawText) {
   return items.join("\n");
 }
 
-// Fetch rocks for the week
-async function fetchWeekRocks(startDate, endDate, weekPageId) {
+// Fetch rocks from the Rock Details formula column
+async function fetchWeekRocks(weekPageId) {
   try {
-    if (!process.env.ROCKS_DATABASE_ID) {
-      console.log("   ⚠️  No ROCKS_DATABASE_ID configured, skipping rocks");
-      return [];
-    }
-
-    const rocksResponse = await notion.databases.query({
-      database_id: process.env.ROCKS_DATABASE_ID,
-      filter: {
-        and: [
-          {
-            property: "⌛ Weeks",
-            relation: {
-              contains: weekPageId,
-            },
-          },
-          {
-            property: "Type",
-            select: {
-              does_not_equal: "💼 Work",
-            },
-          },
-        ],
-      },
+    // Get the week recap page to access the Rock Details formula
+    const weekRecapPage = await notion.pages.retrieve({
+      page_id: weekPageId,
     });
 
-    return rocksResponse.results;
+    // Extract Rock Details from the formula column
+    const rockDetails =
+      weekRecapPage.properties["Rock Details"]?.formula?.string;
+
+    if (!rockDetails || rockDetails.trim() === "") {
+      return "No rocks this week";
+    }
+
+    // Simply replace commas with newlines
+    return rockDetails.replace(/,/g, "\n");
   } catch (error) {
     console.error("   ❌ Error fetching rocks:", error.message);
-    return [];
-  }
-}
-
-// Format rocks for Notion
-function formatRocksForNotion(rocks) {
-  if (rocks.length === 0) {
     return "No rocks this week";
   }
-
-  let output = "";
-
-  rocks.forEach((rock, index) => {
-    if (index > 0) output += "\n";
-
-    let rockTitle =
-      rock.properties.Rock?.title?.map((t) => t.plain_text).join("") ||
-      "Untitled Rock";
-    rockTitle = rockTitle.replace(/^\d+\.\s*/, "");
-
-    const status = rock.properties.Status?.status?.name || "No Status";
-    const description =
-      rock.properties.Description?.rich_text
-        ?.map((t) => t.plain_text)
-        .join("") || "";
-
-    output += `${status}: ${rockTitle}`;
-    if (description) {
-      output += ` (${description.trim()})`;
-    }
-  });
-
-  return output;
 }
 
 // Generate Personal Task Summary
@@ -457,9 +415,8 @@ async function processWeek(weekNumber) {
 
     // 6. Fetch rocks
     console.log(`\n🪨 Fetching personal rocks...`);
-    const rocks = await fetchWeekRocks(startDate, endDate, weekPageId);
-    const rocksFormatted = formatRocksForNotion(rocks);
-    console.log(`   Found ${rocks.length} rocks`);
+    const rocksFormatted = await fetchWeekRocks(weekPageId);
+    console.log(`   Found rocks data`);
 
     // 7. Fetch trips and events
     console.log(`\n🚗 Fetching trips and events...`);
@@ -508,7 +465,7 @@ async function processWeek(weekNumber) {
         console.log(`   ${category}: ${count} tasks`);
       }
     });
-    console.log(`   Rocks: ${rocks.length}`);
+    console.log(`   Rocks: Found`);
     console.log(`   Trips: ${tripsData.length}`);
     console.log(`   Events: ${eventsData.length}`);
 
