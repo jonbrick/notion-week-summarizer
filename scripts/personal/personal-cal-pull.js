@@ -484,10 +484,38 @@ async function generatePersonalCalSummary(
   }
 
   // PRs section - only show if there are PRs
-  const prSummary = await formatPersonalPRs(prEvents);
-  if (prSummary && prSummary.trim() !== "0 apps, 0 commits\n") {
+  if (prEvents && prEvents.length > 0) {
     summary += "\n===== PRs =====\n";
-    summary += prSummary;
+
+    // Generate the detailed PR summary first to get the content
+    const detailedPrSummary = await formatPersonalPRs(prEvents);
+
+    // Extract app count and commit count from the header
+    const headerMatch = detailedPrSummary.match(
+      /Personal PRs \((\d+) apps?, (\d+) commits?\)/
+    );
+    if (headerMatch) {
+      const appCount = parseInt(headerMatch[1]);
+      const commitCount = parseInt(headerMatch[2]);
+
+      summary += `Personal PRs (${appCount} apps, ${commitCount} commits):\n`;
+
+      // Parse the project lines to extract project names and commit counts
+      const projectLines = detailedPrSummary
+        .split("\n")
+        .filter(
+          (line) => line.includes(" commits]") && !line.includes("------")
+        );
+
+      projectLines.forEach((line) => {
+        const match = line.match(/(.+?)\s*\[(\d+) commits?\]/);
+        if (match) {
+          const projectName = match[1].trim();
+          const count = match[2];
+          summary += `• ${projectName} [${count} commits]\n`;
+        }
+      });
+    }
   }
 
   return summary.trim();
