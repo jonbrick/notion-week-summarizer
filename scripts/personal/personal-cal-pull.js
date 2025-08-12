@@ -30,7 +30,7 @@ const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 const WEEKS_DATABASE_ID = process.env.WEEKS_DATABASE_ID;
 
-console.log("🗓️ Personal Calendar Summary Generator");
+console.log("🗓️ Personal Calendar Summary Generator (Simplified)");
 
 // Script configuration
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
@@ -41,20 +41,16 @@ let personalAuth = null;
 // Fetch calendar events with enhanced error handling and start-date filtering
 async function fetchCalendarEvents(calendarId, startDate, endDate) {
   try {
-    // Initialize auth if not already done
     if (!personalAuth) {
-      // Validate configuration first
       if (!validateAuthConfig("personal")) {
         console.error(
           "❌ Personal calendar authentication not configured properly"
         );
         return [];
       }
-
       personalAuth = createPersonalAuth();
     }
 
-    // Use the existing fetchCalendarEventsWithAuth function which handles timezone properly
     const allEvents = await fetchCalendarEventsWithAuth(
       personalAuth,
       calendarId,
@@ -65,19 +61,13 @@ async function fetchCalendarEvents(calendarId, startDate, endDate) {
     // Filter to only include events that START within the week range
     const filteredEvents = allEvents.filter((event) => {
       let eventStartDate;
-
-      // Get the start date from the event
       if (event.start.date) {
-        // All-day event
         eventStartDate = event.start.date;
       } else if (event.start.dateTime) {
-        // Timed event - extract just the date part
         eventStartDate = event.start.dateTime.split("T")[0];
       } else {
-        return false; // No valid start date
+        return false;
       }
-
-      // Check if event starts within our week range (inclusive)
       return eventStartDate >= startDate && eventStartDate <= endDate;
     });
 
@@ -127,9 +117,8 @@ async function getWeekDateRange(weekNumber) {
   throw new Error(`Could not find date range for Week ${weekNumber}`);
 }
 
-// Format events with standardized header format
-function formatEventsForCategory(events, categoryName) {
-  // Filter out all-day events and very short events
+// Calculate total hours and events from a calendar
+function calculateCalendarStats(events) {
   const validEvents = events.filter(
     (event) => !event.isAllDay && event.duration && event.duration.minutes >= 15
   );
@@ -138,148 +127,345 @@ function formatEventsForCategory(events, categoryName) {
     (sum, e) => sum + (e.duration.minutes || 0),
     0
   );
-  const totalHours = (totalMinutes / 60).toFixed(1);
 
-  let output = `${categoryName.toUpperCase()} (${
-    validEvents.length
-  } events, ${totalHours} hours):\n`;
-
-  if (validEvents.length === 0) {
-    output += `No ${categoryName.toLowerCase()} events this week.`;
-    return output;
-  }
-
-  // Group events by title and track first occurrence for chronological sorting
-  const eventGroups = {};
-  validEvents.forEach((event, index) => {
-    const cleanTitle = event.summary.trim();
-    if (!eventGroups[cleanTitle]) {
-      eventGroups[cleanTitle] = {
-        title: cleanTitle,
-        totalMinutes: 0,
-        count: 0,
-        firstOccurrenceIndex: index, // Track order for chronological sorting
-      };
-    }
-    eventGroups[cleanTitle].totalMinutes += event.duration.minutes || 0;
-    eventGroups[cleanTitle].count += 1;
-  });
-
-  // Sort by first occurrence (chronological order: earliest -> latest)
-  const groupedEvents = Object.values(eventGroups).sort(
-    (a, b) => a.firstOccurrenceIndex - b.firstOccurrenceIndex
-  );
-
-  groupedEvents.forEach((group) => {
-    const { formatDuration } = require("../../src/utils/time-utils");
-    const duration = formatDuration(group.totalMinutes);
-    const countText = group.count > 1 ? ` (${group.count}x)` : "";
-    output += `• ${group.title}${countText} (${duration})\n`;
-  });
-
-  return output.trim();
+  return {
+    hours: totalMinutes / 60,
+    events: validEvents.length,
+  };
 }
 
-// Process dedicated calendar and format with standard headers
-async function processCalendar(
-  calendarIdEnvVar,
-  categoryName,
+// Format interpersonal events (like meetings in work cal)
+function formatInterpersonalEvents(events) {
+  const validEvents = events.filter(
+    (e) => !e.isAllDay && e.duration && e.duration.minutes >= 15
+  );
+
+  if (validEvents.length === 0) {
+    return "0 events, 0 hours\n";
+  }
+
+  // Sort all events chronologically first
+  const sortedEvents = [...validEvents].sort((a, b) => {
+    const dateA = new Date(a.start);
+    const dateB = new Date(b.start);
+    return dateA - dateB;
+  });
+
+  // Keyword arrays for Family and Calls for categorization
+  const callKeywords = ["call", "facetime", "ft"];
+  const familyKeywords = ["mom", "dad", "vicki", "evan"];
+  const relationshipKeywords = ["jen", "jen rothman"];
+
+  // Separate events by category while maintaining chronological order
+  const calls = [];
+  const family = [];
+  const relationship = [];
+  const otherEvents = [];
+
+  sortedEvents.forEach((event) => {
+    const summary = event.summary || "";
+    const summaryLower = summary.toLowerCase();
+
+    // Check if it's a call first (calls trump family and relationship)
+    const isCall = callKeywords.some((keyword) =>
+      summaryLower.includes(keyword.toLowerCase())
+    );
+
+    // Check if it's family (family trumps relationship and general interpersonal)
+    const isFamily = familyKeywords.some((keyword) =>
+      summaryLower.includes(keyword.toLowerCase())
+    );
+
+    // Check if it's relationship (relationship trumps general interpersonal)
+    const isRelationship = relationshipKeywords.some((keyword) =>
+      summaryLower.includes(keyword.toLowerCase())
+    );
+
+    if (isCall) {
+      calls.push(event);
+    } else if (isFamily) {
+      family.push(event);
+    } else if (isRelationship) {
+      relationship.push(event);
+    } else {
+      otherEvents.push(event);
+    }
+  });
+
+  // Calculate stats for each category
+  const callsMinutes = calls.reduce(
+    (sum, e) => sum + (e.duration.minutes || 0),
+    0
+  );
+  const familyMinutes = family.reduce(
+    (sum, e) => sum + (e.duration.minutes || 0),
+    0
+  );
+  const relationshipMinutes = relationship.reduce(
+    (sum, e) => sum + (e.duration.minutes || 0),
+    0
+  );
+  const otherMinutes = otherEvents.reduce(
+    (sum, e) => sum + (e.duration.minutes || 0),
+    0
+  );
+
+  const callsHours = (callsMinutes / 60).toFixed(1);
+  const familyHours = (familyMinutes / 60).toFixed(1);
+  const relationshipHours = (relationshipMinutes / 60).toFixed(1);
+  const otherHours = (otherMinutes / 60).toFixed(1);
+
+  let output = `${otherEvents.length} events, ${otherHours} hours\n`;
+
+  // Format other interpersonal events (non-calls, non-family, non-relationship) - already sorted
+  if (otherEvents.length > 0) {
+    // Format each event in chronological order
+    otherEvents.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      output += `• ${event.summary} (${eventHours}h)\n`;
+    });
+  }
+
+  // Add relationship section if there are any relationship events - already sorted
+  if (relationship.length > 0) {
+    output += `\n===== RELATIONSHIP =====\n${relationship.length} event${
+      relationship.length > 1 ? "s" : ""
+    }, ${relationshipHours} hours\n`;
+
+    // Format each relationship event in chronological order
+    relationship.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      output += `• ${event.summary} (${eventHours}h)\n`;
+    });
+  }
+
+  // Add family section if there are any family events - already sorted
+  if (family.length > 0) {
+    output += `\n===== FAMILY =====\n${family.length} event${
+      family.length > 1 ? "s" : ""
+    }, ${familyHours} hours\n`;
+
+    // Format each family event in chronological order
+    family.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      output += `• ${event.summary} (${eventHours}h)\n`;
+    });
+  }
+
+  // Add calls section if there are any calls - already sorted
+  if (calls.length > 0) {
+    output += `\n===== CALLS =====\n${calls.length} event${
+      calls.length > 1 ? "s" : ""
+    }, ${callsHours} hours\n`;
+
+    // Format each call in chronological order
+    calls.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      output += `• ${event.summary} (${eventHours}h)\n`;
+    });
+  }
+
+  return output;
+}
+
+// Format PRs section
+async function formatPersonalPRs(prEvents) {
+  if (!prEvents || prEvents.length === 0) {
+    return "0 apps, 0 commits\n";
+  }
+
+  const prSummary = await processPersonalProjectEvents(prEvents);
+
+  // Extract counts from the header
+  const headerMatch = prSummary.match(
+    /PERSONAL PRs \((\d+) apps?, (\d+) commits?\)/
+  );
+  if (!headerMatch) {
+    return "0 apps, 0 commits\n";
+  }
+
+  const appCount = parseInt(headerMatch[1]);
+  const commitCount = parseInt(headerMatch[2]);
+
+  // Extract the content after the divider
+  const contentParts = prSummary.split("------\n");
+  if (contentParts.length < 2) {
+    return `${appCount} apps, ${commitCount} commits\n`;
+  }
+
+  // Format output like work PRs
+  let output = `${appCount} apps, ${commitCount} commits\n`;
+
+  // Parse projects and their commits
+  const projectContent = contentParts[1].trim();
+  const projectLines = projectContent.split("\n\n");
+
+  projectLines.forEach((projectSection) => {
+    const lines = projectSection.split("\n");
+    if (lines.length > 0) {
+      // First line is the project header
+      const projectHeader = lines[0];
+      // Extract just the project name and commit count
+      const match = projectHeader.match(/(.+?)\s*\((\d+) commits?\)/);
+      if (match) {
+        output += `• ${match[1]} [${match[2]} commits]\n`;
+      }
+    }
+  });
+
+  return output;
+}
+
+// Generate simplified Personal Cal Summary
+async function generatePersonalCalSummary(
+  categorizedEvents,
+  dedicatedCalendarEvents,
+  prEvents,
   startDate,
   endDate
 ) {
-  const calendarId = process.env[calendarIdEnvVar];
+  // Calculate stats for each calendar type
+  const stats = {
+    personal: calculateCalendarStats(categorizedEvents.personal || []),
+    interpersonal: calculateCalendarStats(
+      categorizedEvents.interpersonal || []
+    ),
+    home: calculateCalendarStats(categorizedEvents.home || []),
+    mentalHealth: calculateCalendarStats(categorizedEvents.mentalHealth || []),
+    physicalHealth: calculateCalendarStats(
+      categorizedEvents.physicalHealth || []
+    ),
+    reading: calculateCalendarStats(dedicatedCalendarEvents.reading || []),
+    videoGame: calculateCalendarStats(dedicatedCalendarEvents.videoGame || []),
+    workout: calculateCalendarStats(dedicatedCalendarEvents.workout || []),
+  };
 
-  if (!calendarId) {
-    return `${categoryName.toUpperCase()} (0 events, 0 hours):\nNo ${categoryName.toLowerCase()} events this week.`;
-  }
+  // Calculate total
+  const totalHours = Object.values(stats).reduce(
+    (sum, stat) => sum + stat.hours,
+    0
+  );
+  const totalEvents = Object.values(stats).reduce(
+    (sum, stat) => sum + stat.events,
+    0
+  );
 
-  console.log(`   📥 Fetching ${categoryName.toLowerCase()} events...`);
-  const rawEvents = await fetchCalendarEvents(calendarId, startDate, endDate);
+  let summary = "";
 
-  // Convert to standard event format
-  const processedEvents = rawEvents.map((event) => ({
-    summary: event.summary || `${categoryName} session`,
-    duration: extractEventDuration(event),
-    isAllDay: event.start?.date && !event.start?.dateTime,
-  }));
+  // SUMMARY section
+  summary += "===== SUMMARY =====\n";
+  summary += `Total: ${totalHours.toFixed(1)} hours (${totalEvents} events)\n`;
 
-  return formatEventsForCategory(processedEvents, categoryName);
-}
+  // Calendar categories with specific emoji rules
+  const categories = [
+    { key: "personal", name: "Personal Cal", useRedX: false },
+    { key: "reading", name: "Reading Cal", useRedX: true },
+    {
+      key: "videoGame",
+      name: "Video Game Cal",
+      useRedX: true,
+      invertLogic: true,
+    },
+    { key: "interpersonal", name: "Interpersonal Cal", useRedX: false },
+    { key: "home", name: "Home Cal", useRedX: false },
+    { key: "physicalHealth", name: "Physical Health Cal", useRedX: false },
+    { key: "workout", name: "Workout Cal", useRedX: true },
+    { key: "mentalHealth", name: "Mental Health Cal", useRedX: false },
+  ];
 
-// Generate simplified evaluation
-function generatePersonalCalEvaluation(categoryStats, prSummary) {
-  const evaluations = [];
+  categories.forEach(({ key, name, useRedX, invertLogic }) => {
+    const hours = stats[key].hours.toFixed(1);
+    const percent =
+      totalHours > 0 ? Math.round((stats[key].hours / totalHours) * 100) : 0;
 
-  // Interpersonal events
-  if (categoryStats.interpersonal.events > 0) {
-    evaluations.push(
-      `✅ INTERPERSONAL EVENTS: ${categoryStats.interpersonal.events} events`
-    );
-  } else {
-    evaluations.push(`❌ NO INTERPERSONAL EVENTS: 0 events`);
-  }
-
-  // Workouts
-  if (categoryStats.workout.events > 0) {
-    evaluations.push(
-      `✅ WORKOUTS: ${
-        categoryStats.workout.events
-      } sessions, ${categoryStats.workout.hours.toFixed(1)} hours`
-    );
-  } else {
-    evaluations.push(`❌ NO WORKOUTS: 0 sessions`);
-  }
-
-  // Video games (none is good, played is bad)
-  if (categoryStats.videoGame.events > 0) {
-    evaluations.push(
-      `❌ VIDEO GAMES: ${
-        categoryStats.videoGame.events
-      } sessions, ${categoryStats.videoGame.hours.toFixed(1)} hours`
-    );
-  } else {
-    evaluations.push(`✅ NO VIDEO GAMES: 0 hours`);
-  }
-
-  // Reading (read is good, none is bad)
-  if (categoryStats.reading.events > 0) {
-    evaluations.push(
-      `✅ READING: ${
-        categoryStats.reading.events
-      } sessions, ${categoryStats.reading.hours.toFixed(1)} hours`
-    );
-  } else {
-    evaluations.push(`❌ NO READING: 0 sessions`);
-  }
-
-  // Personal PRs
-  if (prSummary && !prSummary.includes("No personal project commits")) {
-    const prMatch = prSummary.match(
-      /Personal Projects \((\d+) apps?, (\d+) commits?\)/
-    );
-    if (prMatch) {
-      const appCount = parseInt(prMatch[1]);
-      const commitCount = parseInt(prMatch[2]);
-      evaluations.push(
-        `✅ PERSONAL PROJECTS: ${appCount} apps, ${commitCount} commits`
-      );
+    let emoji;
+    if (invertLogic) {
+      // Inverted logic for Video Game Cal: ✅ when 0 hours, ❌ when > 0 hours
+      if (stats[key].hours > 0) {
+        emoji = "❌";
+      } else {
+        emoji = "✅";
+      }
+    } else if (stats[key].hours > 0) {
+      emoji = "✅";
+    } else if (useRedX) {
+      emoji = "❌"; // Red X for Reading and Workout when 0
+    } else {
+      emoji = "☑️"; // Gray check for others when 0
     }
+
+    summary += `${emoji} ${name}: ${hours} hours (${percent}%)\n`;
+  });
+
+  // INTERPERSONAL section (like MEETINGS in work cal)
+  summary += "\n===== INTERPERSONAL =====\n";
+  summary += formatInterpersonalEvents(categorizedEvents.interpersonal || []);
+
+  // Always show WORKOUTS section
+  if (
+    dedicatedCalendarEvents.workout &&
+    dedicatedCalendarEvents.workout.length > 0
+  ) {
+    summary += "\n===== WORKOUTS =====\n";
+    const workoutStats = calculateCalendarStats(
+      dedicatedCalendarEvents.workout
+    );
+    summary += `${dedicatedCalendarEvents.workout.length} event${
+      dedicatedCalendarEvents.workout.length > 1 ? "s" : ""
+    }, ${workoutStats.hours.toFixed(1)} hours\n`;
+
+    dedicatedCalendarEvents.workout.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      summary += `• ${event.summary} (${eventHours}h)\n`;
+    });
   }
 
-  return evaluations;
-}
+  // Always show READING section
+  if (
+    dedicatedCalendarEvents.reading &&
+    dedicatedCalendarEvents.reading.length > 0
+  ) {
+    summary += "\n===== READING =====\n";
+    const readingStats = calculateCalendarStats(
+      dedicatedCalendarEvents.reading
+    );
+    summary += `${dedicatedCalendarEvents.reading.length} event${
+      dedicatedCalendarEvents.reading.length > 1 ? "s" : ""
+    }, ${readingStats.hours.toFixed(1)} hours\n`;
 
-// Extract stats from formatted summary
-function extractStatsFromSummary(summary, categoryKey) {
-  const match = summary.match(/\((\d+) events, ([\d.]+) hours\)/);
-  if (match) {
-    return {
-      events: parseInt(match[1]),
-      hours: parseFloat(match[2]),
-      minutes: parseFloat(match[2]) * 60,
-    };
+    dedicatedCalendarEvents.reading.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      summary += `• ${event.summary} (${eventHours}h)\n`;
+    });
   }
-  return { events: 0, hours: 0, minutes: 0 };
+
+  // Always show MENTAL HEALTH section
+  if (
+    categorizedEvents.mentalHealth &&
+    categorizedEvents.mentalHealth.length > 0
+  ) {
+    summary += "\n===== MENTAL HEALTH =====\n";
+    const mentalHealthStats = calculateCalendarStats(
+      categorizedEvents.mentalHealth
+    );
+    summary += `${categorizedEvents.mentalHealth.length} event${
+      categorizedEvents.mentalHealth.length > 1 ? "s" : ""
+    }, ${mentalHealthStats.hours.toFixed(1)} hours\n`;
+
+    categorizedEvents.mentalHealth.forEach((event) => {
+      const eventHours = ((event.duration.minutes || 0) / 60).toFixed(1);
+      summary += `• ${event.summary} (${eventHours}h)\n`;
+    });
+  }
+
+  // PRs section - only show if there are PRs
+  const prSummary = await formatPersonalPRs(prEvents);
+  if (prSummary && prSummary.trim() !== "0 apps, 0 commits\n") {
+    summary += "\n===== PRs =====\n";
+    summary += prSummary;
+  }
+
+  return summary.trim();
 }
 
 // Process single week
@@ -294,9 +480,6 @@ async function processWeek(weekNumber) {
     console.log(`✅ Found Week ${paddedWeek} Recap!`);
     console.log(`📅 Week ${paddedWeek} date range: ${startDate} to ${endDate}`);
 
-    // Initialize notionUpdates object
-    const notionUpdates = {};
-
     // Process main personal calendar events (color-categorized)
     const rawEvents = await fetchCalendarEvents(
       process.env.PERSONAL_CALENDAR_ID,
@@ -304,7 +487,7 @@ async function processWeek(weekNumber) {
       endDate
     );
 
-    console.log(`📥 Processing ${rawEvents.length} main calendar events...\n`);
+    console.log(`📥 Processing ${rawEvents.length} main calendar events...`);
 
     // Categorize events by color
     const categorizedEvents = rawEvents.map((event) =>
@@ -326,191 +509,89 @@ async function processWeek(weekNumber) {
       }
     });
 
-    // Process all color-categorized calendars
-    console.log("🔄 Processing color-categorized events...");
-    notionUpdates["Personal Cal"] = formatEventsForCategory(
-      categories.personal,
-      "Personal"
-    );
-    notionUpdates["Interpersonal Cal"] = formatEventsForCategory(
-      categories.interpersonal,
-      "Interpersonal"
-    );
-    notionUpdates["Home Cal"] = formatEventsForCategory(
-      categories.home,
-      "Home"
-    );
-    notionUpdates["Mental Health Cal"] = formatEventsForCategory(
-      categories.mentalHealth,
-      "Mental Health"
-    );
-    notionUpdates["Physical Health Cal"] = formatEventsForCategory(
-      categories.physicalHealth,
-      "Physical Health"
-    );
+    // Fetch dedicated calendar events
+    console.log("🎮 Processing dedicated calendars...");
+    const dedicatedCalendarEvents = {
+      videoGame: [],
+      reading: [],
+      workout: [],
+    };
 
-    // Process dedicated calendars
-    console.log("\n🎮 Processing dedicated calendars...");
-    notionUpdates["Video Game Cal"] = await processCalendar(
-      "VIDEO_GAMES_CALENDAR_ID",
-      "Video Game",
-      startDate,
-      endDate
-    );
-    notionUpdates["Reading Cal"] = await processCalendar(
-      "READ_CALENDAR_ID",
-      "Reading",
-      startDate,
-      endDate
-    );
-    notionUpdates["Workout Cal"] = await processCalendar(
-      "WORKOUT_CALENDAR_ID",
-      "Workout",
-      startDate,
-      endDate
-    );
-
-    // Calculate stats for evaluation and main summary
-    const categoryStats = {};
-    let totalMinutes = 0;
-    let totalEvents = 0;
-
-    const categories2 = [
-      "personal",
-      "interpersonal",
-      "home",
-      "mentalHealth",
-      "physicalHealth",
-    ];
-    const dedicatedCategories = ["videoGame", "reading", "workout"];
-
-    // Stats from color-categorized events
-    categories2.forEach((categoryKey) => {
-      const events = categories[categoryKey];
-      const validEvents = events.filter(
-        (e) => !e.isAllDay && e.duration && e.duration.minutes >= 15
+    // Fetch Video Games calendar
+    if (process.env.VIDEO_GAMES_CALENDAR_ID) {
+      const videoGameEvents = await fetchCalendarEvents(
+        process.env.VIDEO_GAMES_CALENDAR_ID,
+        startDate,
+        endDate
       );
-      const categoryMinutes = validEvents.reduce(
-        (sum, e) => sum + (e.duration.minutes || 0),
-        0
+      dedicatedCalendarEvents.videoGame = videoGameEvents.map((event) => ({
+        summary: event.summary || "Video Game session",
+        duration: extractEventDuration(event),
+        isAllDay: event.start?.date && !event.start?.dateTime,
+        start: event.start?.dateTime || event.start?.date,
+      }));
+    }
+
+    // Fetch Reading calendar
+    if (process.env.READ_CALENDAR_ID) {
+      const readingEvents = await fetchCalendarEvents(
+        process.env.READ_CALENDAR_ID,
+        startDate,
+        endDate
       );
+      dedicatedCalendarEvents.reading = readingEvents.map((event) => ({
+        summary: event.summary || "Reading session",
+        duration: extractEventDuration(event),
+        isAllDay: event.start?.date && !event.start?.dateTime,
+        start: event.start?.dateTime || event.start?.date,
+      }));
+    }
 
-      categoryStats[categoryKey] = {
-        events: validEvents.length,
-        hours: categoryMinutes / 60,
-        minutes: categoryMinutes,
-      };
-
-      totalMinutes += categoryMinutes;
-      totalEvents += validEvents.length;
-    });
-
-    // Stats from dedicated calendars
-    categoryStats.videoGame = extractStatsFromSummary(
-      notionUpdates["Video Game Cal"],
-      "videoGame"
-    );
-    categoryStats.reading = extractStatsFromSummary(
-      notionUpdates["Reading Cal"],
-      "reading"
-    );
-    categoryStats.workout = extractStatsFromSummary(
-      notionUpdates["Workout Cal"],
-      "workout"
-    );
-
-    totalMinutes +=
-      categoryStats.videoGame.minutes +
-      categoryStats.reading.minutes +
-      categoryStats.workout.minutes;
-    totalEvents +=
-      categoryStats.videoGame.events +
-      categoryStats.reading.events +
-      categoryStats.workout.events;
+    // Fetch Workout calendar
+    if (process.env.WORKOUT_CALENDAR_ID) {
+      const workoutEvents = await fetchCalendarEvents(
+        process.env.WORKOUT_CALENDAR_ID,
+        startDate,
+        endDate
+      );
+      dedicatedCalendarEvents.workout = workoutEvents.map((event) => ({
+        summary: event.summary || "Workout",
+        duration: extractEventDuration(event),
+        isAllDay: event.start?.date && !event.start?.dateTime,
+        start: event.start?.dateTime || event.start?.date,
+      }));
+    }
 
     // Fetch Personal PRs
-    let prSummary = "No personal project commits this week.";
+    let prEvents = [];
     if (process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID) {
-      console.log("\n📥 Fetching Personal PR events...");
-      const prEvents = await fetchCalendarEvents(
+      console.log("📥 Fetching Personal PR events...");
+      prEvents = await fetchCalendarEvents(
         process.env.PERSONAL_GITHUB_DATA_CALENDAR_ID,
         startDate,
         endDate
       );
-
-      if (prEvents.length > 0) {
-        prSummary = await processPersonalProjectEvents(prEvents);
-
-        // Check if summary exceeds Notion's 2000 character limit
-        if (prSummary.length > 2000) {
-          console.log(
-            `⚠️  PR summary too long (${prSummary.length} chars), truncating...`
-          );
-          const maxLength = 1950;
-          let truncateAt = prSummary.lastIndexOf("\n", maxLength);
-          if (truncateAt === -1 || truncateAt < maxLength - 200) {
-            truncateAt = maxLength;
-          }
-          prSummary =
-            prSummary.substring(0, truncateAt) +
-            "\n\n... (truncated due to length)";
-        }
-      }
     }
 
-    notionUpdates["Personal PR Summary"] = prSummary;
-
-    // Create main Personal Cal Summary
-    const totalHours = totalMinutes / 60;
-    let personalCalSummary = `PERSONAL CAL SUMMARY:\n`;
-    personalCalSummary += `Total: ${totalHours.toFixed(
-      1
-    )} hours (${totalEvents} events)\n`;
-
-    // Add breakdown by category
-    const allCategoryStats = {
-      Personal: categoryStats.personal,
-      Interpersonal: categoryStats.interpersonal,
-      Home: categoryStats.home,
-      "Mental Health": categoryStats.mentalHealth,
-      "Physical Health": categoryStats.physicalHealth,
-      "Video Games": categoryStats.videoGame,
-      Reading: categoryStats.reading,
-      Workouts: categoryStats.workout,
-    };
-
-    Object.entries(allCategoryStats).forEach(([categoryName, stats]) => {
-      const percent =
-        totalHours > 0 ? Math.round((stats.hours / totalHours) * 100) : 0;
-      personalCalSummary += `- ${categoryName}: ${stats.hours.toFixed(
-        1
-      )} hours (${percent}%)\n`;
-    });
-
-    // Generate evaluation and add to main summary
-    const evaluations = generatePersonalCalEvaluation(categoryStats, prSummary);
-    if (evaluations.length > 0) {
-      personalCalSummary +=
-        "\n===== EVALUATION =====\n" + evaluations.join("\n");
-    }
-
-    notionUpdates["Personal Cal Summary"] = personalCalSummary;
-
-    // Log what we're updating
-    Object.keys(notionUpdates).forEach((field) => {
-      const summary = notionUpdates[field];
-      const match = summary.match(/\((\d+) events, ([\d.]+) hours\)/);
-      if (match) {
-        console.log(`🔄 ${field}: ${match[1]} events, ${match[2]} hours`);
-      } else {
-        console.log(`🔄 ${field}: Updated`);
-      }
-    });
+    // Generate simplified Personal Cal Summary
+    console.log("📊 Generating Personal Cal Summary...");
+    const personalCalSummary = await generatePersonalCalSummary(
+      categories,
+      dedicatedCalendarEvents,
+      prEvents,
+      startDate,
+      endDate
+    );
 
     // Update Notion
-    console.log("\n📝 Updating Notion...");
-    await updateAllSummaries(notion, pageId, notionUpdates);
-    console.log(`✅ Successfully updated Week ${paddedWeek} recap!`);
+    console.log("📝 Updating Notion...");
+    await updateAllSummaries(notion, pageId, {
+      "Personal Cal Summary": personalCalSummary,
+    });
+
+    console.log(
+      `✅ Successfully updated Week ${paddedWeek} Personal Cal Summary!`
+    );
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error);
   }
@@ -541,7 +622,7 @@ async function runInteractiveMode() {
   const weekInput = await askQuestion(
     "? Which weeks to process? (comma-separated, e.g., 26,27,28): "
   );
-  let targetWeeks = [TARGET_WEEKS[0]]; // default
+  let targetWeeks = [TARGET_WEEKS[0]];
   if (weekInput.trim()) {
     targetWeeks = weekInput
       .split(",")
@@ -571,12 +652,7 @@ async function main() {
   const args = process.argv.slice(2);
 
   // Check if running in interactive mode
-  const result = await checkInteractiveMode(
-    args,
-    [], // No categories for this script
-    DEFAULT_TARGET_WEEKS,
-    [] // No active categories
-  );
+  const result = await checkInteractiveMode(args, [], DEFAULT_TARGET_WEEKS, []);
 
   if (result.isInteractive) {
     TARGET_WEEKS = await runInteractiveMode();

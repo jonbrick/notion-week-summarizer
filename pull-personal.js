@@ -85,19 +85,22 @@ async function processPersonalWeek() {
     console.log("=".repeat(50));
     console.log("📍 STEP 1: Personal Calendar Pull");
     console.log("=".repeat(50));
-    await runScript("personal-cal-pull.js", [...weekArgs, "--both"]);
+    await runScript("scripts/personal/personal-cal-pull.js", [
+      ...weekArgs,
+      "--both",
+    ]);
 
     // Run Personal Task Pull
     console.log("\n" + "=".repeat(50));
     console.log("📍 STEP 2: Personal Task Pull");
     console.log("=".repeat(50));
-    await runScript("personal-tasks-pull.js", weekArgs);
+    await runScript("scripts/personal/personal-tasks-pull.js", weekArgs);
 
     // Run Personal Habits Pull
     console.log("\n" + "=".repeat(50));
     console.log("📍 STEP 3: Personal Habits Pull");
     console.log("=".repeat(50));
-    await runScript("personal-habits-pull.js", weekArgs);
+    await runScript("scripts/personal/personal-habits-pull.js", weekArgs);
 
     console.log("\n" + "=".repeat(50));
     console.log(
