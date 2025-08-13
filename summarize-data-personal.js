@@ -257,6 +257,8 @@ function generatePersonalTaskSummary(data) {
         // Check if this section needs special formatting
         if (section.key === "rockDetails") {
           summary += formatRocks(content) + "\n";
+        } else if (section.key === "eventDetails") {
+          summary += formatEvents(content) + "\n";
         } else {
           // For now, just use raw content for other sections
           summary += content + "\n";
@@ -361,11 +363,17 @@ function formatPersonalTasksSummary(personalTasks) {
 
       if (isInEnabledCategory) {
         totalTasks += taskCount;
-        output += line + "\n";
+        // Add green checkmark to category header
+        output += `✅ ${line}\n`;
       }
     } else if (isInEnabledCategory) {
-      // Add task lines for enabled categories
-      output += line + "\n";
+      // Remove dates from task lines using regex
+      // Pattern: (Day Mon ##) at the end of lines
+      const cleanedLine = line.replace(
+        /\s*\([A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\)$/,
+        ""
+      );
+      output += cleanedLine + "\n";
     } else if (line.includes("PERSONAL TASKS")) {
       // Update the header with new total
       output += `PERSONAL TASKS (${totalTasks} tasks):\n`;
@@ -422,6 +430,42 @@ function formatRocks(rockDetails) {
   });
 
   return sortedRocks.join("\n");
+}
+
+function formatEvents(eventDetails) {
+  if (!eventDetails || !eventDetails.trim()) {
+    return "";
+  }
+
+  // Day priority for sorting
+  const dayPriority = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  // Split on commas like we did with rocks
+  const eventLines = eventDetails
+    .split(",")
+    .map((event) => event.trim())
+    .filter((event) => event.length > 0);
+
+  // Sort by first day mentioned in each event
+  const sortedEvents = eventLines.sort((a, b) => {
+    const dayMatchA = a.match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+    const dayMatchB = b.match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+
+    const dayA = dayMatchA ? dayMatchA[1] : "Sun";
+    const dayB = dayMatchB ? dayMatchB[1] : "Sun";
+
+    return dayPriority[dayA] - dayPriority[dayB];
+  });
+
+  return sortedEvents.join("\n");
 }
 
 /**
