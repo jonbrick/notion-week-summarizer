@@ -73,7 +73,7 @@ async function fetchCalendarEvents(
  */
 async function formatPREvents(prEvents) {
   if (!prEvents || prEvents.length === 0) {
-    return "PERSONAL PR EVENTS (0 apps, 0 commits):\nNo personal PR events this week";
+    return "Personal PR Events (0 apps, 0 commits):\nNo personal PR events this week";
   }
 
   // Use the existing personal PR processor to get the full formatted output
@@ -84,7 +84,7 @@ async function formatPREvents(prEvents) {
     /PERSONAL PRs \((\d+) apps?, (\d+) commits?\)/
   );
   if (!headerMatch) {
-    return "PERSONAL PR EVENTS (0 apps, 0 commits):\nNo personal PR events this week";
+    return "Personal PR Events (0 apps, 0 commits):\nNo personal PR events this week";
   }
 
   const appCount = parseInt(headerMatch[1]);
@@ -93,11 +93,11 @@ async function formatPREvents(prEvents) {
   // Extract the content after the divider
   const contentParts = prSummary.split("------\n");
   if (contentParts.length < 2) {
-    return `PERSONAL PR EVENTS (${appCount} apps, ${commitCount} commits):\nNo personal PR events this week`;
+    return `Personal PR Events (${appCount} apps, ${commitCount} commits):\nNo personal PR events this week`;
   }
 
   // Format output with full commit details
-  let output = `PERSONAL PR EVENTS (${appCount} app${
+  let output = `Personal PR Events (${appCount} app${
     appCount !== 1 ? "s" : ""
   }, ${commitCount} commit${commitCount !== 1 ? "s" : ""}):\n`;
 
@@ -162,7 +162,7 @@ async function pullPersonalPREvents(weekNumber) {
       console.log("   ⚠️  PERSONAL_GITHUB_DATA_CALENDAR_ID not configured");
       return {
         "Personal PR Events":
-          "PERSONAL PR EVENTS (0 apps, 0 commits):\nNo personal PR events this week",
+          "Personal PR Events (0 apps, 0 commits):\nNo personal PR events this week",
       };
     }
 
@@ -188,7 +188,7 @@ async function pullPersonalPREvents(weekNumber) {
     );
     return {
       "Personal PR Events":
-        "PERSONAL PR EVENTS (0 apps, 0 commits):\nError fetching PR events this week",
+        "Personal PR Events (0 apps, 0 commits):\nError fetching PR events this week",
     };
   }
 }

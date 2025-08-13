@@ -91,7 +91,7 @@ function formatEventsColumn(events, columnName, eventType = "events") {
 
   const totalHours = (totalMinutes / 60).toFixed(1);
 
-  let output = `${columnName.toUpperCase()} (${events.length} event`;
+  let output = `${columnName} (${events.length} event`;
   if (events.length !== 1) output += "s";
   output += `, ${totalHours} hour`;
   if (totalHours !== "1.0") output += "s";
@@ -119,7 +119,7 @@ async function pullWorkoutCalendar(weekNumber) {
       console.log("   ⚠️  WORKOUT_CALENDAR_ID not configured");
       return {
         "Workout Events":
-          "WORKOUT EVENTS (0 events, 0 hours):\nNo workout events this week",
+          "Workout Events (0 events, 0 hours):\nNo workout events this week",
       };
     }
 
@@ -146,7 +146,7 @@ async function pullWorkoutCalendar(weekNumber) {
     );
     return {
       "Workout Events":
-        "WORKOUT EVENTS (0 events, 0 hours):\nError fetching workout events this week",
+        "Workout Events (0 events, 0 hours):\nError fetching workout events this week",
     };
   }
 }

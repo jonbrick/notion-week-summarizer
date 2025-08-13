@@ -116,7 +116,7 @@ function formatTasksColumn(tasks, columnName) {
       // Get clean type name (remove emoji)
       const typeName = type.split(" ").slice(1).join(" ");
 
-      output += `${typeName} (${tasksByType[type].length})\n`;
+      output += `${typeName} Tasks (${tasksByType[type].length})\n`;
       tasksByType[type].forEach((task) => {
         const dateStr = task.dueDate
           ? ` (${formatTaskDate(task.dueDate)})`

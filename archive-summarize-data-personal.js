@@ -285,7 +285,7 @@ function generatePersonalCalSummary(data) {
     );
   } else {
     eventSummaries.push(
-      `READING EVENTS (0 events, 0 hours):\nNo reading events this week`
+      `ARCHIVE (0 events, 0 hours):\nNo reading events this week`
     );
   }
 
