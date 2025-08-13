@@ -6,23 +6,27 @@ const {
 } = require("./src/utils/cli-utils");
 const { findWeekRecapPage } = require("./src/utils/notion-utils");
 const { DEFAULT_TARGET_WEEKS } = require("./src/config/task-config");
-const { pullPersonalTasks } = require("./data-pulls/pull-personal-tasks");
+const {
+  pullPersonalTasks,
+} = require("./scripts/data-pulls/pull-personal-tasks");
 const {
   pullPersonalPREvents,
-} = require("./data-pulls/pull-personal-pr-events");
-const { pullPersonalCalendar } = require("./data-pulls/pull-personal-calendar");
+} = require("./scripts/data-pulls/pull-personal-pr-events");
+const {
+  pullPersonalCalendar,
+} = require("./scripts/data-pulls/pull-personal-calendar");
 const {
   pullWorkoutCalendar,
-} = require("./data-pulls/pull-personal-workout-calendar");
+} = require("./scripts/data-pulls/pull-personal-workout-calendar");
 const {
   pullReadingCalendar,
-} = require("./data-pulls/pull-personal-reading-calendar");
+} = require("./scripts/data-pulls/pull-personal-reading-calendar");
 const {
   pullVideoGamesCalendar,
-} = require("./data-pulls/pull-personal-video-games-calendar");
+} = require("./scripts/data-pulls/pull-personal-video-games-calendar");
 const {
   pullPersonalHabits,
-} = require("./data-pulls/pull-personal-habit-calendars");
+} = require("./scripts/data-pulls/pull-personal-habit-calendars");
 require("dotenv").config();
 
 // Initialize clients

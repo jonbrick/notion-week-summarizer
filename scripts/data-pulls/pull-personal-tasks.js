@@ -1,5 +1,5 @@
 const { Client } = require("@notionhq/client");
-const { findWeekRecapPage } = require("../src/utils/notion-utils");
+const { findWeekRecapPage } = require("../../src/utils/notion-utils");
 require("dotenv").config();
 
 // Initialize Notion client
