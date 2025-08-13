@@ -62,6 +62,37 @@ const taskCategoriesConfig = [
   { category: "Home Tasks", include: true, order: 5 }, // DISABLED
 ];
 
+// Interpersonal Events Grouping Configuration
+const interpersonalGroupingConfig = {
+  general: {
+    displayName: "Interpersonal events",
+    precedence: 1, // Lowest priority - catch-all
+    order: 1, // Display first
+    include: true,
+  },
+  relationships: {
+    keywords: ["jen", "jen rothman", "jenn"],
+    displayName: "Relationships",
+    precedence: 2, // Trumps general only
+    order: 2, // Display second
+    include: true,
+  },
+  family: {
+    keywords: ["mom", "dad", "vicki", "evan", "fam", "vick"],
+    displayName: "Family",
+    precedence: 3, // Trumps relationships and general
+    order: 3, // Display third
+    include: true,
+  },
+  calls: {
+    keywords: ["call", "facetime", "ft"],
+    displayName: "Calls",
+    precedence: 4, // Highest - trumps everything
+    order: 4, // Display last
+    include: true,
+  },
+};
+
 // Calendar Event Evaluation Functions
 function evaluateZeroIsGood(eventCount) {
   if (eventCount === 0) return "✅";
@@ -104,6 +135,7 @@ const calSummaryConfig = [
     order: 3,
     displayName: "Interpersonal events",
     evaluation: evaluateCareSometimes,
+    useGrouping: true, // Special flag for interpersonal grouping
   },
   {
     key: "mentalHealthEvents",
@@ -369,6 +401,14 @@ function generatePersonalCalSummary(data) {
             `${status} ${eventConfig.displayName}`
           )
         );
+      } else if (
+        eventConfig.useGrouping &&
+        eventConfig.key === "interpersonalEvents"
+      ) {
+        // Use special interpersonal grouping
+        eventSummaries.push(
+          formatInterpersonalEventsGrouped(eventData, status)
+        );
       } else {
         eventSummaries.push(
           formatCalendarEvents(
@@ -396,6 +436,145 @@ function generatePersonalCalSummary(data) {
 
   summary += eventSummaries.join("\n\n");
   return summary;
+}
+
+/**
+ * Format interpersonal events with grouping
+ */
+function formatInterpersonalEventsGrouped(eventData, statusIcon) {
+  if (!eventData || eventData.includes("No interpersonal events")) {
+    return `${statusIcon} Interpersonal events (0 events, 0 hours):\nNo interpersonal events this week`;
+  }
+
+  // Parse the event data to extract individual events
+  const lines = eventData.split("\n");
+  const events = [];
+
+  // Extract individual event lines (start with •)
+  const eventLines = lines.filter((line) => line.trim().startsWith("•"));
+
+  eventLines.forEach((line) => {
+    const trimmedLine = line.trim().substring(1).trim(); // Remove •
+
+    // Extract hours from the line (e.g., "Event name (1.5h)")
+    const hoursMatch = trimmedLine.match(/\(([0-9.]+)h\)$/);
+    const hours = hoursMatch ? parseFloat(hoursMatch[1]) : 0;
+
+    // Extract event name (everything before the hours)
+    const eventName = trimmedLine.replace(/\s*\([0-9.]+h\)$/, "");
+
+    events.push({
+      name: eventName,
+      hours: hours,
+      originalLine: trimmedLine,
+    });
+  });
+
+  // Categorize events by precedence
+  const categorizedEvents = {
+    general: [],
+    relationships: [],
+    family: [],
+    calls: [],
+  };
+
+  // Debug: Track categorization
+  const debugInfo = [];
+
+  events.forEach((event) => {
+    const eventLower = event.name.toLowerCase();
+    let assignedCategory = null;
+    let matchedKeywords = [];
+
+    // Check each category to see what keywords match
+    Object.entries(interpersonalGroupingConfig).forEach(([key, config]) => {
+      if (config.keywords) {
+        const matches = config.keywords.filter((keyword) => {
+          const keywordLower = keyword.toLowerCase();
+
+          // Special handling for short keywords that might match unintentionally
+          if (keywordLower === "ft" || keywordLower === "fam") {
+            // Match as whole word only
+            const wordRegex = new RegExp(`\\b${keywordLower}\\b`, "i");
+            return wordRegex.test(event.name);
+          }
+
+          // For other keywords, use regular includes
+          return eventLower.includes(keywordLower);
+        });
+
+        if (matches.length > 0) {
+          matchedKeywords.push({
+            category: key,
+            keywords: matches,
+            precedence: config.precedence,
+          });
+        }
+      }
+    });
+
+    // Sort by precedence (highest first) and assign to highest precedence category
+    if (matchedKeywords.length > 0) {
+      matchedKeywords.sort((a, b) => b.precedence - a.precedence);
+      assignedCategory = matchedKeywords[0].category;
+      categorizedEvents[assignedCategory].push(event);
+
+      // Debug log
+      debugInfo.push({
+        event: event.name,
+        matched: matchedKeywords,
+        assigned: assignedCategory,
+      });
+    } else {
+      // No keywords matched, put in general
+      categorizedEvents.general.push(event);
+      debugInfo.push({
+        event: event.name,
+        matched: [],
+        assigned: "general",
+      });
+    }
+  });
+
+  // Build output in display order
+  let output = "";
+  const displayOrder = Object.entries(interpersonalGroupingConfig)
+    .filter(([key, config]) => config.include)
+    .sort((a, b) => a[1].order - b[1].order);
+
+  displayOrder.forEach(([categoryKey, config]) => {
+    const categoryEvents = categorizedEvents[categoryKey];
+
+    if (categoryEvents.length > 0) {
+      const totalHours = categoryEvents.reduce(
+        (sum, event) => sum + event.hours,
+        0
+      );
+      const formattedHours = totalHours.toFixed(1);
+
+      // Use evaluation function for status
+      const evaluation = calSummaryConfig.find(
+        (c) => c.key === "interpersonalEvents"
+      )?.evaluation;
+      const categoryStatus = evaluation
+        ? evaluation(categoryEvents.length)
+        : statusIcon;
+
+      if (output) output += "\n";
+
+      output += `${categoryStatus} ${config.displayName} (${
+        categoryEvents.length
+      } event${
+        categoryEvents.length !== 1 ? "s" : ""
+      }, ${formattedHours} hours):\n`;
+
+      categoryEvents.forEach((event) => {
+        output += `• ${event.originalLine}\n`;
+      });
+    }
+  });
+
+  return output.trim();
 }
 
 /**
@@ -521,6 +700,7 @@ function formatPersonalPREvents(eventData, eventType) {
     "\n"
   )}`;
 }
+
 function formatRocks(rockDetails) {
   if (!rockDetails || !rockDetails.trim()) {
     return "";
