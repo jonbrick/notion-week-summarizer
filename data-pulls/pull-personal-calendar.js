@@ -90,7 +90,7 @@ function categorizeEventByColor(event) {
  */
 function formatEventsColumn(events, columnName, eventType = "events") {
   if (!events || events.length === 0) {
-    return `${columnName.toUpperCase()} (0 ${eventType}, 0 hours):\nNo ${columnName.toLowerCase()} this week`;
+    return `${columnName} (0 ${eventType}, 0 hours):\nNo ${columnName.toLowerCase()} this week`;
   }
 
   // Calculate total hours

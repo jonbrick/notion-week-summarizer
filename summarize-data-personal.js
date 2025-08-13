@@ -55,11 +55,11 @@ const taskSummaryConfig = [
 
 // Task Categories Configuration
 const taskCategoriesConfig = [
-  { category: "Personal", include: true, order: 1 },
-  { category: "Physical Health", include: true, order: 2 },
-  { category: "Interpersonal", include: false, order: 3 }, // DISABLED
-  { category: "Mental Health", include: false, order: 4 },
-  { category: "Home", include: true, order: 5 }, // DISABLED
+  { category: "Personal Tasks", include: true, order: 1 },
+  { category: "Physical Health Tasks", include: true, order: 2 },
+  { category: "Interpersonal Tasks", include: false, order: 3 }, // DISABLED
+  { category: "Mental Health Tasks", include: false, order: 4 },
+  { category: "Home Tasks", include: true, order: 5 }, // DISABLED
 ];
 
 // Cal Summary Configuration
@@ -68,50 +68,50 @@ const calSummaryConfig = [
     key: "personalEvents",
     include: false,
     order: 1,
-    displayName: "PERSONAL EVENTS",
+    displayName: "Personal events",
   },
-  { key: "homeEvents", include: false, order: 2, displayName: "HOME EVENTS" },
+  { key: "homeEvents", include: false, order: 2, displayName: "Home events" },
   {
     key: "interpersonalEvents",
     include: true,
     order: 3,
-    displayName: "INTERPERSONAL EVENTS",
+    displayName: "Interpersonal events",
   },
   {
     key: "mentalHealthEvents",
     include: true,
     order: 4,
-    displayName: "MENTAL HEALTH EVENTS",
+    displayName: "Mental health events",
   },
   {
     key: "physicalHealthEvents",
     include: true,
     order: 5,
-    displayName: "PHYSICAL HEALTH EVENTS",
+    displayName: "Physical health events",
   },
   {
     key: "workoutEvents",
     include: true,
     order: 6,
-    displayName: "WORKOUT EVENTS",
+    displayName: "Workout events",
   },
   {
     key: "readingEvents",
     include: true,
     order: 7,
-    displayName: "READING EVENTS",
+    displayName: "Reading events",
   },
   {
     key: "videoGameEvents",
     include: true,
     order: 8,
-    displayName: "VIDEO GAME EVENTS",
+    displayName: "Video game events",
   },
   {
     key: "personalPREvents",
     include: true,
     order: 9,
-    displayName: "PERSONAL PR EVENTS",
+    displayName: "Personal PR events",
   },
 ];
 
@@ -347,9 +347,9 @@ function generatePersonalCalSummary(data) {
 function formatPersonalTasksSummary(personalTasks) {
   // Task exemption arrays (case-insensitive matching)
   const exemptions = {
-    Home: ["laundry", "fold"],
-    Personal: ["shave", "groceries"],
-    "Physical Health": ["workout", "run"],
+    "Home Tasks": ["laundry", "fold"],
+    "Personal Tasks": ["shave", "groceries"],
+    "Physical Health Tasks": ["workout", "run"],
   };
 
   const lines = personalTasks.split("\n");
@@ -366,7 +366,7 @@ function formatPersonalTasksSummary(personalTasks) {
 
   for (const line of lines) {
     // Check if this line is a category header
-    const categoryMatch = line.match(/^([A-Za-z\s]+)\s+\((\d+)\)$/);
+    const categoryMatch = line.match(/^(.+?)\s+\((\d+)\)$/);
     if (categoryMatch) {
       // If we were processing a previous category, add it to output if it has tasks
       if (isInEnabledCategory && currentCategory && currentCategoryTasks > 0) {
