@@ -170,17 +170,13 @@ async function processWeek(weekNumber) {
         targetWeekPage.properties["Personal PR Events"]?.rich_text?.[0]
           ?.plain_text || "",
       habitsDetails:
-        targetWeekPage.properties["Habits Details"]?.rich_text?.[0]
-          ?.plain_text || "",
+        targetWeekPage.properties["Habits Details"]?.formula?.string || "",
       tripDetails:
-        targetWeekPage.properties["Trip Details"]?.rich_text?.[0]?.plain_text ||
-        "",
+        targetWeekPage.properties["Trip Details"]?.formula?.string || "",
       eventDetails:
-        targetWeekPage.properties["Event Details"]?.rich_text?.[0]
-          ?.plain_text || "",
+        targetWeekPage.properties["Event Details"]?.formula?.string || "",
       rockDetails:
-        targetWeekPage.properties["Rock Details"]?.rich_text?.[0]?.plain_text ||
-        "",
+        targetWeekPage.properties["Rock Details"]?.formula?.string || "",
       // Habit number columns
       earlyWakeup: targetWeekPage.properties["Early Wakeup"]?.number || 0,
       sleepIn: targetWeekPage.properties["Sleep In"]?.number || 0,
@@ -258,7 +254,13 @@ function generatePersonalTaskSummary(data) {
     if (section.type === "single") {
       const content = data[section.key];
       if (content && content.trim()) {
-        summary += content + "\n";
+        // Check if this section needs special formatting
+        if (section.key === "rockDetails") {
+          summary += formatRocks(content) + "\n";
+        } else {
+          // For now, just use raw content for other sections
+          summary += content + "\n";
+        }
       } else {
         summary += `No ${section.title.toLowerCase()} this week\n`;
       }
@@ -386,6 +388,40 @@ function extractHours(eventData) {
 function extractEventCount(eventData) {
   const countMatch = eventData?.match(/(\d+)\s*events?/);
   return countMatch ? countMatch[1] : "0";
+}
+function formatRocks(rockDetails) {
+  if (!rockDetails || !rockDetails.trim()) {
+    return "";
+  }
+
+  // Split on ), then add ) back to each part (except the last)
+  const parts = rockDetails.split("),");
+  const rockLines = parts
+    .map((part, index) => {
+      // Add ) back to all parts except the last one
+      return index < parts.length - 1 ? part.trim() + ")" : part.trim();
+    })
+    .filter((rock) => rock.length > 0);
+
+  // Sort by status text, keeping original format intact
+  const sortedRocks = rockLines.sort((a, b) => {
+    let priorityA = 5,
+      priorityB = 5;
+
+    if (a.includes("Went well")) priorityA = 1;
+    else if (a.includes("Made progress")) priorityA = 2;
+    else if (a.includes("Didn't go so well")) priorityA = 3;
+    else if (a.includes("Went bad")) priorityA = 4;
+
+    if (b.includes("Went well")) priorityB = 1;
+    else if (b.includes("Made progress")) priorityB = 2;
+    else if (b.includes("Didn't go so well")) priorityB = 3;
+    else if (b.includes("Went bad")) priorityB = 4;
+
+    return priorityA - priorityB;
+  });
+
+  return sortedRocks.join("\n");
 }
 
 /**
