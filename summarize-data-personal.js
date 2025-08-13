@@ -62,6 +62,26 @@ const taskCategoriesConfig = [
   { category: "Home Tasks", include: true, order: 5 }, // DISABLED
 ];
 
+// Calendar Event Evaluation Functions
+function evaluateZeroIsGood(eventCount) {
+  if (eventCount === 0) return "✅";
+  if (eventCount > 0) return "❌";
+}
+
+function evaluateZeroIsBad(eventCount) {
+  if (eventCount === 0) return "❌";
+  if (eventCount > 0) return "✅";
+}
+
+function evaluateDontCare(eventCount) {
+  return "☑️";
+}
+
+function evaluateCareSometimes(eventCount) {
+  if (eventCount > 1) return "✅";
+  return "☑️";
+}
+
 // Cal Summary Configuration
 const calSummaryConfig = [
   {
@@ -69,49 +89,63 @@ const calSummaryConfig = [
     include: false,
     order: 1,
     displayName: "Personal events",
+    evaluation: evaluateDontCare,
   },
-  { key: "homeEvents", include: false, order: 2, displayName: "Home events" },
+  {
+    key: "homeEvents",
+    include: false,
+    order: 2,
+    displayName: "Home events",
+    evaluation: evaluateDontCare,
+  },
   {
     key: "interpersonalEvents",
     include: true,
     order: 3,
     displayName: "Interpersonal events",
+    evaluation: evaluateCareSometimes,
   },
   {
     key: "mentalHealthEvents",
     include: true,
     order: 4,
     displayName: "Mental health events",
+    evaluation: evaluateCareSometimes,
   },
   {
     key: "physicalHealthEvents",
     include: true,
     order: 5,
     displayName: "Physical health events",
+    evaluation: evaluateZeroIsBad,
   },
   {
     key: "workoutEvents",
     include: true,
     order: 6,
     displayName: "Workout events",
+    evaluation: evaluateZeroIsBad,
   },
   {
     key: "readingEvents",
     include: true,
     order: 7,
     displayName: "Reading events",
+    evaluation: evaluateZeroIsBad,
   },
   {
     key: "videoGameEvents",
     include: true,
     order: 8,
     displayName: "Video game events",
+    evaluation: evaluateZeroIsGood,
   },
   {
     key: "personalPREvents",
     include: true,
     order: 9,
     displayName: "Personal PR events",
+    evaluation: evaluateCareSometimes,
   },
 ];
 
@@ -303,32 +337,55 @@ function generatePersonalCalSummary(data) {
     const eventData = data[eventConfig.key];
     const hours = extractHours(eventData);
     const count = extractEventCount(eventData);
+    const status = eventConfig.evaluation
+      ? eventConfig.evaluation(parseInt(count))
+      : "";
     eventSummaries.push(
-      `${eventConfig.displayName} (${count} events, ${hours} hours):`
+      `${status} ${eventConfig.displayName} (${count} events, ${hours} hours):`
     );
   });
 
   // Add detailed events
   enabledEvents.forEach((eventConfig) => {
     const eventData = data[eventConfig.key];
+    const count =
+      eventConfig.key === "personalPREvents"
+        ? extractAppsCount(eventData)
+        : extractEventCount(eventData);
+    const status = eventConfig.evaluation
+      ? eventConfig.evaluation(parseInt(count))
+      : "";
+
     if (
       eventData &&
       !eventData.includes(
         `No ${eventConfig.key.replace("Events", "").toLowerCase()} events`
       )
     ) {
-      eventSummaries.push(
-        formatCalendarEvents(eventData, eventConfig.displayName)
-      );
+      if (eventConfig.key === "personalPREvents") {
+        eventSummaries.push(
+          formatPersonalPREvents(
+            eventData,
+            `${status} ${eventConfig.displayName}`
+          )
+        );
+      } else {
+        eventSummaries.push(
+          formatCalendarEvents(
+            eventData,
+            `${status} ${eventConfig.displayName}`
+          )
+        );
+      }
     } else {
       const defaultText =
         eventConfig.key === "personalPREvents"
-          ? `${
+          ? `${status} ${
               eventConfig.displayName
             } (0 apps, 0 commits):\nNo ${eventConfig.key
               .replace("Events", "")
               .toLowerCase()} events this week`
-          : `${
+          : `${status} ${
               eventConfig.displayName
             } (0 events, 0 hours):\nNo ${eventConfig.key
               .replace("Events", "")
@@ -418,8 +475,15 @@ function formatPersonalTasksSummary(personalTasks) {
 }
 
 function formatCalendarEvents(eventData, eventType) {
-  // TODO: Implement calendar event formatting
-  return eventData;
+  // Remove the existing title from eventData to avoid duplication
+  const lines = eventData.split("\n");
+  const contentLines = lines.filter(
+    (line) => !line.includes("Events (") && !line.includes("PR Events (")
+  );
+
+  return `${eventType} (${extractEventCount(eventData)} events, ${extractHours(
+    eventData
+  )} hours):\n${contentLines.join("\n")}`;
 }
 
 function extractHours(eventData) {
@@ -430,6 +494,32 @@ function extractHours(eventData) {
 function extractEventCount(eventData) {
   const countMatch = eventData?.match(/(\d+)\s*events?/);
   return countMatch ? countMatch[1] : "0";
+}
+
+function extractAppsCount(eventData) {
+  const appsMatch = eventData?.match(/(\d+)\s*apps?/);
+  return appsMatch ? appsMatch[1] : "0";
+}
+
+function extractCommitsCount(eventData) {
+  const commitsMatch = eventData?.match(/(\d+)\s*commits?/);
+  return commitsMatch ? commitsMatch[1] : "0";
+}
+
+function formatPersonalPREvents(eventData, eventType) {
+  const appsCount = extractAppsCount(eventData);
+  const commitsCount = extractCommitsCount(eventData);
+
+  // Remove the existing title from eventData to avoid duplication
+  const lines = eventData.split("\n");
+  const contentLines = lines.filter(
+    (line) =>
+      !line.includes("Personal PR Events (") && !line.includes("PR Events (")
+  );
+
+  return `${eventType} (${appsCount} apps, ${commitsCount} commits):\n${contentLines.join(
+    "\n"
+  )}`;
 }
 function formatRocks(rockDetails) {
   if (!rockDetails || !rockDetails.trim()) {
@@ -453,7 +543,7 @@ function formatRocks(rockDetails) {
     if (a.includes("Went well")) priorityA = 1;
     else if (a.includes("Made progress")) priorityA = 2;
     else if (a.includes("Didn't go so well")) priorityA = 3;
-    else if (a.includes("Went bad")) priorityA = 4;
+    else if (a.includes("Went bad")) priorityB = 4;
 
     if (b.includes("Went well")) priorityB = 1;
     else if (b.includes("Made progress")) priorityB = 2;
