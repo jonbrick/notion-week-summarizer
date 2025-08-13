@@ -12,108 +12,21 @@ const DEFAULT_TARGET_WEEKS = [1];
 let TARGET_WEEKS = DEFAULT_TARGET_WEEKS;
 let SELECTED_DATA_SOURCES = "both"; // both, task-summary, cal-summary
 
-console.log("📊 Personal Data Summarizer - Clean Version");
+console.log("📊 Personal Data Summarizer");
 
-// Task Summary Configuration
-const taskSummaryConfig = [
-  {
-    type: "single",
-    key: "tripDetails",
-    include: true,
-    order: 1,
-    title: "TRIPS",
-  },
-  {
-    type: "single",
-    key: "eventDetails",
-    include: true,
-    order: 2,
-    title: "EVENTS",
-  },
-  {
-    type: "single",
-    key: "habitsDetails",
-    include: true,
-    order: 3,
-    title: "HABITS",
-  },
-  {
-    type: "single",
-    key: "rockDetails",
-    include: true,
-    order: 4,
-    title: "ROCKS",
-  },
-  {
-    type: "taskBreakdown",
-    key: "personalTasks",
-    include: true,
-    order: 5,
-    title: "SUMMARY",
-  },
-];
+/**
+ * Interactive mode for user input
+ */
+async function checkInteractiveMode() {
+  const args = process.argv.slice(2);
 
-// Task Categories Configuration
-const taskCategoriesConfig = [
-  { category: "Personal", include: true, order: 1 },
-  { category: "Physical Health", include: true, order: 2 },
-  { category: "Interpersonal", include: false, order: 3 }, // DISABLED
-  { category: "Mental Health", include: false, order: 4 },
-  { category: "Home", include: true, order: 5 }, // DISABLED
-];
+  if (args.length > 0) {
+    // Non-interactive mode - could add argument parsing here later
+    return { isInteractive: false, targetWeeks: DEFAULT_TARGET_WEEKS };
+  }
 
-// Cal Summary Configuration
-const calSummaryConfig = [
-  {
-    key: "personalEvents",
-    include: false,
-    order: 1,
-    displayName: "PERSONAL EVENTS",
-  },
-  { key: "homeEvents", include: false, order: 2, displayName: "HOME EVENTS" },
-  {
-    key: "interpersonalEvents",
-    include: true,
-    order: 3,
-    displayName: "INTERPERSONAL EVENTS",
-  },
-  {
-    key: "mentalHealthEvents",
-    include: true,
-    order: 4,
-    displayName: "MENTAL HEALTH EVENTS",
-  },
-  {
-    key: "physicalHealthEvents",
-    include: true,
-    order: 5,
-    displayName: "PHYSICAL HEALTH EVENTS",
-  },
-  {
-    key: "workoutEvents",
-    include: true,
-    order: 6,
-    displayName: "WORKOUT EVENTS",
-  },
-  {
-    key: "readingEvents",
-    include: true,
-    order: 7,
-    displayName: "READING EVENTS",
-  },
-  {
-    key: "videoGameEvents",
-    include: true,
-    order: 8,
-    displayName: "VIDEO GAME EVENTS",
-  },
-  {
-    key: "personalPREvents",
-    include: true,
-    order: 9,
-    displayName: "PERSONAL PR EVENTS",
-  },
-];
+  return { isInteractive: true };
+}
 
 /**
  * Process a single week
@@ -243,134 +156,207 @@ async function processWeek(weekNumber) {
 }
 
 /**
- * Generate Personal Task Summary using config
+ * Generate Personal Task Summary
  */
 function generatePersonalTaskSummary(data) {
   let summary = "";
 
-  const enabledSections = taskSummaryConfig
-    .filter((section) => section.include)
-    .sort((a, b) => a.order - b.order);
+  // ===== TRIPS =====
+  summary += "===== TRIPS =====\n";
+  if (data.tripDetails) {
+    summary += formatTrips(data.tripDetails) + "\n";
+  } else {
+    summary += "No trips this week\n";
+  }
 
-  enabledSections.forEach((section) => {
-    summary += `===== ${section.title} =====\n`;
+  // ===== EVENTS =====
+  summary += "\n===== EVENTS =====\n";
+  if (data.eventDetails) {
+    summary += formatEvents(data.eventDetails) + "\n";
+  } else {
+    summary += "No events this week\n";
+  }
 
-    if (section.type === "single") {
-      const content = data[section.key];
-      if (content && content.trim()) {
-        summary += content + "\n";
-      } else {
-        summary += `No ${section.title.toLowerCase()} this week\n`;
-      }
-    } else if (section.type === "taskBreakdown") {
-      const content = data[section.key];
-      if (content && content.trim()) {
-        summary += formatPersonalTasksSummary(content);
-      } else {
-        summary += "No personal tasks this week";
-      }
-    }
+  // ===== HABITS =====
+  summary += "\n===== HABITS =====\n";
+  summary += formatHabits(data) + "\n";
 
-    summary += "\n";
-  });
+  // ===== ROCKS =====
+  summary += "\n===== ROCKS =====\n";
+  if (data.rockDetails) {
+    summary += formatRocks(data.rockDetails) + "\n";
+  } else {
+    summary += "No rocks this week\n";
+  }
 
-  return summary.trim();
-}
+  // ===== SUMMARY =====
+  summary += "\n===== SUMMARY =====\n";
+  if (data.personalTasks) {
+    summary += formatPersonalTasksSummary(data.personalTasks);
+  } else {
+    summary += "No personal tasks this week";
+  }
 
-/**
- * Generate Personal Cal Summary using config
- */
-function generatePersonalCalSummary(data) {
-  let summary = "===== SUMMARY =====\n";
-
-  const eventSummaries = [];
-  const enabledEvents = calSummaryConfig
-    .filter((event) => event.include)
-    .sort((a, b) => a.order - b.order);
-
-  // Add stats-only events first (include: false)
-  const statsOnlyEvents = calSummaryConfig
-    .filter((event) => !event.include)
-    .sort((a, b) => a.order - b.order);
-
-  statsOnlyEvents.forEach((eventConfig) => {
-    const eventData = data[eventConfig.key];
-    const hours = extractHours(eventData);
-    const count = extractEventCount(eventData);
-    eventSummaries.push(
-      `${eventConfig.displayName} (${count} events, ${hours} hours):`
-    );
-  });
-
-  // Add detailed events
-  enabledEvents.forEach((eventConfig) => {
-    const eventData = data[eventConfig.key];
-    if (
-      eventData &&
-      !eventData.includes(
-        `No ${eventConfig.key.replace("Events", "").toLowerCase()} events`
-      )
-    ) {
-      eventSummaries.push(
-        formatCalendarEvents(eventData, eventConfig.displayName)
-      );
-    } else {
-      const defaultText =
-        eventConfig.key === "personalPREvents"
-          ? `${
-              eventConfig.displayName
-            } (0 apps, 0 commits):\nNo ${eventConfig.key
-              .replace("Events", "")
-              .toLowerCase()} events this week`
-          : `${
-              eventConfig.displayName
-            } (0 events, 0 hours):\nNo ${eventConfig.key
-              .replace("Events", "")
-              .toLowerCase()} events this week`;
-      eventSummaries.push(defaultText);
-    }
-  });
-
-  summary += eventSummaries.join("\n\n");
   return summary;
 }
 
 /**
- * Helper functions for formatting
+ * Generate Personal Cal Summary
  */
-function formatPersonalTasksSummary(personalTasks) {
-  const lines = personalTasks.split("\n");
-  const enabledCategories = taskCategoriesConfig
-    .filter((cat) => cat.include)
-    .map((cat) => cat.category);
+function generatePersonalCalSummary(data) {
+  let summary = "===== SUMMARY =====\n";
 
-  let output = "";
-  let currentCategory = "";
-  let isInEnabledCategory = false;
-  let totalTasks = 0;
+  // Extract hours and format each event type
+  const eventSummaries = [];
 
-  for (const line of lines) {
-    // Check if this line is a category header
-    const categoryMatch = line.match(/^([A-Za-z\s]+)\s+\((\d+)\)$/);
-    if (categoryMatch) {
-      currentCategory = categoryMatch[1];
-      const taskCount = parseInt(categoryMatch[2]);
-      isInEnabledCategory = enabledCategories.includes(currentCategory);
+  // Personal Events (extract hours only, don't include in summary per rules)
+  const personalHours = extractHours(data.personalEvents);
+  eventSummaries.push(
+    `PERSONAL EVENTS (${extractEventCount(
+      data.personalEvents
+    )} events, ${personalHours} hours):`
+  );
 
-      if (isInEnabledCategory) {
-        totalTasks += taskCount;
-        output += line + "\n";
-      }
-    } else if (isInEnabledCategory) {
-      // Add task lines for enabled categories
-      output += line + "\n";
-    } else if (line.includes("PERSONAL TASKS")) {
-      // Update the header with new total
-      output += `PERSONAL TASKS (${totalTasks} tasks):\n`;
-    }
+  // Home Events (extract hours only, don't include details per rules)
+  const homeHours = extractHours(data.homeEvents);
+  eventSummaries.push(
+    `HOME EVENTS (${extractEventCount(
+      data.homeEvents
+    )} events, ${homeHours} hours):`
+  );
+
+  // Interpersonal Events (include details)
+  if (
+    data.interpersonalEvents &&
+    !data.interpersonalEvents.includes("No interpersonal events")
+  ) {
+    eventSummaries.push(
+      formatCalendarEvents(data.interpersonalEvents, "INTERPERSONAL EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `INTERPERSONAL EVENTS (0 events, 0 hours):\nNo interpersonal events this week`
+    );
   }
 
-  return output.trim();
+  // Mental Health Events
+  if (
+    data.mentalHealthEvents &&
+    !data.mentalHealthEvents.includes("No mental health events")
+  ) {
+    eventSummaries.push(
+      formatCalendarEvents(data.mentalHealthEvents, "MENTAL HEALTH EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `MENTAL HEALTH EVENTS (0 events, 0 hours):\nNo mental health events this week`
+    );
+  }
+
+  // Physical Health Events
+  if (
+    data.physicalHealthEvents &&
+    !data.physicalHealthEvents.includes("No physical health events")
+  ) {
+    eventSummaries.push(
+      formatCalendarEvents(data.physicalHealthEvents, "PHYSICAL HEALTH EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `PHYSICAL HEALTH EVENTS (0 events, 0 hours):\nNo physical health events this week`
+    );
+  }
+
+  // Workout Events
+  if (data.workoutEvents && !data.workoutEvents.includes("No workout events")) {
+    eventSummaries.push(
+      formatCalendarEvents(data.workoutEvents, "WORKOUT EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `WORKOUT EVENTS (0 events, 0 hours):\nNo workout events this week`
+    );
+  }
+
+  // Reading Events
+  if (data.readingEvents && !data.readingEvents.includes("No reading events")) {
+    eventSummaries.push(
+      formatCalendarEvents(data.readingEvents, "READING EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `READING EVENTS (0 events, 0 hours):\nNo reading events this week`
+    );
+  }
+
+  // Video Game Events
+  if (
+    data.videoGameEvents &&
+    !data.videoGameEvents.includes("No video game events")
+  ) {
+    eventSummaries.push(
+      formatCalendarEvents(data.videoGameEvents, "VIDEO GAME EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `VIDEO GAME EVENTS (0 events, 0 hours):\nNo video game events this week`
+    );
+  }
+
+  // Personal PR Events
+  if (
+    data.personalPREvents &&
+    !data.personalPREvents.includes("No personal PR events")
+  ) {
+    eventSummaries.push(
+      formatCalendarEvents(data.personalPREvents, "PERSONAL PR EVENTS")
+    );
+  } else {
+    eventSummaries.push(
+      `PERSONAL PR EVENTS (0 apps, 0 commits):\nNo personal PR events this week`
+    );
+  }
+
+  summary += eventSummaries.join("\n\n");
+
+  return summary;
+}
+
+/**
+ * Helper functions for formatting (placeholder implementations)
+ */
+function formatTrips(tripDetails) {
+  // TODO: Implement trip formatting logic
+  return tripDetails;
+}
+
+function formatEvents(eventDetails) {
+  // TODO: Implement event formatting logic with date ordering
+  return eventDetails;
+}
+
+function formatHabits(data) {
+  let habits = "";
+  habits += `🌅 ${data.earlyWakeup} early wake ups\n`;
+  habits += `🛏️ ${data.sleepIn} days sleeping in\n`;
+  habits += `🏋️ ${data.workout} workouts\n`;
+  // TODO: Add reading and gaming days from habit details
+  habits += `💧 ${data.soberDays} days sober\n`;
+  habits += `🍷 ${data.drinkingDays} days drinking\n`;
+  if (data.bodyWeight) {
+    habits += `⚖️ ${data.bodyWeight} avg body weight`;
+  }
+  return habits;
+}
+
+function formatRocks(rockDetails) {
+  // TODO: Implement rock formatting with status ordering (✅ → 👾 → 🚧 → 🥊 → N/A)
+  return rockDetails;
+}
+
+function formatPersonalTasksSummary(personalTasks) {
+  // TODO: Implement task filtering to exclude Interpersonal tasks
+  return personalTasks;
 }
 
 function formatCalendarEvents(eventData, eventType) {
@@ -379,11 +365,13 @@ function formatCalendarEvents(eventData, eventType) {
 }
 
 function extractHours(eventData) {
+  // TODO: Extract hours from event data
   const hoursMatch = eventData?.match(/(\d+\.?\d*)\s*hours?/);
   return hoursMatch ? hoursMatch[1] : "0";
 }
 
 function extractEventCount(eventData) {
+  // TODO: Extract event count from event data
   const countMatch = eventData?.match(/(\d+)\s*events?/);
   return countMatch ? countMatch[1] : "0";
 }
@@ -410,7 +398,7 @@ async function main() {
   const args = process.argv.slice(2);
 
   // Check if running in interactive mode
-  const result = await checkInteractiveMode();
+  const result = await checkInteractiveMode(args);
 
   if (result.isInteractive) {
     // First, choose data sources
@@ -470,20 +458,6 @@ async function main() {
   }
 
   await processAllWeeks();
-}
-
-/**
- * Interactive mode for user input
- */
-async function checkInteractiveMode() {
-  const args = process.argv.slice(2);
-
-  if (args.length > 0) {
-    // Non-interactive mode - could add argument parsing here later
-    return { isInteractive: false, targetWeeks: DEFAULT_TARGET_WEEKS };
-  }
-
-  return { isInteractive: true };
 }
 
 // Run the script
