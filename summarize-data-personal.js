@@ -255,7 +255,9 @@ function generatePersonalTaskSummary(data) {
       const content = data[section.key];
       if (content && content.trim()) {
         // Check if this section needs special formatting
-        if (section.key === "rockDetails") {
+        if (section.key === "habitsDetails") {
+          summary += formatHabits(content) + "\n";
+        } else if (section.key === "rockDetails") {
           summary += formatRocks(content) + "\n";
         } else if (section.key === "eventDetails") {
           summary += formatEvents(content) + "\n";
@@ -343,6 +345,13 @@ function generatePersonalCalSummary(data) {
  * Helper functions for formatting
  */
 function formatPersonalTasksSummary(personalTasks) {
+  // Task exemption arrays (case-insensitive matching)
+  const exemptions = {
+    Home: ["laundry", "fold"],
+    Personal: ["shave", "groceries"],
+    "Physical Health": ["workout", "run"],
+  };
+
   const lines = personalTasks.split("\n");
   const enabledCategories = taskCategoriesConfig
     .filter((cat) => cat.include)
@@ -352,32 +361,57 @@ function formatPersonalTasksSummary(personalTasks) {
   let currentCategory = "";
   let isInEnabledCategory = false;
   let totalTasks = 0;
+  let currentCategoryTasks = 0;
+  let currentCategorySection = ""; // Build category section separately
 
   for (const line of lines) {
     // Check if this line is a category header
     const categoryMatch = line.match(/^([A-Za-z\s]+)\s+\((\d+)\)$/);
     if (categoryMatch) {
-      currentCategory = categoryMatch[1];
-      const taskCount = parseInt(categoryMatch[2]);
-      isInEnabledCategory = enabledCategories.includes(currentCategory);
-
-      if (isInEnabledCategory) {
-        totalTasks += taskCount;
-        // Add green checkmark to category header
-        output += `✅ ${line}\n`;
+      // If we were processing a previous category, add it to output if it has tasks
+      if (isInEnabledCategory && currentCategory && currentCategoryTasks > 0) {
+        // Add newline before category header (except first)
+        if (output.includes("✅")) {
+          output += "\n";
+        }
+        output += `✅ ${currentCategory} (${currentCategoryTasks})\n`;
+        output += currentCategorySection;
       }
-    } else if (isInEnabledCategory) {
-      // Remove dates from task lines using regex
-      // Pattern: (Day Mon ##) at the end of lines
-      const cleanedLine = line.replace(
-        /\s*\([A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\)$/,
-        ""
-      );
-      output += cleanedLine + "\n";
+
+      currentCategory = categoryMatch[1];
+      currentCategoryTasks = 0;
+      currentCategorySection = "";
+      isInEnabledCategory = enabledCategories.includes(currentCategory);
+    } else if (isInEnabledCategory && line.trim().startsWith("•")) {
+      // Check if task should be exempted
+      const shouldExempt =
+        exemptions[currentCategory]?.some((exemption) =>
+          line.toLowerCase().includes(exemption.toLowerCase())
+        ) || false;
+
+      if (!shouldExempt) {
+        // Remove dates from task lines using regex
+        const cleanedLine = line.replace(
+          /\s*\([A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\)$/,
+          ""
+        );
+        currentCategorySection += cleanedLine + "\n";
+        currentCategoryTasks++;
+        totalTasks++;
+      }
     } else if (line.includes("PERSONAL TASKS")) {
       // Update the header with new total
       output += `PERSONAL TASKS (${totalTasks} tasks):\n`;
     }
+  }
+
+  // Handle the last category
+  if (isInEnabledCategory && currentCategory && currentCategoryTasks > 0) {
+    if (output.includes("✅")) {
+      output += "\n";
+    }
+    output += `✅ ${currentCategory} (${currentCategoryTasks})\n`;
+    output += currentCategorySection;
   }
 
   return output.trim();
@@ -430,6 +464,96 @@ function formatRocks(rockDetails) {
   });
 
   return sortedRocks.join("\n");
+}
+
+function formatHabits(habitsDetails) {
+  if (!habitsDetails || !habitsDetails.trim()) {
+    return "";
+  }
+
+  const lines = habitsDetails.split("\n").filter((line) => line.trim());
+  const formattedLines = [];
+
+  for (const line of lines) {
+    let status = "⚠️"; // default
+    // Clean up the line - remove extra spaces and invisible characters
+    let formattedLine = line.trim().replace(/\s+/g, " ");
+
+    // Early wake ups vs sleeping in
+    if (line.includes("early wake ups") && line.includes("sleeping in")) {
+      const wakeUpMatch = line.match(/(\d+)\s*early wake ups/);
+      const sleepInMatch = line.match(/(\d+)\s*days sleeping in/);
+
+      if (wakeUpMatch && sleepInMatch) {
+        const wakeUps = parseInt(wakeUpMatch[1]);
+        const sleepIns = parseInt(sleepInMatch[1]);
+
+        if (wakeUps > sleepIns) status = "✅";
+        else if (wakeUps === sleepIns) status = "⚠️";
+        else status = "❌";
+      }
+    }
+
+    // Sober vs drinking days
+    else if (line.includes("sober") && line.includes("drinking")) {
+      const soberMatch = line.match(/(\d+)\s*days sober/);
+      const drinkingMatch = line.match(/(\d+)\s*days drinking/);
+
+      if (soberMatch && drinkingMatch) {
+        const soberDays = parseInt(soberMatch[1]);
+        const drinkingDays = parseInt(drinkingMatch[1]);
+
+        if (soberDays > drinkingDays) status = "✅";
+        else if (soberDays === drinkingDays) status = "⚠️";
+        else status = "❌";
+      }
+    }
+
+    // Workouts
+    else if (line.includes("workouts")) {
+      const workoutMatch = line.match(/(\d+)\s*workouts/);
+
+      if (workoutMatch) {
+        const workouts = parseInt(workoutMatch[1]);
+
+        if (workouts > 1) status = "✅";
+        else if (workouts === 1) status = "⚠️";
+        else status = "❌";
+      }
+    }
+
+    // Reading vs gaming
+    else if (line.includes("reading") && line.includes("gaming")) {
+      const readingMatch = line.match(/(\d+)\s*days reading/);
+      const gamingMatch = line.match(/(\d+)\s*days gaming/);
+
+      if (readingMatch && gamingMatch) {
+        const readingDays = parseInt(readingMatch[1]);
+        const gamingDays = parseInt(gamingMatch[1]);
+
+        if (readingDays > gamingDays) status = "✅";
+        else if (readingDays === gamingDays) status = "⚠️";
+        else status = "❌";
+      }
+    }
+
+    // Body weight
+    else if (line.includes("body weight")) {
+      const weightMatch = line.match(/([\d.]+)\s*avg body weight/);
+
+      if (weightMatch) {
+        const weight = parseFloat(weightMatch[1]);
+
+        if (weight <= 195) status = "✅";
+        else if (weight > 195 && weight < 200) status = "⚠️";
+        else status = "❌";
+      }
+    }
+
+    formattedLines.push(`${status} ${formattedLine}`);
+  }
+
+  return formattedLines.join("\n");
 }
 
 function formatEvents(eventDetails) {
