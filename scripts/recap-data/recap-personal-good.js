@@ -298,7 +298,7 @@ async function main() {
     }
   } else {
     console.log("Usage: node recap-personal-good.js --week <number>");
-    console.log("This script is typically called by recap-week-personal.js");
+    console.log("This script is typically called by recap-data-personal.js");
   }
 }
 
