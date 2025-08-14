@@ -187,8 +187,8 @@ function generatePersonalTaskSummary(data) {
 function formatPersonalTasksSummary(personalTasks) {
   // Task exemption arrays (case-insensitive matching)
   const exemptions = {
-    "Home Tasks": ["laundry", "fold"],
-    "Personal Tasks": ["shave", "groceries"],
+    "Home Tasks": ["laundry", "fold", "list", "scrub", "change"],
+    "Personal Tasks": ["shave", "groceries", "grocery"],
     "Physical Health Tasks": ["workout", "run"],
   };
 
