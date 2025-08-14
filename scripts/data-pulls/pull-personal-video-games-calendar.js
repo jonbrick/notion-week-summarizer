@@ -2,8 +2,8 @@ const {
   createPersonalAuth,
   fetchCalendarEventsWithAuth,
   validateAuthConfig,
-} = require("../src/utils/auth-utils");
-const { extractEventDuration } = require("../src/utils/time-utils");
+} = require("../../src/utils/auth-utils");
+const { extractEventDuration } = require("../../src/utils/time-utils");
 const { getWeekDateRange } = require("./pull-personal-tasks");
 require("dotenv").config();
 

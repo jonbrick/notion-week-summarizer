@@ -138,9 +138,13 @@ function extractGoodRocks(rocks) {
 
   lines.forEach((line) => {
     if (line.includes("✅") || line.includes("Went well")) {
-      goodRocks.push(line.trim());
+      // Remove the ✅ emoji from the line
+      const cleanLine = line.replace(/✅\s*/, "").trim();
+      goodRocks.push(cleanLine);
     } else if (line.includes("👾") || line.includes("Made progress")) {
-      progressRocks.push(line.trim());
+      // Remove the 👾 emoji from the line
+      const cleanLine = line.replace(/👾\s*/, "").trim();
+      progressRocks.push(cleanLine);
     }
   });
 
@@ -160,7 +164,9 @@ function extractGoodHabits(habits) {
   lines.forEach((line) => {
     // Look for habits with ✅ at the start
     if (line.startsWith("✅")) {
-      goodHabits.push(line.trim());
+      // Remove the ✅ emoji but keep the rest
+      const cleanLine = line.replace(/^✅\s*/, "").trim();
+      goodHabits.push(cleanLine);
     }
   });
 

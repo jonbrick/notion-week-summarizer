@@ -109,9 +109,13 @@ function extractBadRocks(rocks) {
 
   lines.forEach((line) => {
     if (line.includes("🚧") || line.includes("Didn't go so well")) {
-      didntGoWellRocks.push(line.trim());
+      // Remove the 🚧 emoji from the line
+      const cleanLine = line.replace(/🚧\s*/, "").trim();
+      didntGoWellRocks.push(cleanLine);
     } else if (line.includes("🥊") || line.includes("Went bad")) {
-      wentBadRocks.push(line.trim());
+      // Remove the 🥊 emoji from the line
+      const cleanLine = line.replace(/🥊\s*/, "").trim();
+      wentBadRocks.push(cleanLine);
     }
   });
 
@@ -132,11 +136,15 @@ function extractBadHabits(habits) {
   lines.forEach((line) => {
     // Look for habits with ⚠️ (warning/not great)
     if (line.startsWith("⚠️")) {
-      warningHabits.push(line.trim());
+      // Remove the ⚠️ emoji but keep the rest
+      const cleanLine = line.replace(/^⚠️\s*/, "").trim();
+      warningHabits.push(cleanLine);
     }
     // Look for habits with ❌ (bad)
     else if (line.startsWith("❌")) {
-      badHabits.push(line.trim());
+      // Remove the ❌ emoji but keep the rest
+      const cleanLine = line.replace(/^❌\s*/, "").trim();
+      badHabits.push(cleanLine);
     }
   });
 

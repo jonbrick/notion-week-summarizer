@@ -85,7 +85,7 @@ async function refreshToken(tokenType = "personal") {
     );
 
     // Update .env file
-    const envPath = path.join(__dirname, "..", ".env");
+    const envPath = path.join(__dirname, "..", "..", ".env");
     let envContent = "";
 
     if (fs.existsSync(envPath)) {
@@ -148,6 +148,6 @@ if (args.includes("--type=work")) {
 }
 
 // Load environment variables
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 
 refreshToken(tokenType).catch(console.error);

@@ -2,11 +2,11 @@ const {
   createPersonalAuth,
   fetchCalendarEventsWithAuth,
   validateAuthConfig,
-} = require("../src/utils/auth-utils");
+} = require("../../src/utils/auth-utils");
 const { getWeekDateRange } = require("./pull-personal-tasks");
 const {
   processPersonalProjectEvents,
-} = require("../src/utils/personal-pr-processor");
+} = require("../../src/utils/personal-pr-processor");
 require("dotenv").config();
 
 // Initialize personal auth instance
