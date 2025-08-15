@@ -47,25 +47,19 @@ async function processWeekGood(weekNumber) {
 
 /**
  * Extract good items from summaries
+ * NEW ORDER: EVENTS, ROCKS, TASKS, CAL, HABITS
  */
 function extractGoodItems(taskSummary, calSummary) {
   let output = "";
 
-  // 1. TRIPS - Extract from task summary
-  const trips = extractSection(taskSummary, "TRIPS");
-  if (trips && !trips.includes("No trips")) {
-    output += "===== TRIPS =====\n";
-    output += formatTrips(trips) + "\n\n";
-  }
-
-  // 2. EVENTS - Extract from task summary
+  // 1. EVENTS - Extract from task summary
   const events = extractSection(taskSummary, "EVENTS");
   if (events && !events.includes("No events")) {
     output += "===== EVENTS =====\n";
     output += formatEvents(events) + "\n\n";
   }
 
-  // 3. ROCKS - Extract only good rocks (✅ and 👾)
+  // 2. ROCKS - Extract only good rocks (✅ and 👾)
   const rocks = extractSection(taskSummary, "ROCKS");
   const goodRocks = extractGoodRocks(rocks);
   if (goodRocks) {
@@ -73,15 +67,7 @@ function extractGoodItems(taskSummary, calSummary) {
     output += goodRocks + "\n\n";
   }
 
-  // 4. HEALTHY HABITS - Extract only ✅ habits
-  const habits = extractSection(taskSummary, "HABITS");
-  const goodHabits = extractGoodHabits(habits);
-  if (goodHabits) {
-    output += "===== HEALTHY HABITS =====\n";
-    output += goodHabits + "\n\n";
-  }
-
-  // 5. TASKS - Extract task breakdown with counts
+  // 3. TASKS - Extract task breakdown with counts
   const tasks = extractSection(taskSummary, "SUMMARY");
   const formattedTasks = formatTasksForRecap(tasks);
   if (formattedTasks) {
@@ -89,12 +75,22 @@ function extractGoodItems(taskSummary, calSummary) {
     output += formattedTasks + "\n\n";
   }
 
-  // 6. CAL - Extract calendar events with ✅ (has events)
+  // 4. CAL - Extract calendar events with ✅ (has events)
   const calEvents = extractGoodCalEvents(calSummary);
   if (calEvents) {
     output += "===== CAL =====\n";
-    output += calEvents + "\n";
+    output += calEvents + "\n\n";
   }
+
+  // 5. HEALTHY HABITS - Extract only ✅ habits
+  const habits = extractSection(taskSummary, "HABITS");
+  const goodHabits = extractGoodHabits(habits);
+  if (goodHabits) {
+    output += "===== HEALTHY HABITS =====\n";
+    output += goodHabits + "\n";
+  }
+
+  // Note: TRIPS section removed from output
 
   return output.trim();
 }
@@ -133,23 +129,30 @@ function extractGoodRocks(rocks) {
   if (!rocks) return "";
 
   const lines = rocks.split("\n");
-  const goodRocks = [];
-  const progressRocks = [];
+  const formattedRocks = [];
 
   lines.forEach((line) => {
     if (line.includes("✅") || line.includes("Went well")) {
-      // Remove the ✅ emoji from the line
-      const cleanLine = line.replace(/✅\s*/, "").trim();
-      goodRocks.push(cleanLine);
+      // Extract just the rock name, removing "Went well - " and the category in parentheses
+      let rockName = line.replace(/✅\s*/, "").trim();
+      rockName = rockName.replace(/^Went well\s*-\s*/, "");
+      rockName = rockName.replace(/\s*\([^)]+\)\s*$/, "").trim();
+      if (rockName) {
+        formattedRocks.push(rockName);
+      }
     } else if (line.includes("👾") || line.includes("Made progress")) {
-      // Remove the 👾 emoji from the line
-      const cleanLine = line.replace(/👾\s*/, "").trim();
-      progressRocks.push(cleanLine);
+      // Keep "Made progress" but lowercase it, remove emoji and category
+      let rockText = line.replace(/👾\s*/, "").trim();
+      rockText = rockText.replace(/^Made progress\s*-\s*/, "made progress on ");
+      rockText = rockText.replace(/\s*\([^)]+\)\s*$/, "").trim();
+      if (rockText) {
+        formattedRocks.push(rockText);
+      }
     }
   });
 
-  // Sort: ✅ first, then 👾
-  return [...goodRocks, ...progressRocks].join("\n");
+  // Join all rocks with commas instead of newlines
+  return formattedRocks.join(", ");
 }
 
 /**
@@ -193,7 +196,7 @@ function formatTasksForRecap(taskSection) {
       }
 
       // Extract category name and count
-      const match = line.match(/✅\s*(.+?)\s*\((\d+)\)/);
+      const match = line.match(/✅\s*(.+?)\s*\((\d+\/\d+|\d+)\)/);
       if (match) {
         currentCategory = `${match[1].trim()} (${match[2]})`;
         currentTasks = [];
@@ -201,10 +204,8 @@ function formatTasksForRecap(taskSection) {
     }
     // Task line (starts with bullet)
     else if (line.trim().startsWith("•")) {
-      // Remove bullet, date in parentheses, and trim
-      let task = line.trim().substring(1).trim();
-      // Remove date patterns like (Mon Jan 1)
-      task = task.replace(/\s*\([A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\)$/, "");
+      // Remove bullet and clean up
+      const task = line.trim().substring(1).trim();
       if (task) {
         currentTasks.push(task);
       }
@@ -220,31 +221,42 @@ function formatTasksForRecap(taskSection) {
 }
 
 /**
- * Extract good calendar events (categories with ✅)
+ * Extract good calendar events
  */
 function extractGoodCalEvents(calSummary) {
   if (!calSummary) return "";
 
-  const summarySection = extractSection(calSummary, "SUMMARY");
-  if (!summarySection) return "";
-
-  const lines = summarySection.split("\n");
+  const lines = calSummary.split("\n");
   const output = [];
   let currentCategory = "";
   let currentEvents = [];
 
   lines.forEach((line) => {
-    // Look for category lines with ✅
-    if (line.includes("✅")) {
+    // Check if this is a category header with ✅
+    if (line.includes("✅") && line.includes("(")) {
       // Save previous category if exists
       if (currentCategory && currentEvents.length > 0) {
         output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
       }
 
-      // Extract category info: "✅ Category (X events, Y hours):"
-      const match = line.match(/✅\s*(.+?)\s*\((.+?)\)/);
+      // Extract category name and stats
+      const match = line.match(/✅\s*(.+?)\s*\(([^)]+)\)/);
       if (match) {
-        currentCategory = `${match[1].trim()} (${match[2]})`;
+        let categoryName = match[1].trim();
+        const stats = match[2];
+
+        // Apply special mappings for category names
+        if (categoryName === "Interpersonal events") {
+          categoryName = "Social time";
+        } else if (categoryName === "Relationships") {
+          categoryName = "Time with Relationships";
+        } else if (categoryName === "Calls") {
+          categoryName = "Calls time";
+        } else if (categoryName === "Family") {
+          categoryName = "Family time";
+        }
+
+        currentCategory = `${categoryName} (${stats})`;
         currentEvents = [];
       }
     }
@@ -297,8 +309,8 @@ async function main() {
       process.exit(1);
     }
   } else {
-    console.log("Usage: node recap-personal-good.js --week <number>");
-    console.log("This script is typically called by recap-data-personal.js");
+    console.log("Usage: node retro-personal-good.js --week <number>");
+    console.log("This script is typically called by retro-data-personal.js");
   }
 }
 

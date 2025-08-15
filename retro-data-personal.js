@@ -178,7 +178,7 @@ async function processWeek(weekNumber) {
       try {
         console.log("📝 Generating Good Recap...");
         const goodOutput = await runChildScript(
-          "scripts/recap-data/recap-personal-good.js",
+          "scripts/retro-data/retro-personal-good.js",
           ["--week", weekNumber.toString()]
         );
 
@@ -204,7 +204,7 @@ async function processWeek(weekNumber) {
       try {
         console.log("📝 Generating Bad Recap...");
         const badOutput = await runChildScript(
-          "scripts/recap-data/recap-personal-bad.js",
+          "scripts/retro-data/retro-personal-bad.js",
           ["--week", weekNumber.toString()]
         );
 
