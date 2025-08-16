@@ -2,7 +2,7 @@ const { google } = require("googleapis");
 const { getWeekDateRange } = require("./pull-personal-tasks");
 require("dotenv").config();
 
-// Habit Calendar Configuration - copied from existing script
+// Habit Calendar Configuration - updated to include Coding
 const HABIT_CALENDARS = [
   {
     envVar: "WAKE_UP_EARLY_CALENDAR_ID",
@@ -28,6 +28,11 @@ const HABIT_CALENDARS = [
     envVar: "VIDEO_GAMES_CALENDAR_ID",
     notionField: "Video Games",
     displayName: "Video Games",
+  },
+  {
+    envVar: "CODING_CALENDAR_ID",
+    notionField: "Coding",
+    displayName: "Coding",
   },
   {
     envVar: "SOBER_DAYS_CALENDAR_ID",
@@ -119,78 +124,18 @@ async function pullPersonalHabits(weekNumber) {
     // Process each habit calendar - core logic from existing script
     for (let i = 0; i < configuredCalendars.length; i++) {
       const calendar = configuredCalendars[i];
-      const calendarId = process.env[calendar.envVar];
 
       try {
-        const allEvents = await fetchCalendarEvents(
-          calendarId,
-          startDate,
-          endDate
-        );
+        const calendarId = process.env[calendar.envVar];
+        if (calendarId) {
+          const events = await fetchCalendarEvents(
+            calendarId,
+            startDate,
+            endDate
+          );
 
-        // Filter events to only include those in the target week
-        const events = allEvents.filter((event) => {
-          let eventDate;
-
-          // Get the event date - special logic for sleep calendars
-          if (
-            calendar.envVar === "SLEEP_IN_CALENDAR_ID" ||
-            calendar.envVar === "WAKE_UP_EARLY_CALENDAR_ID"
-          ) {
-            eventDate =
-              event.end?.date ||
-              event.end?.dateTime?.split("T")[0] ||
-              event.start?.date ||
-              event.start?.dateTime?.split("T")[0];
-          } else {
-            eventDate =
-              event.start?.date || event.start?.dateTime?.split("T")[0];
-          }
-
-          // Check if event date is within the week (inclusive)
-          return eventDate && eventDate >= startDate && eventDate <= endDate;
-        });
-
-        // Special handling for Body Weight calendar - calculate average weight
-        if (calendar.envVar === "BODY_WEIGHT_CALENDAR_ID") {
-          const weights = [];
-
-          events.forEach((event) => {
-            // Parse weight from event title using regex: "Weight: 202 lbs"
-            const title = event.summary || "";
-            const weightMatch = title.match(
-              /Weight:\s*(\d+(?:\.\d+)?)\s*lbs?/i
-            );
-
-            if (weightMatch) {
-              const weight = parseFloat(weightMatch[1]);
-              if (!isNaN(weight)) {
-                weights.push(weight);
-              }
-            }
-          });
-
-          if (weights.length > 0) {
-            const totalWeight = weights.reduce(
-              (sum, weight) => sum + weight,
-              0
-            );
-            const averageWeight =
-              Math.round((totalWeight / weights.length) * 10) / 10; // Round to 1 decimal
-            console.log(
-              `   ${calendar.displayName}: ${averageWeight} lbs average (${weights.length} measurements)`
-            );
-            habitCounts[calendar.notionField] = averageWeight;
-          } else {
-            console.log(
-              `   ${calendar.displayName}: No valid weight measurements found (${events.length} events)`
-            );
-            habitCounts[calendar.notionField] = 0;
-          }
-        } else {
-          // For habit tracking, count unique days instead of total events
+          // Count unique days
           const uniqueDays = new Set();
-
           events.forEach((event) => {
             let eventDate;
 
@@ -213,7 +158,7 @@ async function pullPersonalHabits(weekNumber) {
                 eventDate = event.start.dateTime.split("T")[0];
               }
             } else {
-              // For other habits, use START time
+              // For other habits (including Coding), use START time
               if (event.start && event.start.date) {
                 eventDate = event.start.date;
               } else if (event.start && event.start.dateTime) {

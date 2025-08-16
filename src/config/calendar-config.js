@@ -37,7 +37,7 @@ const CALENDAR_MAPPING = {
       { id: process.env.WORKOUT_CALENDAR_ID, name: "💪 Workouts" },
       { id: process.env.WAKE_UP_EARLY_CALENDAR_ID, name: "☀️ Wake up early" },
       { id: process.env.SLEEP_IN_CALENDAR_ID, name: "🛌 Sleep in" },
-      { id: process.env.SOBER_DAYS_CALENDAR_ID, name: "🚰 Sober days" },
+      { id: process.env.SOBER_DAYS_CALENDAR_ID, name: "💧 Sober days" },
       { id: process.env.DRINKING_DAYS_CALENDAR_ID, name: "🍻 Drinking days" },
       { id: process.env.BODY_WEIGHT_CALENDAR_ID, name: "⚖️ Body weight" },
     ].filter((cal) => cal.id),

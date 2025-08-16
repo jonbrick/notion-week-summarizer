@@ -3,22 +3,22 @@
 
 // Work Calendar Color Mappings
 const WORK_COLOR_MAPPING = {
-  8: { category: "personal", name: "Personal Event Cal" }, // Gray
-  3: { category: "coding", name: "Coding & Tickets Cal" }, // Purple
-  2: { category: "design", name: "Design Work Cal" }, // Green
-  5: { category: "review", name: "Review, Feedback, Crit Cal" }, // Yellow
-  11: { category: "qa", name: "Design & Dev QA Cal" }, // Red
-  9: { category: "rituals", name: "Rituals Cal" }, // New color
-  1: { category: "research", name: "Research Cal" }, // Research color
+  1: { category: "research", name: "Research Cal" }, // Lavender
+  2: { category: "design", name: "Design Work Cal" }, // Sage
+  3: { category: "coding", name: "Coding & Tickets Cal" }, // Grape
+  5: { category: "review", name: "Review, Feedback, Crit Cal" }, // Citron
+  9: { category: "rituals", name: "Rituals Cal" }, // Blueberry
+  8: { category: "personal", name: "Personal Event Cal" }, // Graphite
+  11: { category: "qa", name: "Design & Dev QA Cal" }, // Tomato
 };
 
 // Personal Calendar Color Mappings
 const PERSONAL_COLOR_MAPPING = {
-  2: { category: "personal", name: "Personal Cal" }, // Sage/Green
-  3: { category: "interpersonal", name: "Interpersonal Cal" }, // Purple
-  5: { category: "home", name: "Home Cal" }, // Yellow
-  8: { category: "physicalHealth", name: "Physical Health Cal" }, // Gray
-  11: { category: "mentalHealth", name: "Mental Health Cal" }, // Red
+  2: { category: "personal", name: "Personal Cal" }, // Sage
+  3: { category: "interpersonal", name: "Interpersonal Cal" }, // Grape
+  5: { category: "home", name: "Home Cal" }, // Citron
+  8: { category: "physicalHealth", name: "Physical Health Cal" }, // Graphite
+  11: { category: "mentalHealth", name: "Mental Health Cal" }, // Tomato
 };
 
 // Work Calendar Field Mappings (category to Notion field name)

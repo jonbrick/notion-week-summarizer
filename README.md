@@ -270,6 +270,174 @@ const CALENDAR_CONFIGS = {
 - `dotenv` - Environment variable management
 - `fs` & `readline` - File operations and user input
 
+Notes for Notion…
+
+// TRIPS
+Trip Types
+💼 Work Trip
+💜 Family Trip
+💒 Wedding
+🏈 Sporting Events
+🍻 Friends Trip
+🧗‍♀️ Adventure
+🌱 Personal Trip
+
+Trip Status
+🧊 Ice Box
+🧠 Considering
+🔘 To Do
+🚨 To Book
+📅 Scheduled
+🔨 Doing
+✅ Done
+Next Year
+
+// EVENTS
+EVENTS_DATABASE_ID
+
+Event Types
+💼 Work Event
+🍸 Work Social
+🏝️ Work OOO
+🚀 Work Milestone
+
+💜 Family Event
+🗽 Friends & Fam vist NYC
+🍻 Friend Event
+💒 Wedding
+
+🎭 Comedy & Standup
+🎸 Concerts & Shows
+🏈 Sporting Events
+🏛️ Museums & Tours
+
+🏠 Home Updates
+🤒 Sick
+🏋️‍♂️ Athletic Events
+🏝️ Vacation
+🌱 Personal Event
+
+Event Status
+🧊 Ice Box
+🧠 Considering
+🔘 To Do
+🚨 To Book
+📅 Scheduled
+🔨 Doing
+✅ Done
+Next Year
+
+// ROCK
+ROCKS_DATABASE_ID
+
+Rock Types
+💼 Work
+🍻 Interpersonal
+🏠 Home
+🏃‍♂️ Physical
+❤️ Mental/Emotional
+🌱 Personal
+
+Rock Statuses
+To Do
+N/A
+🥊 Went bad
+🚧 Didn't go so well
+👾 Made progress
+✅ Went well
+
+// TASKS
+TASKS_DATABASE_ID
+
+Task Types
+🌱 Personal
+💼 Work
+🍻 Interpersonal
+🏠 Home
+💪 Physical Health
+❤️ Mental Health
+
+Work Category
+Research
+Design
+Coding
+Review Feedback & Crit
+QA
+Admin Planning Writing
+Social
+OOO
+
+Task Statuses🔴 To Do
+🟡 Scheduled
+🔵 In Progress
+🟢 Done
+
+// WORK CAL EVENTS
+WORK_GOOGLE_CLIENT_ID
+Lavender (Color 1): Research Cal (category: "research")
+Sage (Color 2): Design Work Cal (category: "design")
+Grape (Color 3): Coding & Tickets Cal (category: "coding")
+Citron (Color 5): Review, Feedback, Crit Cal (category: "review")
+Tomato (Color 11): Design & Dev QA Cal (category: "qa")
+Blueberry (Color 9): Rituals Cal (category: "rituals")
+Graphite (Color 8): Personal Event Cal (category: "personal") // IGNORE
+
+// PERSONAL CAL EVENTS
+PERSONAL_GOOGLE_CLIENT_ID
+Sage (Color 2): Personal Cal (category: "personal")
+Grape (Color 3): Interpersonal Cal (category: "interpersonal")
+Citron (Color 5): Home Cal (category: "home")
+Graphite (Color 8): Physical Health Cal (category: "physicalHealth")
+Tomato (Color 11): Mental Health Cal (category: "mentalHealth")
+
+// IGNORE
+
+- 0.  💼 Work Schedule
+
+// Habits only
+WAKE_UP_EARLY_CALENDAR_ID
+
+- 1.  ☀️ Wake up before 7am
+
+SLEEP_IN_CALENDAR_ID
+
+- 2.  🛌 Sleep In
+
+SOBER_DAYS_CALENDAR_ID
+
+- 3.  💧 Sober Days
+
+DRINKING_DAYS_CALENDAR_ID
+
+- 4.  🍻 Drinking Days
+
+BODY_WEIGHT_CALENDAR_ID
+
+- 5.  ⚖️ Body Weight
+
+Habits & Events
+WORKOUT_CALENDAR_ID
+
+- 6.  💪 Workout
+
+READ_CALENDAR_ID
+
+- 7.  📖 Read
+
+CODING_CALENDAR_ID
+
+- 8.  💻 Coding
+
+VIDEO_GAMES_CALENDAR_ID
+
+- 9.  🎮 Video Games
+
+PERSONAL_GITHUB_DATA_CALENDAR_ID
+💾 GitHub Data
+
+TRAVEL_CALENDAR_ID
+✈️ Travel Schedule
+
 ---
 
 **Built with**: Notion API, Claude AI, Google Calendar API, Node.js  

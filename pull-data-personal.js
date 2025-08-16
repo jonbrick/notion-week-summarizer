@@ -26,6 +26,9 @@ const {
   pullVideoGamesCalendar,
 } = require("./scripts/data-pulls/pull-personal-video-games-calendar");
 const {
+  pullPersonalCodingCalendar,
+} = require("./scripts/data-pulls/pull-personal-coding");
+const {
   pullPersonalHabits,
 } = require("./scripts/data-pulls/pull-personal-habit-calendars");
 require("dotenv").config();
@@ -149,112 +152,56 @@ async function performPreflightChecks() {
     }
   }
 
-  // 3. Test Google Calendar API connection if we need any calendar data
-  const needsCalendarAuth =
-    calendarChecks.length > 0 ||
+  if (
     SELECTED_DATA_SOURCES === "all" ||
-    SELECTED_DATA_SOURCES === "habits";
-
-  if (needsCalendarAuth && !missingEnvVars.length) {
-    try {
-      console.log("🔐 Testing Google Calendar authentication...");
-      const auth = getGoogleAuth();
-      const calendar = google.calendar({ version: "v3", auth });
-
-      // Test with a simple calendar list request
-      await calendar.calendarList.list({ maxResults: 1 });
-      console.log("✅ Google Calendar API connection successful");
-
-      // Test specific calendar access if needed
-      if (calendarChecks.length > 0) {
-        console.log(
-          `📅 Testing access to ${calendarChecks.length} calendar(s)...`
-        );
-
-        for (const cal of calendarChecks) {
-          try {
-            await calendar.events.list({
-              calendarId: cal.id,
-              maxResults: 1,
-              timeMin: new Date().toISOString(),
-            });
-            console.log(`   ✅ ${cal.name}: Accessible`);
-          } catch (error) {
-            console.error(
-              `   ❌ ${cal.name}: Access failed - ${error.message}`
-            );
-            checksPass = false;
-            failedChecks.push(cal.name);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("❌ Google Calendar authentication failed:", error.message);
-
-      if (error.message.includes("invalid_grant")) {
-        console.error("\n🔄 Your Google OAuth token has expired!");
-        console.error("\n📋 To fix this, you have two options:");
-        console.error("\nOption 1 - Use OAuth Playground:");
-        console.error(
-          "1. Visit: https://developers.google.com/oauthplayground/"
-        );
-        console.error(
-          "2. Click the gear icon and check 'Use your own OAuth credentials'"
-        );
-        console.error("3. Enter your Client ID and Client Secret from .env");
-        console.error("4. Select 'Google Calendar API v3' from the list");
-        console.error(
-          "5. Check: https://www.googleapis.com/auth/calendar.readonly"
-        );
-        console.error("6. Click 'Authorize APIs' and sign in");
-        console.error("7. Click 'Exchange authorization code for tokens'");
-        console.error(
-          "8. Copy the 'Refresh token' to your .env file as PERSONAL_GOOGLE_REFRESH_TOKEN"
-        );
-
-        console.error("\nOption 2 - Use a refresh script:");
-        console.error(
-          "   node scripts/refresh-google-token.js --type=personal"
-        );
-
-        console.error(
-          "\n💡 Make sure your OAuth app is set to 'External' and published"
-        );
-        console.error(
-          "   or add your email as a test user in Google Cloud Console\n"
-        );
-      } else {
-        console.error("\n🔧 Check your Google credentials in the .env file:");
-        console.error("   - PERSONAL_GOOGLE_CLIENT_ID");
-        console.error("   - PERSONAL_GOOGLE_CLIENT_SECRET");
-        console.error("   - PERSONAL_GOOGLE_REFRESH_TOKEN\n");
-      }
-
-      checksPass = false;
-      failedChecks.push("google_auth");
+    SELECTED_DATA_SOURCES === "personal-coding-calendar"
+  ) {
+    if (process.env.CODING_CALENDAR_ID) {
+      calendarChecks.push({
+        name: "Personal Coding Calendar",
+        id: process.env.CODING_CALENDAR_ID,
+      });
     }
   }
 
-  // 4. Test Notion connection
-  try {
-    console.log("📝 Testing Notion connection...");
-    // Try to query the recap database with a limit of 1
-    await notion.databases.query({
-      database_id: RECAP_DATABASE_ID,
-      page_size: 1,
-    });
-    console.log("✅ Notion connection successful");
-  } catch (error) {
-    console.error("❌ Notion connection failed:", error.message);
-    console.error("\n🔧 Check your NOTION_TOKEN in the .env file\n");
-    checksPass = false;
-    failedChecks.push("notion");
+  // 3. Test Google Calendar access if calendars are configured
+  if (calendarChecks.length > 0) {
+    console.log(
+      `\n🔍 Testing access to ${calendarChecks.length} calendar(s)...`
+    );
+
+    try {
+      const auth = getGoogleAuth();
+      const calendar = google.calendar({ version: "v3", auth });
+
+      // Just test with a simple API call
+      await calendar.calendarList.list({ maxResults: 1 });
+      console.log("✅ Google Calendar API access successful");
+    } catch (error) {
+      console.error("❌ Failed to access Google Calendar API");
+      console.error(`   Error: ${error.message}`);
+      checksPass = false;
+      failedChecks.push("google_calendar_api");
+    }
   }
 
-  // Final summary
-  console.log("\n" + "=".repeat(50));
+  // 4. Check Notion access
+  try {
+    await notion.databases.retrieve({ database_id: RECAP_DATABASE_ID });
+    console.log("✅ Notion API access successful");
+  } catch (error) {
+    console.error("❌ Failed to access Notion API");
+    console.error(`   Error: ${error.message}`);
+    checksPass = false;
+    failedChecks.push("notion_api");
+  }
+
+  // Report results
+  console.log("\n🔍 Pre-flight check results:");
+  console.log("=".repeat(50));
+
   if (checksPass) {
-    console.log("✅ All pre-flight checks passed!");
+    console.log("✅ All checks passed!");
     console.log("=".repeat(50));
     return true;
   } else {
@@ -342,6 +289,14 @@ async function processWeek(weekNumber) {
       Object.assign(columnUpdates, videoGamesData);
     }
 
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "personal-coding-calendar"
+    ) {
+      const codingData = await pullPersonalCodingCalendar(weekNumber);
+      Object.assign(columnUpdates, codingData);
+    }
+
     if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "habits") {
       const habitsData = await pullPersonalHabits(weekNumber);
       Object.assign(habitUpdates, habitsData);
@@ -422,9 +377,10 @@ async function main() {
     console.log("5. Workout Calendar only");
     console.log("6. Reading Calendar only");
     console.log("7. Video Games Calendar only");
-    console.log("8. Habits only");
+    console.log("8. Personal Coding Calendar only");
+    console.log("9. Habits only");
 
-    const dataSourceInput = await askQuestion("\n? Choose data source (1-8): ");
+    const dataSourceInput = await askQuestion("\n? Choose data source (1-9): ");
 
     switch (dataSourceInput.trim()) {
       case "1":
@@ -456,6 +412,10 @@ async function main() {
         console.log("✅ Selected: Video Games Calendar only");
         break;
       case "8":
+        SELECTED_DATA_SOURCES = "personal-coding-calendar";
+        console.log("✅ Selected: Personal Coding Calendar only");
+        break;
+      case "9":
         SELECTED_DATA_SOURCES = "habits";
         console.log("✅ Selected: Habits only");
         break;
