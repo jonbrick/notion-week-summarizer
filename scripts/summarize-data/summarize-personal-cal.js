@@ -1,143 +1,139 @@
 const { Client } = require("@notionhq/client");
+const { rl, askQuestion } = require("../../src/utils/cli-utils");
 const { findWeekRecapPage } = require("../../src/utils/notion-utils");
-const { askQuestion, rl } = require("../../src/utils/cli-utils");
+const { DEFAULT_TARGET_WEEKS } = require("../../src/config/task-config");
 require("dotenv").config();
 
-// Initialize Notion client
+// Initialize clients
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
-const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 
-// Default configuration
-const DEFAULT_TARGET_WEEKS = [1];
-let TARGET_WEEKS = DEFAULT_TARGET_WEEKS;
+// Database IDs
+const RECAP_DATABASE_ID = process.env.RECAP_DATABASE_ID;
 
 console.log("📅 Personal Cal Summary Generator");
 
-// Interpersonal Events Grouping Configuration
-const interpersonalGroupingConfig = {
-  general: {
-    displayName: "Interpersonal events",
-    precedence: 1, // Lowest priority - catch-all
-    order: 1, // Display first
-    include: true,
-  },
-  relationships: {
-    keywords: ["jen", "jen rothman", "jenn"],
-    displayName: "Relationships",
-    precedence: 2, // Trumps general only
-    order: 2, // Display second
-    include: true,
-  },
-  family: {
-    keywords: ["mom", "dad", "vicki", "evan", "fam", "vick"],
-    displayName: "Family",
-    precedence: 3, // Trumps relationships and general
-    order: 3, // Display third
-    include: true,
-  },
-  calls: {
-    keywords: ["call", "facetime", "ft"],
-    displayName: "Calls",
-    precedence: 4, // Highest - trumps everything
-    order: 4, // Display last
-    include: true,
-  },
-};
+// Script configuration
+let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 
-// Calendar Event Evaluation Functions
-function evaluateZeroIsGood(eventCount) {
-  if (eventCount === 0) return "✅";
-  if (eventCount > 0) return "❌";
-}
-
-function evaluateZeroIsBad(eventCount) {
-  if (eventCount === 0) return "❌";
-  if (eventCount > 0) return "✅";
-}
-
-function evaluateDontCare(eventCount) {
-  return "☑️";
-}
-
-function evaluateCareSometimes(eventCount) {
-  if (eventCount > 1) return "✅";
-  return "☑️";
-}
-
-// Cal Summary Configuration
+// Calendar Summary Configuration
 const calSummaryConfig = [
   {
     key: "personalEvents",
+    displayName: "Personal Cal",
     include: false,
     order: 1,
-    displayName: "Personal events",
-    evaluation: evaluateDontCare,
-  },
-  {
-    key: "homeEvents",
-    include: false,
-    order: 2,
-    displayName: "Home events",
-    evaluation: evaluateDontCare,
+    evaluation: (count) => (count > 0 ? "☑️" : "☑️"),
   },
   {
     key: "interpersonalEvents",
+    displayName: "Interpersonal Cal",
     include: true,
+    order: 2,
+    evaluation: (count) => (count > 0 ? "✅" : "☑️"),
+  },
+  {
+    key: "homeEvents",
+    displayName: "Home Cal",
+    include: false,
     order: 3,
-    displayName: "Interpersonal events",
-    evaluation: evaluateCareSometimes,
-    useGrouping: true, // Special flag for interpersonal grouping
+    evaluation: (count) => (count > 0 ? "☑️" : "☑️"),
   },
   {
     key: "mentalHealthEvents",
+    displayName: "Mental Health Cal",
     include: true,
     order: 4,
-    displayName: "Mental health events",
-    evaluation: evaluateCareSometimes,
+    evaluation: (count) => (count > 0 ? "✅" : "☑️"),
   },
   {
     key: "physicalHealthEvents",
-    include: true,
+    displayName: "Physical Health Cal",
+    include: false,
     order: 5,
-    displayName: "Physical health events",
-    evaluation: evaluateZeroIsBad,
+    evaluation: (count) => (count > 0 ? "✅" : "☑️"),
   },
   {
     key: "workoutEvents",
+    displayName: "Workout Cal",
     include: true,
     order: 6,
-    displayName: "Workout events",
-    evaluation: evaluateZeroIsBad,
+    evaluation: (count) => (count > 0 ? "✅" : "❌"),
   },
   {
     key: "readingEvents",
+    displayName: "Reading Cal",
     include: true,
     order: 7,
-    displayName: "Reading events",
-    evaluation: evaluateZeroIsBad,
+    evaluation: (count) => (count > 0 ? "✅" : "❌"),
+  },
+  {
+    key: "codingEvents",
+    displayName: "Coding Cal",
+    include: true,
+    order: 8,
+    evaluation: (count) => (count > 0 ? "✅" : "☑️"),
+  },
+  {
+    key: "artEvents",
+    displayName: "Art Cal",
+    include: true,
+    order: 9,
+    evaluation: (count) => (count > 0 ? "✅" : "☑️"),
   },
   {
     key: "videoGameEvents",
-    include: true,
-    order: 8,
-    displayName: "Video game events",
-    evaluation: evaluateZeroIsGood,
+    displayName: "Video Game Cal",
+    include: false,
+    order: 10,
+    evaluation: (count) => (count > 0 ? "❌" : "✅"),
   },
   {
     key: "personalPREvents",
+    displayName: "Personal PR",
     include: true,
-    order: 9,
-    displayName: "Personal PR events",
-    evaluation: evaluateCareSometimes,
+    order: 11,
+    evaluation: (count) => (count > 0 ? "✅" : "☑️"),
   },
 ];
+
+// Interpersonal grouping configuration
+const interpersonalGroupingConfig = {
+  general: {
+    keywords: [],
+    include: true,
+    order: 1,
+    displayName: "Interpersonal Cal Events",
+    precedence: 0,
+  },
+  relationships: {
+    keywords: ["Jen", "Jennifer"],
+    include: true,
+    order: 2,
+    displayName: "Relationship Cal Events",
+    precedence: 3,
+  },
+  family: {
+    keywords: ["Mom", "Dad", "Parents", "Family", "Fam", "FT"],
+    include: true,
+    order: 3,
+    displayName: "Family Cal Events",
+    precedence: 2,
+  },
+  calls: {
+    keywords: ["Call", "Facetime", "Phone", "Chat"],
+    include: true,
+    order: 4,
+    displayName: "Calls",
+    precedence: 1,
+  },
+};
 
 /**
  * Process a single week
  */
 async function processWeek(weekNumber) {
   try {
-    console.log(`\n📅 === PROCESSING WEEK ${weekNumber} ===`);
+    console.log(`\n🗓️  === PROCESSING WEEK ${weekNumber} ===`);
 
     // Find the week recap page
     const targetWeekPage = await findWeekRecapPage(
@@ -154,7 +150,7 @@ async function processWeek(weekNumber) {
     const paddedWeek = weekNumber.toString().padStart(2, "0");
     console.log(`✅ Found Week ${paddedWeek} Recap!`);
 
-    // Read existing data populated by @pull-data-personal
+    // Extract existing data
     const existingData = {
       personalEvents:
         targetWeekPage.properties["Personal Events"]?.rich_text?.[0]
@@ -165,11 +161,11 @@ async function processWeek(weekNumber) {
       homeEvents:
         targetWeekPage.properties["Home Events"]?.rich_text?.[0]?.plain_text ||
         "",
-      physicalHealthEvents:
-        targetWeekPage.properties["Physical Health Events"]?.rich_text?.[0]
-          ?.plain_text || "",
       mentalHealthEvents:
         targetWeekPage.properties["Mental Health Events"]?.rich_text?.[0]
+          ?.plain_text || "",
+      physicalHealthEvents:
+        targetWeekPage.properties["Physical Health Events"]?.rich_text?.[0]
           ?.plain_text || "",
       workoutEvents:
         targetWeekPage.properties["Workout Events"]?.rich_text?.[0]
@@ -180,9 +176,17 @@ async function processWeek(weekNumber) {
       videoGameEvents:
         targetWeekPage.properties["Video Game Events"]?.rich_text?.[0]
           ?.plain_text || "",
+      codingEvents:
+        targetWeekPage.properties["Personal Coding Events"]?.rich_text?.[0]
+          ?.plain_text || "",
+      artEvents:
+        targetWeekPage.properties["Art Events"]?.rich_text?.[0]?.plain_text ||
+        "",
       personalPREvents:
         targetWeekPage.properties["Personal PR Events"]?.rich_text?.[0]
           ?.plain_text || "",
+      habitsDetails:
+        targetWeekPage.properties["Habits Details"]?.formula?.string || "",
     };
 
     // Generate Personal Cal Summary
@@ -217,10 +221,229 @@ async function processWeek(weekNumber) {
 }
 
 /**
+ * Format habits with evaluation logic
+ */
+function formatHabits(habitsDetails) {
+  if (!habitsDetails || !habitsDetails.trim()) {
+    return "";
+  }
+
+  const lines = habitsDetails.split("\n").filter((line) => line.trim());
+  const formattedLines = [];
+
+  for (const line of lines) {
+    let status = "";
+    let emoji = "";
+    let habitDescription = "";
+    let originalValues = "";
+
+    // Clean up the line - remove extra spaces and invisible characters
+    let cleanedLine = line.trim().replace(/\s+/g, " ");
+
+    // 1. Early wake ups vs sleeping in
+    if (line.includes("early wake ups") && line.includes("sleeping in")) {
+      const wakeUpMatch = line.match(/(\d+)\s*early wake ups/);
+      const sleepInMatch = line.match(/(\d+)\s*days sleeping in/);
+
+      if (wakeUpMatch) {
+        const wakeUps = parseInt(wakeUpMatch[1]);
+        emoji = "🛌";
+        originalValues = cleanedLine;
+
+        if (wakeUps >= 4) {
+          status = "✅";
+          habitDescription = "Good sleeping habits";
+        } else if (wakeUps >= 2) {
+          status = "⚠️";
+          habitDescription = "Not great sleeping habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad sleeping habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 2. Sober vs drinking days
+    else if (line.includes("sober") && line.includes("drinking")) {
+      const soberMatch = line.match(/(\d+)\s*days sober/);
+
+      if (soberMatch) {
+        const soberDays = parseInt(soberMatch[1]);
+        emoji = "🍻";
+        originalValues = cleanedLine;
+
+        if (soberDays >= 4) {
+          status = "✅";
+          habitDescription = "Good drinking habits";
+        } else if (soberDays >= 2) {
+          status = "⚠️";
+          habitDescription = "Not great drinking habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad drinking habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 3. Workouts (standalone)
+    else if (line.includes("workouts")) {
+      const workoutMatch = line.match(/(\d+)\s*workouts/);
+
+      if (workoutMatch) {
+        const workouts = parseInt(workoutMatch[1]);
+        emoji = "💪";
+        originalValues = cleanedLine;
+
+        if (workouts >= 3) {
+          status = "✅";
+          habitDescription = "Good workout habits";
+        } else if (workouts >= 1) {
+          status = "⚠️";
+          habitDescription = "Not great workout habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad workout habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 4. Hobby habits (reading, gaming, coding, art)
+    else if (
+      line.includes("reading") ||
+      line.includes("gaming") ||
+      line.includes("coding") ||
+      line.includes("art")
+    ) {
+      // Hobby classification
+      const HOBBY_CLASSIFICATION = {
+        good: {
+          coding: { pattern: /(\d+)\s*days coding/, weight: 1.5 },
+          reading: { pattern: /(\d+)\s*days reading/, weight: 1 },
+          art: { pattern: /(\d+)\s*days art/, weight: 1 },
+        },
+        bad: {
+          gaming: { pattern: /(\d+)\s*days gaming/, weight: 1 },
+        },
+      };
+
+      // Extract hobby days
+      let goodHobbyDays = 0;
+      let badHobbyDays = 0;
+      let hobbyDetails = [];
+
+      // Count good hobbies
+      for (const [hobbyName, config] of Object.entries(
+        HOBBY_CLASSIFICATION.good
+      )) {
+        const match = line.match(config.pattern);
+        if (match) {
+          const days = parseInt(match[1]);
+          goodHobbyDays += days * config.weight;
+          hobbyDetails.push(`${days} days ${hobbyName}`);
+        }
+      }
+
+      // Count bad hobbies
+      for (const [hobbyName, config] of Object.entries(
+        HOBBY_CLASSIFICATION.bad
+      )) {
+        const match = line.match(config.pattern);
+        if (match) {
+          const days = parseInt(match[1]);
+          badHobbyDays += days * config.weight;
+          hobbyDetails.push(`${days} days ${hobbyName}`);
+        }
+      }
+
+      // Only process if we found any hobby data
+      if (hobbyDetails.length > 0) {
+        emoji = "📖";
+        originalValues = hobbyDetails.join(", ");
+
+        // Evaluation logic
+        const codingMatch = line.match(/(\d+)\s*days coding/);
+        const codingDays = codingMatch ? parseInt(codingMatch[1]) : 0;
+
+        if (goodHobbyDays > badHobbyDays || codingDays >= 3) {
+          status = "✅";
+          habitDescription = "Good hobby habits";
+        } else if (goodHobbyDays > 0 || badHobbyDays <= 2) {
+          status = "⚠️";
+          habitDescription = "Not great hobby habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad hobby habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 5. Average body weight
+    else if (line.includes("body weight") || line.includes("avg body weight")) {
+      const weightMatch = line.match(
+        /([\d.]+)\s*(?:avg\s*)?(?:body\s*)?weight/i
+      );
+
+      if (weightMatch) {
+        const weight = parseFloat(weightMatch[1]);
+        emoji = "⚖️";
+        originalValues = cleanedLine;
+
+        if (weight <= 195) {
+          status = "✅";
+          habitDescription = "Good body weight";
+        } else if (weight < 200) {
+          status = "⚠️";
+          habitDescription = "Not great body weight";
+        } else {
+          status = "❌";
+          habitDescription = "Bad body weight";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // If no pattern matched, just add the line with a warning status
+    else {
+      formattedLines.push(`⚠️ ${cleanedLine}`);
+    }
+  }
+
+  return formattedLines.join("\n");
+}
+
+/**
  * Generate Personal Cal Summary using config
  */
 function generatePersonalCalSummary(data) {
-  let summary = "===== SUMMARY =====\n";
+  let summary = "";
+
+  // HABITS section first
+  if (data.habitsDetails && data.habitsDetails.trim()) {
+    summary += "===== HABITS =====\n";
+    summary += formatHabits(data.habitsDetails) + "\n\n";
+  }
+
+  // SUMMARY section
+  summary += "===== SUMMARY =====\n";
 
   const eventSummaries = [];
   const enabledEvents = calSummaryConfig
@@ -255,79 +478,58 @@ function generatePersonalCalSummary(data) {
       ? eventConfig.evaluation(parseInt(count))
       : "";
 
-    if (
-      eventData &&
-      !eventData.includes(
-        `No ${eventConfig.key.replace("Events", "").toLowerCase()} events`
-      )
-    ) {
-      if (eventConfig.key === "personalPREvents") {
+    if (eventConfig.key === "interpersonalEvents") {
+      // Special handling for interpersonal events
+      const formattedInterpersonal = formatInterpersonalEvents(eventData);
+      if (formattedInterpersonal.trim()) {
+        eventSummaries.push("\n" + formattedInterpersonal);
+      }
+    } else if (eventConfig.key === "personalPREvents") {
+      // Special handling for PR events
+      if (count > 0) {
         eventSummaries.push(
-          formatPersonalPREvents(
-            eventData,
-            `${status} ${eventConfig.displayName}`
-          )
-        );
-      } else if (
-        eventConfig.useGrouping &&
-        eventConfig.key === "interpersonalEvents"
-      ) {
-        // Use special interpersonal grouping
-        eventSummaries.push(
-          formatInterpersonalEventsGrouped(eventData, status)
-        );
-      } else {
-        eventSummaries.push(
-          formatCalendarEvents(
-            eventData,
-            `${status} ${eventConfig.displayName}`
-          )
+          "\n" + formatPersonalPREvents(eventData, eventConfig.displayName)
         );
       }
     } else {
-      const defaultText =
-        eventConfig.key === "personalPREvents"
-          ? `${status} ${
-              eventConfig.displayName
-            } (0 apps, 0 commits):\nNo ${eventConfig.key
-              .replace("Events", "")
-              .toLowerCase()} events this week`
-          : `${status} ${
-              eventConfig.displayName
-            } (0 events, 0 hours):\nNo ${eventConfig.key
-              .replace("Events", "")
-              .toLowerCase()} events this week`;
-      eventSummaries.push(defaultText);
+      // Regular events
+      if (count > 0) {
+        eventSummaries.push(
+          "\n" + formatCalendarEvents(eventData, eventConfig.displayName)
+        );
+      }
     }
   });
 
-  summary += eventSummaries.join("\n\n");
-  return summary;
+  summary += eventSummaries.join("\n");
+
+  return summary.trim();
 }
 
 /**
  * Format interpersonal events with grouping
  */
-function formatInterpersonalEventsGrouped(eventData, statusIcon) {
+function formatInterpersonalEvents(eventData) {
   if (!eventData || eventData.includes("No interpersonal events")) {
-    return `${statusIcon} Interpersonal events (0 events, 0 hours):\nNo interpersonal events this week`;
+    return "";
   }
 
-  // Parse the event data to extract individual events
-  const lines = eventData.split("\n");
+  const lines = eventData.split("\n").filter((line) => line.trim());
+  const titleLine = lines.find((line) => line.includes("Interpersonal Events"));
+  const eventLines = lines.filter(
+    (line) => line.startsWith("•") && line.includes("(") && line.includes("h)")
+  );
+
+  if (eventLines.length === 0) {
+    return "";
+  }
+
+  // Parse events
   const events = [];
-
-  // Extract individual event lines (start with •)
-  const eventLines = lines.filter((line) => line.trim().startsWith("•"));
-
   eventLines.forEach((line) => {
-    const trimmedLine = line.trim().substring(1).trim(); // Remove •
-
-    // Extract hours from the line (e.g., "Event name (1.5h)")
+    const trimmedLine = line.substring(1).trim();
     const hoursMatch = trimmedLine.match(/\(([0-9.]+)h\)$/);
     const hours = hoursMatch ? parseFloat(hoursMatch[1]) : 0;
-
-    // Extract event name (everything before the hours)
     const eventName = trimmedLine.replace(/\s*\([0-9.]+h\)$/, "");
 
     events.push({
@@ -337,7 +539,7 @@ function formatInterpersonalEventsGrouped(eventData, statusIcon) {
     });
   });
 
-  // Categorize events by precedence
+  // Categorize events
   const categorizedEvents = {
     general: [],
     relationships: [],
@@ -350,20 +552,14 @@ function formatInterpersonalEventsGrouped(eventData, statusIcon) {
     let assignedCategory = null;
     let matchedKeywords = [];
 
-    // Check each category to see what keywords match
     Object.entries(interpersonalGroupingConfig).forEach(([key, config]) => {
       if (config.keywords) {
         const matches = config.keywords.filter((keyword) => {
           const keywordLower = keyword.toLowerCase();
-
-          // Special handling for short keywords that might match unintentionally
           if (keywordLower === "ft" || keywordLower === "fam") {
-            // Match as whole word only
             const wordRegex = new RegExp(`\\b${keywordLower}\\b`, "i");
             return wordRegex.test(event.name);
           }
-
-          // For other keywords, use regular includes
           return eventLower.includes(keywordLower);
         });
 
@@ -377,18 +573,16 @@ function formatInterpersonalEventsGrouped(eventData, statusIcon) {
       }
     });
 
-    // Sort by precedence (highest first) and assign to highest precedence category
     if (matchedKeywords.length > 0) {
       matchedKeywords.sort((a, b) => b.precedence - a.precedence);
       assignedCategory = matchedKeywords[0].category;
       categorizedEvents[assignedCategory].push(event);
     } else {
-      // No keywords matched, put in general
       categorizedEvents.general.push(event);
     }
   });
 
-  // Build output in display order
+  // Build output
   let output = "";
   const displayOrder = Object.entries(interpersonalGroupingConfig)
     .filter(([key, config]) => config.include)
@@ -404,13 +598,12 @@ function formatInterpersonalEventsGrouped(eventData, statusIcon) {
       );
       const formattedHours = totalHours.toFixed(1);
 
-      // Use evaluation function for status
       const evaluation = calSummaryConfig.find(
         (c) => c.key === "interpersonalEvents"
       )?.evaluation;
       const categoryStatus = evaluation
         ? evaluation(categoryEvents.length)
-        : statusIcon;
+        : "☑️";
 
       if (output) output += "\n";
 
@@ -433,7 +626,6 @@ function formatInterpersonalEventsGrouped(eventData, statusIcon) {
  * Helper functions for formatting
  */
 function formatCalendarEvents(eventData, eventType) {
-  // Remove the existing title from eventData to avoid duplication
   const lines = eventData.split("\n");
   const contentLines = lines.filter(
     (line) => !line.includes("Events (") && !line.includes("PR Events (")
@@ -468,7 +660,6 @@ function formatPersonalPREvents(eventData, eventType) {
   const appsCount = extractAppsCount(eventData);
   const commitsCount = extractCommitsCount(eventData);
 
-  // Remove the existing title from eventData to avoid duplication
   const lines = eventData.split("\n");
   const contentLines = lines.filter(
     (line) =>
@@ -509,7 +700,7 @@ async function main() {
       .map((w) => parseInt(w.trim()))
       .filter((w) => !isNaN(w));
   } else if (args.length === 0) {
-    // Interactive mode (when run standalone)
+    // Interactive mode
     console.log(`📌 Default: Week ${DEFAULT_TARGET_WEEKS.join(",")}\n`);
 
     const weeksInput = await askQuestion(
@@ -528,7 +719,6 @@ async function main() {
 
     if (confirm.toLowerCase() !== "y") {
       console.log("❌ Cancelled by user");
-      rl.close();
       process.exit(0);
     }
   }

@@ -1,8 +1,228 @@
-const { google } = require("googleapis");
+function formatHabits(habitsDetails) {
+  if (!habitsDetails || !habitsDetails.trim()) {
+    return "";
+  }
+
+  const lines = habitsDetails.split("\n").filter((line) => line.trim());
+  const formattedLines = [];
+
+  for (const line of lines) {
+    let status = "";
+    let emoji = "";
+    let habitDescription = "";
+    let originalValues = "";
+
+    // Clean up the line - remove extra spaces and invisible characters
+    let cleanedLine = line.trim().replace(/\s+/g, " ");
+
+    // 1. Early wake ups vs sleeping in
+    // ✅ 🛌 Good sleeping habits (X early wake ups, Y days sleeping in)
+    // ⚠️ 🛌 Not great sleeping habits (X early wake ups, Y days sleeping in)
+    // ❌ 🛌 Bad sleeping habits (X early wake ups, Y days sleeping in)
+    if (line.includes("early wake ups") && line.includes("sleeping in")) {
+      const wakeUpMatch = line.match(/(\d+)\s*early wake ups/);
+      const sleepInMatch = line.match(/(\d+)\s*days sleeping in/);
+
+      if (wakeUpMatch) {
+        const wakeUps = parseInt(wakeUpMatch[1]);
+        emoji = "🛌";
+        originalValues = cleanedLine;
+
+        if (wakeUps >= 4) {
+          status = "✅";
+          habitDescription = "Good sleeping habits";
+        } else if (wakeUps >= 2) {
+          status = "⚠️";
+          habitDescription = "Not great sleeping habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad sleeping habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 2. Sober vs drinking days
+    // ✅ 🍻 Good drinking habits (X days sober, Y days drinking)
+    // ⚠️ 🍻 Not great drinking habits (X days sober, Y days drinking)
+    // ❌ 🍻 Bad drinking habits (X days sober, Y days drinking)
+    else if (line.includes("sober") && line.includes("drinking")) {
+      const soberMatch = line.match(/(\d+)\s*days sober/);
+
+      if (soberMatch) {
+        const soberDays = parseInt(soberMatch[1]);
+        emoji = "🍻";
+        originalValues = cleanedLine;
+
+        if (soberDays >= 4) {
+          status = "✅";
+          habitDescription = "Good drinking habits";
+        } else if (soberDays >= 2) {
+          status = "⚠️";
+          habitDescription = "Not great drinking habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad drinking habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 3. Workouts (standalone)
+    // ✅ 💪 Good workout habits (X workouts)
+    // ⚠️ 💪 Not great workout habits (X workouts)
+    // ❌ 💪 Bad workout habits (X workouts)
+    else if (line.includes("workouts")) {
+      const workoutMatch = line.match(/(\d+)\s*workouts/);
+
+      if (workoutMatch) {
+        const workouts = parseInt(workoutMatch[1]);
+        emoji = "💪";
+        originalValues = cleanedLine;
+
+        if (workouts >= 3) {
+          status = "✅";
+          habitDescription = "Good workout habits";
+        } else if (workouts >= 1) {
+          status = "⚠️";
+          habitDescription = "Not great workout habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad workout habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 4. Reading, gaming, and coding (updated to handle all three)
+    // ✅ 📖 Good hobby habits (X days reading, Y days gaming, Z days coding)
+    // ⚠️ 📖 Not great hobby habits (X days reading, Y days gaming, Z days coding)
+    // ❌ 📖 Bad hobby habits (X days reading, Y days gaming, Z days coding)
+    else if (
+      line.includes("reading") &&
+      line.includes("gaming") &&
+      line.includes("coding")
+    ) {
+      const readingMatch = line.match(/(\d+)\s*days reading/);
+      const gamingMatch = line.match(/(\d+)\s*days gaming/);
+      const codingMatch = line.match(/(\d+)\s*days coding/);
+
+      if (readingMatch && gamingMatch && codingMatch) {
+        const readingDays = parseInt(readingMatch[1]);
+        const gamingDays = parseInt(gamingMatch[1]);
+        const codingDays = parseInt(codingMatch[1]);
+
+        emoji = "📖";
+        originalValues = cleanedLine;
+
+        // Good: coding >= 3 OR (reading + coding) > gaming
+        // Not great: coding >= 1 OR reading >= gaming
+        // Bad: otherwise
+        if (codingDays >= 3 || readingDays + codingDays > gamingDays) {
+          status = "✅";
+          habitDescription = "Good hobby habits";
+        } else if (codingDays >= 1 || readingDays >= gamingDays) {
+          status = "⚠️";
+          habitDescription = "Not great hobby habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad hobby habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+    // Fallback for old format (reading and gaming only, without coding)
+    else if (line.includes("reading") && line.includes("gaming")) {
+      const readingMatch = line.match(/(\d+)\s*days reading/);
+      const gamingMatch = line.match(/(\d+)\s*days gaming/);
+
+      if (readingMatch && gamingMatch) {
+        const readingDays = parseInt(readingMatch[1]);
+        const gamingDays = parseInt(gamingMatch[1]);
+        emoji = "📖";
+        originalValues = cleanedLine;
+
+        if (readingDays >= gamingDays) {
+          status = "✅";
+          habitDescription = "Good hobby habits";
+        } else if (readingDays < gamingDays && gamingDays <= 2) {
+          status = "⚠️";
+          habitDescription = "Not great hobby habits";
+        } else {
+          status = "❌";
+          habitDescription = "Bad hobby habits";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // 5. Average body weight
+    // ✅ ⚖️ Good body weight (X avg body weight)
+    // ⚠️ ⚖️ Not great body weight (X avg body weight)
+    // ❌ ⚖️ Bad body weight (X avg body weight)
+    else if (line.includes("body weight") || line.includes("avg body weight")) {
+      const weightMatch = line.match(
+        /([\d.]+)\s*(?:avg\s*)?(?:body\s*)?weight/i
+      );
+
+      if (weightMatch) {
+        const weight = parseFloat(weightMatch[1]);
+        emoji = "⚖️";
+        originalValues = cleanedLine;
+
+        if (weight <= 195) {
+          status = "✅";
+          habitDescription = "Good body weight";
+        } else if (weight < 200) {
+          status = "⚠️";
+          habitDescription = "Not great body weight";
+        } else {
+          status = "❌";
+          habitDescription = "Bad body weight";
+        }
+
+        formattedLines.push(
+          `${status} ${emoji} ${habitDescription} (${originalValues})`
+        );
+      }
+    }
+
+    // If no pattern matched, just add the line with a warning status
+    else {
+      formattedLines.push(`⚠️ ${cleanedLine}`);
+    }
+  }
+
+  return formattedLines.join("\n");
+}
+
+const {
+  createPersonalAuth,
+  fetchCalendarEventsWithAuth,
+  validateAuthConfig,
+} = require("../../src/utils/auth-utils");
 const { getWeekDateRange } = require("./pull-personal-tasks");
 require("dotenv").config();
 
-// Habit Calendar Configuration - updated to include Coding
+// Initialize personal auth instance (reused across calls)
+let personalAuth = null;
+
+// Habit calendar configuration mapping to Notion number fields
 const HABIT_CALENDARS = [
   {
     envVar: "WAKE_UP_EARLY_CALENDAR_ID",
@@ -19,16 +239,13 @@ const HABIT_CALENDARS = [
     notionField: "Workout",
     displayName: "Workout",
   },
-  {
-    envVar: "READ_CALENDAR_ID",
-    notionField: "Read",
-    displayName: "Read",
-  },
+  { envVar: "READ_CALENDAR_ID", notionField: "Read", displayName: "Read" },
   {
     envVar: "VIDEO_GAMES_CALENDAR_ID",
     notionField: "Video Games",
     displayName: "Video Games",
   },
+  { envVar: "ART_CALENDAR_ID", notionField: "Art", displayName: "Art" },
   {
     envVar: "CODING_CALENDAR_ID",
     notionField: "Coding",
@@ -51,148 +268,127 @@ const HABIT_CALENDARS = [
   },
 ];
 
-/**
- * Google Calendar authentication
- * Copied from existing script
- */
-function getGoogleAuth() {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.PERSONAL_GOOGLE_CLIENT_ID,
-    process.env.PERSONAL_GOOGLE_CLIENT_SECRET,
-    "urn:ietf:wg:oauth:2.0:oob"
-  );
-  oauth2Client.setCredentials({
-    refresh_token: process.env.PERSONAL_GOOGLE_REFRESH_TOKEN,
-  });
-  return oauth2Client;
-}
-
-/**
- * Fetch calendar events
- * Copied from existing script
- */
 async function fetchCalendarEvents(calendarId, startDate, endDate) {
-  const auth = getGoogleAuth();
-  const calendar = google.calendar({ version: "v3", auth });
+  if (!personalAuth) {
+    if (!validateAuthConfig("personal")) {
+      console.error(
+        "❌ Personal calendar authentication not configured properly"
+      );
+      return [];
+    }
+    personalAuth = createPersonalAuth();
+  }
 
-  const response = await calendar.events.list({
-    calendarId: calendarId,
-    timeMin: `${startDate}T00:00:00Z`,
-    timeMax: `${endDate}T23:59:59Z`,
-    singleEvents: true,
-    orderBy: "startTime",
-  });
-
-  return response.data.items || [];
+  const events = await fetchCalendarEventsWithAuth(
+    personalAuth,
+    calendarId,
+    startDate,
+    endDate
+  );
+  return events || [];
 }
 
-/**
- * Pull Personal Habit Calendars for a given week
- * Adapted from existing personal-habits-pull.js core logic
- * @param {number} weekNumber - Week number (1-52)
- * @returns {Object} - Object with habit counts as numbers
- */
 async function pullPersonalHabits(weekNumber) {
   try {
-    console.log(`📥 Fetching Personal Habits for Week ${weekNumber}...`);
+    console.log(`📥 Fetching Habits for Week ${weekNumber}...`);
 
     const { startDate, endDate } = await getWeekDateRange(weekNumber);
 
-    // Check for missing calendar IDs
-    const missingIds = [];
-    HABIT_CALENDARS.forEach((calendar) => {
-      if (!process.env[calendar.envVar]) {
-        missingIds.push(calendar.envVar);
-      }
-    });
+    const summaryUpdates = {};
 
-    if (missingIds.length > 0) {
-      console.log(
-        `   ⚠️  Missing habit calendar IDs: ${missingIds.join(", ")}`
+    for (const calendar of HABIT_CALENDARS) {
+      const calendarId = process.env[calendar.envVar];
+      if (!calendarId) continue;
+
+      const allEvents = await fetchCalendarEvents(
+        calendarId,
+        startDate,
+        endDate
       );
-    }
 
-    const habitCounts = {};
-    const configuredCalendars = HABIT_CALENDARS.filter(
-      (calendar) => process.env[calendar.envVar]
-    );
-
-    console.log(
-      `   Processing ${configuredCalendars.length} habit calendars...`
-    );
-
-    // Process each habit calendar - core logic from existing script
-    for (let i = 0; i < configuredCalendars.length; i++) {
-      const calendar = configuredCalendars[i];
-
-      try {
-        const calendarId = process.env[calendar.envVar];
-        if (calendarId) {
-          const events = await fetchCalendarEvents(
-            calendarId,
-            startDate,
-            endDate
-          );
-
-          // Count unique days
-          const uniqueDays = new Set();
-          events.forEach((event) => {
-            let eventDate;
-
-            // For sleep-related habits, use END time to determine the day
-            if (
-              calendar.envVar === "SLEEP_IN_CALENDAR_ID" ||
-              calendar.envVar === "WAKE_UP_EARLY_CALENDAR_ID"
-            ) {
-              if (event.end && event.end.date) {
-                // All-day event - use end date
-                eventDate = event.end.date;
-              } else if (event.end && event.end.dateTime) {
-                // Timed event - extract date from END time (when you woke up)
-                eventDate = event.end.dateTime.split("T")[0];
-              } else if (event.start && event.start.date) {
-                // Fallback to start date if no end time
-                eventDate = event.start.date;
-              } else if (event.start && event.start.dateTime) {
-                // Fallback to start date if no end time
-                eventDate = event.start.dateTime.split("T")[0];
-              }
-            } else {
-              // For other habits (including Coding), use START time
-              if (event.start && event.start.date) {
-                eventDate = event.start.date;
-              } else if (event.start && event.start.dateTime) {
-                eventDate = event.start.dateTime.split("T")[0];
-              }
-            }
-
-            if (eventDate) {
-              uniqueDays.add(eventDate);
-            }
-          });
-
-          const habitCount = uniqueDays.size;
-          console.log(
-            `   ${calendar.displayName}: ${habitCount} days (${events.length} events)`
-          );
-          habitCounts[calendar.notionField] = habitCount;
+      // Filter to events within week (inclusive)
+      const events = allEvents.filter((event) => {
+        let eventDate;
+        if (
+          calendar.envVar === "SLEEP_IN_CALENDAR_ID" ||
+          calendar.envVar === "WAKE_UP_EARLY_CALENDAR_ID"
+        ) {
+          eventDate =
+            event.end?.date ||
+            event.end?.dateTime?.split("T")[0] ||
+            event.start?.date ||
+            event.start?.dateTime?.split("T")[0];
+        } else {
+          eventDate = event.start?.date || event.start?.dateTime?.split("T")[0];
         }
-      } catch (error) {
-        console.error(
-          `   ❌ Failed to fetch ${calendar.displayName} calendar: ${error.message}`
+        return eventDate && eventDate >= startDate && eventDate <= endDate;
+      });
+
+      if (calendar.envVar === "BODY_WEIGHT_CALENDAR_ID") {
+        const weights = [];
+        events.forEach((event) => {
+          const title = event.summary || "";
+          const weightMatch = title.match(/Weight:\s*(\d+(?:\.\d+)?)\s*lbs?/i);
+          if (weightMatch) {
+            const weight = parseFloat(weightMatch[1]);
+            if (!isNaN(weight)) weights.push(weight);
+          }
+        });
+
+        if (weights.length > 0) {
+          const total = weights.reduce((sum, w) => sum + w, 0);
+          const avg = Math.round((total / weights.length) * 10) / 10;
+          console.log(
+            `   ${calendar.displayName}: ${avg} lbs average (${weights.length} measurements)`
+          );
+          summaryUpdates[calendar.notionField] = avg;
+        } else {
+          console.log(
+            `   ${calendar.displayName}: No valid weight measurements found (${events.length} events)`
+          );
+          summaryUpdates[calendar.notionField] = 0;
+        }
+      } else {
+        const uniqueDays = new Set();
+        events.forEach((event) => {
+          let eventDate;
+          if (
+            calendar.envVar === "SLEEP_IN_CALENDAR_ID" ||
+            calendar.envVar === "WAKE_UP_EARLY_CALENDAR_ID"
+          ) {
+            if (event.end && event.end.date) {
+              eventDate = event.end.date;
+            } else if (event.end && event.end.dateTime) {
+              eventDate = event.end.dateTime.split("T")[0];
+            } else if (event.start && event.start.date) {
+              eventDate = event.start.date;
+            } else if (event.start && event.start.dateTime) {
+              eventDate = event.start.dateTime.split("T")[0];
+            }
+          } else {
+            if (event.start && event.start.date) {
+              eventDate = event.start.date;
+            } else if (event.start && event.start.dateTime) {
+              eventDate = event.start.dateTime.split("T")[0];
+            }
+          }
+          if (eventDate) uniqueDays.add(eventDate);
+        });
+
+        const habitCount = uniqueDays.size;
+        console.log(
+          `   ${calendar.displayName}: ${habitCount} days (${events.length} events)`
         );
-        // Set to 0 instead of failing entire process
-        habitCounts[calendar.notionField] = 0;
+        summaryUpdates[calendar.notionField] = habitCount;
       }
     }
 
-    return habitCounts;
+    return summaryUpdates;
   } catch (error) {
     console.error(
       `❌ Error pulling personal habits for Week ${weekNumber}:`,
       error.message
     );
-    // Return empty object on error
     return {};
   }
 }

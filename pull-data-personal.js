@@ -29,6 +29,9 @@ const {
   pullPersonalCodingCalendar,
 } = require("./scripts/data-pulls/pull-personal-coding");
 const {
+  pullPersonalArtCalendar,
+} = require("./scripts/data-pulls/pull-personal-art");
+const {
   pullPersonalHabits,
 } = require("./scripts/data-pulls/pull-personal-habit-calendars");
 require("dotenv").config();
@@ -160,6 +163,18 @@ async function performPreflightChecks() {
       calendarChecks.push({
         name: "Personal Coding Calendar",
         id: process.env.CODING_CALENDAR_ID,
+      });
+    }
+  }
+
+  if (
+    SELECTED_DATA_SOURCES === "all" ||
+    SELECTED_DATA_SOURCES === "personal-art-calendar"
+  ) {
+    if (process.env.ART_CALENDAR_ID) {
+      calendarChecks.push({
+        name: "Art Calendar",
+        id: process.env.ART_CALENDAR_ID,
       });
     }
   }
@@ -297,6 +312,14 @@ async function processWeek(weekNumber) {
       Object.assign(columnUpdates, codingData);
     }
 
+    if (
+      SELECTED_DATA_SOURCES === "all" ||
+      SELECTED_DATA_SOURCES === "personal-art-calendar"
+    ) {
+      const artData = await pullPersonalArtCalendar(weekNumber);
+      Object.assign(columnUpdates, artData);
+    }
+
     if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "habits") {
       const habitsData = await pullPersonalHabits(weekNumber);
       Object.assign(habitUpdates, habitsData);
@@ -378,9 +401,12 @@ async function main() {
     console.log("6. Reading Calendar only");
     console.log("7. Video Games Calendar only");
     console.log("8. Personal Coding Calendar only");
-    console.log("9. Habits only");
+    console.log("9. Art Calendar only");
+    console.log("10. Habits only");
 
-    const dataSourceInput = await askQuestion("\n? Choose data source (1-9): ");
+    const dataSourceInput = await askQuestion(
+      "\n? Choose data source (1-10): "
+    );
 
     switch (dataSourceInput.trim()) {
       case "1":
@@ -416,6 +442,10 @@ async function main() {
         console.log("✅ Selected: Personal Coding Calendar only");
         break;
       case "9":
+        SELECTED_DATA_SOURCES = "personal-art-calendar";
+        console.log("✅ Selected: Art Calendar only");
+        break;
+      case "10":
         SELECTED_DATA_SOURCES = "habits";
         console.log("✅ Selected: Habits only");
         break;

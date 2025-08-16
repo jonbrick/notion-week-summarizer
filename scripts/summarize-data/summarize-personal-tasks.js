@@ -31,13 +31,6 @@ const taskSummaryConfig = [
   },
   {
     type: "single",
-    key: "habitsDetails",
-    include: true,
-    order: 3,
-    title: "HABITS",
-  },
-  {
-    type: "single",
     key: "rockDetails",
     include: true,
     order: 4,
@@ -88,21 +81,12 @@ async function processWeek(weekNumber) {
       personalTasks:
         targetWeekPage.properties["Personal Tasks"]?.rich_text?.[0]
           ?.plain_text || "",
-      habitsDetails:
-        targetWeekPage.properties["Habits Details"]?.formula?.string || "",
       tripDetails:
         targetWeekPage.properties["Trip Details"]?.formula?.string || "",
       eventDetails:
         targetWeekPage.properties["Event Details"]?.formula?.string || "",
       rockDetails:
         targetWeekPage.properties["Rock Details"]?.formula?.string || "",
-      // Habit number columns (for reference if needed)
-      earlyWakeup: targetWeekPage.properties["Early Wakeup"]?.number || 0,
-      sleepIn: targetWeekPage.properties["Sleep In"]?.number || 0,
-      workout: targetWeekPage.properties["Workout"]?.number || 0,
-      soberDays: targetWeekPage.properties["Sober Days"]?.number || 0,
-      drinkingDays: targetWeekPage.properties["Drinking Days"]?.number || 0,
-      bodyWeight: targetWeekPage.properties["Body Weight"]?.number || null,
     };
 
     // Generate Personal Task Summary
@@ -153,9 +137,7 @@ function generatePersonalTaskSummary(data) {
       const content = data[section.key];
       if (content && content.trim()) {
         // Check if this section needs special formatting
-        if (section.key === "habitsDetails") {
-          summary += formatHabits(content) + "\n";
-        } else if (section.key === "rockDetails") {
+        if (section.key === "rockDetails") {
           summary += formatRocks(content) + "\n";
         } else if (section.key === "eventDetails") {
           summary += formatEvents(content) + "\n";
@@ -291,182 +273,6 @@ function formatRocks(rockDetails) {
   });
 
   return sortedRocks.join("\n");
-}
-
-function formatHabits(habitsDetails) {
-  if (!habitsDetails || !habitsDetails.trim()) {
-    return "";
-  }
-
-  const lines = habitsDetails.split("\n").filter((line) => line.trim());
-  const formattedLines = [];
-
-  for (const line of lines) {
-    let status = "";
-    let emoji = "";
-    let habitDescription = "";
-    let originalValues = "";
-
-    // Clean up the line - remove extra spaces and invisible characters
-    let cleanedLine = line.trim().replace(/\s+/g, " ");
-
-    // 1. Early wake ups vs sleeping in
-    // ✅ 🛌 Good sleeping habits (X early wake ups, Y days sleeping in)
-    // ⚠️ 🛌 Not great sleeping habits (X early wake ups, Y days sleeping in)
-    // ❌ 🛌 Bad sleeping habits (X early wake ups, Y days sleeping in)
-    if (line.includes("early wake ups") && line.includes("sleeping in")) {
-      const wakeUpMatch = line.match(/(\d+)\s*early wake ups/);
-      const sleepInMatch = line.match(/(\d+)\s*days sleeping in/);
-
-      if (wakeUpMatch) {
-        const wakeUps = parseInt(wakeUpMatch[1]);
-        emoji = "🛌";
-        originalValues = cleanedLine;
-
-        if (wakeUps >= 4) {
-          status = "✅";
-          habitDescription = "Good sleeping habits";
-        } else if (wakeUps >= 2) {
-          status = "⚠️";
-          habitDescription = "Not great sleeping habits";
-        } else {
-          status = "❌";
-          habitDescription = "Bad sleeping habits";
-        }
-
-        formattedLines.push(
-          `${status} ${emoji} ${habitDescription} (${originalValues})`
-        );
-      }
-    }
-
-    // 2. Sober vs drinking days
-    // ✅ 🍻 Good drinking habits (X days sober, Y days drinking)
-    // ⚠️ 🍻 Not great drinking habits (X days sober, Y days drinking)
-    // ❌ 🍻 Bad drinking habits (X days sober, Y days drinking)
-    else if (line.includes("sober") && line.includes("drinking")) {
-      const soberMatch = line.match(/(\d+)\s*days sober/);
-
-      if (soberMatch) {
-        const soberDays = parseInt(soberMatch[1]);
-        emoji = "🍻";
-        originalValues = cleanedLine;
-
-        if (soberDays >= 4) {
-          status = "✅";
-          habitDescription = "Good drinking habits";
-        } else if (soberDays >= 2) {
-          status = "⚠️";
-          habitDescription = "Not great drinking habits";
-        } else {
-          status = "❌";
-          habitDescription = "Bad drinking habits";
-        }
-
-        formattedLines.push(
-          `${status} ${emoji} ${habitDescription} (${originalValues})`
-        );
-      }
-    }
-
-    // 3. Workouts (standalone)
-    // ✅ 💪 Good workout habits (X workouts)
-    // ⚠️ 💪 Not great workout habits (X workouts)
-    // ❌ 💪 Bad workout habits (X workouts)
-    else if (line.includes("workouts")) {
-      const workoutMatch = line.match(/(\d+)\s*workouts/);
-
-      if (workoutMatch) {
-        const workouts = parseInt(workoutMatch[1]);
-        emoji = "💪";
-        originalValues = cleanedLine;
-
-        if (workouts >= 3) {
-          status = "✅";
-          habitDescription = "Good workout habits";
-        } else if (workouts >= 1) {
-          status = "⚠️";
-          habitDescription = "Not great workout habits";
-        } else {
-          status = "❌";
-          habitDescription = "Bad workout habits";
-        }
-
-        formattedLines.push(
-          `${status} ${emoji} ${habitDescription} (${originalValues})`
-        );
-      }
-    }
-
-    // 4. Reading vs gaming
-    // ✅ 📖 Good hobby habits (X days reading, Y days gaming)
-    // ⚠️ 📖 Not great hobby habits (X days reading, Y days gaming)
-    // ❌ 📖 Bad hobby habits (X days reading, Y days gaming)
-    else if (line.includes("reading") && line.includes("gaming")) {
-      const readingMatch = line.match(/(\d+)\s*days reading/);
-      const gamingMatch = line.match(/(\d+)\s*days gaming/);
-
-      if (readingMatch && gamingMatch) {
-        const readingDays = parseInt(readingMatch[1]);
-        const gamingDays = parseInt(gamingMatch[1]);
-        emoji = "📖";
-        originalValues = cleanedLine;
-
-        if (readingDays >= gamingDays) {
-          status = "✅";
-          habitDescription = "Good hobby habits";
-        } else if (readingDays < gamingDays && gamingDays <= 2) {
-          status = "⚠️";
-          habitDescription = "Not great hobby habits";
-        } else {
-          status = "❌";
-          habitDescription = "Bad hobby habits";
-        }
-
-        formattedLines.push(
-          `${status} ${emoji} ${habitDescription} (${originalValues})`
-        );
-      }
-    }
-
-    // 5. Average body weight
-    // ✅ ⚖️ Good body weight (X avg body weight)
-    // ⚠️ ⚖️ Not great body weight (X avg body weight)
-    // ❌ ⚖️ Bad body weight (X avg body weight)
-    else if (line.includes("body weight") || line.includes("avg body weight")) {
-      const weightMatch = line.match(
-        /([\d.]+)\s*(?:avg\s*)?(?:body\s*)?weight/i
-      );
-
-      if (weightMatch) {
-        const weight = parseFloat(weightMatch[1]);
-        emoji = "⚖️";
-        originalValues = cleanedLine;
-
-        if (weight <= 195) {
-          status = "✅";
-          habitDescription = "Good body weight";
-        } else if (weight < 200) {
-          status = "⚠️";
-          habitDescription = "Not great body weight";
-        } else {
-          status = "❌";
-          habitDescription = "Bad body weight";
-        }
-
-        formattedLines.push(
-          `${status} ${emoji} ${habitDescription} (${originalValues})`
-        );
-      }
-    }
-
-    // If no pattern matched, just add the line with a warning status
-    else {
-      formattedLines.push(`⚠️ ${cleanedLine}`);
-    }
-  }
-
-  return formattedLines.join("\n");
 }
 
 function formatEvents(eventDetails) {
