@@ -41,7 +41,7 @@ const taskSummaryConfig = [
     key: "personalTasks",
     include: true,
     order: 5,
-    title: "SUMMARY",
+    title: "TASKS",
   },
 ];
 
@@ -232,10 +232,6 @@ function formatPersonalTasksSummary(personalTasks) {
     output += `✅ ${currentCategory} (${currentCategoryTasks})\n`;
     output += currentCategorySection;
   }
-
-  // Add header with total count
-  const header = `PERSONAL TASKS (${totalTasks} tasks):\n`;
-  output = header + output;
 
   return output.trim();
 }
