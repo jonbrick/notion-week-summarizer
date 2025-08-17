@@ -155,5 +155,6 @@ module.exports = {
     sectionHeader: (sectionName) => `===== ${sectionName} =====`,
     sectionSeparator: "\n",
     itemSeparator: "\n",
+    statusEmojisToRemove: ["✅", "❌", "☑️", "⚠️"],
   },
 };
