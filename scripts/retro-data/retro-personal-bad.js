@@ -1,6 +1,6 @@
 const { Client } = require("@notionhq/client");
 const { findWeekRecapPage } = require("../../src/utils/notion-utils");
-const config = require("../../config/retro-extraction-config");
+const config = require("../../src/config/retro-extraction-config");
 const extractionFunctions = require("../../src/utils/retro-extraction-functions");
 require("dotenv").config();
 

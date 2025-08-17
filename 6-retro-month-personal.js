@@ -9,7 +9,7 @@ const {
   extractCalEventsWithCriteria,
   extractTasksWithCriteria,
 } = require("./src/utils/retro-extraction-functions");
-const retroConfig = require("./config/retro-extraction-config");
+const retroConfig = require("./src/config/retro-extraction-config");
 require("dotenv").config();
 
 // Initialize Notion client

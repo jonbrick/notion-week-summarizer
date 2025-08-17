@@ -2,7 +2,7 @@ const { Client } = require("@notionhq/client");
 const { spawn } = require("child_process");
 const readline = require("readline");
 const { findWeekRecapPage } = require("./src/utils/notion-utils");
-const config = require("./config/recap-personal-config");
+const config = require("./src/config/recap-personal-config");
 const recapFunctions = require("./src/utils/recap-functions");
 require("dotenv").config();
 
