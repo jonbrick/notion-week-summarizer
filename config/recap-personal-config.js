@@ -70,8 +70,14 @@ module.exports = {
     sectionHeader: (title) => `===== ${title} =====`,
     sectionSeparator: "\n",
     itemSeparator: ", ",
-    categoryHeader: (evaluation, category) =>
-      `${evaluation} ${category.toLowerCase()}`,
+    categoryHeader: (evaluation, category) => {
+      const evalLower = (evaluation || "").toLowerCase();
+      const catLower = (category || "").toLowerCase();
+      if (evalLower === "some") {
+        return `${evalLower} ${catLower}`;
+      }
+      return `${evalLower} of ${catLower}`;
+    },
 
     // How to combine items within sections
     combinationRules: {

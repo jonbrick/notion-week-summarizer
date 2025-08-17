@@ -169,7 +169,7 @@ function generatePersonalTaskSummary(data) {
 function formatPersonalTasksSummary(personalTasks) {
   // Task exemption arrays (case-insensitive matching)
   const exemptions = {
-    "Home Tasks": ["laundry", "fold", "list", "scrub", "change"],
+    "Home Tasks": ["groceries", "laundry", "fold", "list", "scrub", "change"],
     "Personal Tasks": ["shave", "groceries", "grocery"],
     "Physical Health Tasks": ["workout", "run"],
   };
@@ -248,7 +248,16 @@ function formatRocks(rockDetails) {
       // Add ) back to all parts except the last one
       return index < parts.length - 1 ? part.trim() + ")" : part.trim();
     })
-    .filter((rock) => rock.length > 0);
+    .filter((rock) => rock.length > 0)
+    // Filter out rocks categorized as Work (e.g., "(💼 Work)")
+    .filter((rock) => {
+      const categoryMatch = rock.match(/\(([^)]+)\)\s*$/);
+      if (!categoryMatch) return true;
+      const categoryText = categoryMatch[1];
+      return !(
+        /(^|\s)Work(\s|$)/i.test(categoryText) || categoryText.includes("💼")
+      );
+    });
 
   // Sort by status text, keeping original format intact
   const sortedRocks = rockLines.sort((a, b) => {

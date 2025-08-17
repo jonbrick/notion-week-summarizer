@@ -347,8 +347,11 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
     // Event line (starts with bullet)
     else if (line.trim().startsWith("•")) {
       let event = line.trim().substring(1).trim();
-      // Remove time patterns like (10:00am - 11:00am) or (30m)
-      event = event.replace(/\s*\([^)]+\)$/, "");
+      // Remove trailing time-of-day patterns like (10:00am - 11:00am) while preserving durations like (2.0h) or (30m)
+      event = event.replace(
+        /\s*\((?=[^)]*(?:\d{1,2}:\d{2}|\b(?:am|pm)\b))[^)]*\)\s*$/i,
+        ""
+      );
       if (event) {
         currentEvents.push(event);
       }

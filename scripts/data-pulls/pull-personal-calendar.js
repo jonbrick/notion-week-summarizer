@@ -96,6 +96,8 @@ function formatEventsColumn(events, columnName, eventType = "events") {
   // Calculate total hours
   let totalMinutes = 0;
   const formattedEvents = [];
+  const uniqueDayIndexes = new Set();
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   events.forEach((event) => {
     const duration = extractEventDuration(event);
@@ -106,6 +108,16 @@ function formatEventsColumn(events, columnName, eventType = "events") {
     const summary = event.summary || "Untitled";
 
     formattedEvents.push(`• ${summary} (${hours}h)`);
+
+    // Track day of week
+    try {
+      const startStr = event.start?.dateTime || event.start?.date;
+      if (startStr) {
+        const d = startStr.includes("T") ? new Date(startStr) : new Date(`${startStr}T00:00:00`);
+        const idx = d.getDay();
+        if (!Number.isNaN(idx)) uniqueDayIndexes.add(idx);
+      }
+    } catch (_) {}
   });
 
   const totalHours = (totalMinutes / 60).toFixed(1);
@@ -114,7 +126,13 @@ function formatEventsColumn(events, columnName, eventType = "events") {
   if (events.length !== 1) output += "s";
   output += `, ${totalHours} hour`;
   if (totalHours !== "1.0") output += "s";
-  output += "):\n";
+  // For Interpersonal Events, append days of week after total time
+  if (columnName === "Interpersonal Events" && uniqueDayIndexes.size > 0) {
+    const orderedDays = [...uniqueDayIndexes].sort((a, b) => a - b).map((i) => dayNames[i]);
+    output += `) - ${orderedDays.join(", ")}:\n`;
+  } else {
+    output += "):\n";
+  }
 
   output += formattedEvents.join("\n");
 

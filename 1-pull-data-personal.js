@@ -47,6 +47,59 @@ console.log("📥 Personal Data Fetcher - Modular Version");
 // Script configuration
 let TARGET_WEEKS = [...DEFAULT_TARGET_WEEKS];
 let SELECTED_DATA_SOURCES = "all"; // Default to all
+let FAIL_FAST = false; // Optional fail-fast behavior
+
+// Helpers
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withExponentialBackoff(fn, options = {}) {
+  const {
+    retries = 5,
+    baseDelayMs = 500,
+    maxDelayMs = 8000,
+    isRetryable = () => false,
+  } = options;
+
+  let attempt = 0;
+  let lastError;
+
+  while (attempt <= retries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = isRetryable(error) && attempt < retries;
+      if (!shouldRetry) break;
+
+      const jitter = Math.random() * 200;
+      const delay = Math.min(
+        baseDelayMs * Math.pow(2, attempt) + jitter,
+        maxDelayMs
+      );
+      await sleep(delay);
+      attempt += 1;
+    }
+  }
+
+  throw lastError;
+}
+
+function isRetryableNotionError(error) {
+  const status = error?.status || error?.code || error?.statusCode;
+  const message = (error?.message || "").toLowerCase();
+  // Retry on common transient conditions
+  return (
+    status === 429 ||
+    status === 502 ||
+    status === 503 ||
+    message.includes("status: 502") ||
+    message.includes("ecONNRESET".toLowerCase()) ||
+    message.includes("timeout") ||
+    message.includes("rate limit")
+  );
+}
 
 /**
  * Google Calendar authentication helper
@@ -258,72 +311,103 @@ async function processWeek(weekNumber) {
     const columnUpdates = {};
     const habitUpdates = {};
 
-    // Pull data based on selected sources
+    // Pull data in parallel based on selected sources
+    const dataPullPromises = [];
+
     if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "tasks") {
-      const tasksData = await pullPersonalTasks(weekNumber);
-      Object.assign(columnUpdates, tasksData);
+      dataPullPromises.push(
+        pullPersonalTasks(weekNumber).then((tasksData) => {
+          Object.assign(columnUpdates, tasksData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "pr-events"
     ) {
-      const prEventsData = await pullPersonalPREvents(weekNumber);
-      Object.assign(columnUpdates, prEventsData);
+      dataPullPromises.push(
+        pullPersonalPREvents(weekNumber).then((prEventsData) => {
+          Object.assign(columnUpdates, prEventsData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "personal-calendar"
     ) {
-      const personalCalData = await pullPersonalCalendar(weekNumber);
-      Object.assign(columnUpdates, personalCalData);
+      dataPullPromises.push(
+        pullPersonalCalendar(weekNumber).then((personalCalData) => {
+          Object.assign(columnUpdates, personalCalData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "workout-calendar"
     ) {
-      const workoutData = await pullWorkoutCalendar(weekNumber);
-      Object.assign(columnUpdates, workoutData);
+      dataPullPromises.push(
+        pullWorkoutCalendar(weekNumber).then((workoutData) => {
+          Object.assign(columnUpdates, workoutData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "reading-calendar"
     ) {
-      const readingData = await pullReadingCalendar(weekNumber);
-      Object.assign(columnUpdates, readingData);
+      dataPullPromises.push(
+        pullReadingCalendar(weekNumber).then((readingData) => {
+          Object.assign(columnUpdates, readingData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "video-games-calendar"
     ) {
-      const videoGamesData = await pullVideoGamesCalendar(weekNumber);
-      Object.assign(columnUpdates, videoGamesData);
+      dataPullPromises.push(
+        pullVideoGamesCalendar(weekNumber).then((videoGamesData) => {
+          Object.assign(columnUpdates, videoGamesData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "personal-coding-calendar"
     ) {
-      const codingData = await pullPersonalCodingCalendar(weekNumber);
-      Object.assign(columnUpdates, codingData);
+      dataPullPromises.push(
+        pullPersonalCodingCalendar(weekNumber).then((codingData) => {
+          Object.assign(columnUpdates, codingData);
+        })
+      );
     }
 
     if (
       SELECTED_DATA_SOURCES === "all" ||
       SELECTED_DATA_SOURCES === "personal-art-calendar"
     ) {
-      const artData = await pullPersonalArtCalendar(weekNumber);
-      Object.assign(columnUpdates, artData);
+      dataPullPromises.push(
+        pullPersonalArtCalendar(weekNumber).then((artData) => {
+          Object.assign(columnUpdates, artData);
+        })
+      );
     }
 
     if (SELECTED_DATA_SOURCES === "all" || SELECTED_DATA_SOURCES === "habits") {
-      const habitsData = await pullPersonalHabits(weekNumber);
-      Object.assign(habitUpdates, habitsData);
+      dataPullPromises.push(
+        pullPersonalHabits(weekNumber).then((habitsData) => {
+          Object.assign(habitUpdates, habitsData);
+        })
+      );
     }
+
+    await Promise.all(dataPullPromises);
 
     // Update Notion with all columns
     console.log("\n📝 Updating Notion columns...");
@@ -353,16 +437,23 @@ async function processWeek(weekNumber) {
       };
     }
 
-    await notion.pages.update({
-      page_id: targetWeekPage.id,
-      properties: properties,
-    });
+    await withExponentialBackoff(
+      () =>
+        notion.pages.update({
+          page_id: targetWeekPage.id,
+          properties: properties,
+        }),
+      { isRetryable: isRetryableNotionError, retries: 5 }
+    );
 
     console.log(
       `✅ Successfully updated Week ${paddedWeek} with personal data!`
     );
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error.message);
+    if (FAIL_FAST) {
+      throw error;
+    }
   }
 }
 
@@ -389,6 +480,14 @@ async function main() {
 
   // Check if running in interactive mode
   const result = await checkInteractiveMode(args, [], DEFAULT_TARGET_WEEKS, []);
+
+  // Parse flags
+  if (args.includes("--fail-fast")) {
+    FAIL_FAST = true;
+    console.log(
+      "⚠️  Fail-fast mode enabled: the script will abort on first fatal error."
+    );
+  }
 
   if (result.isInteractive) {
     // First, choose data sources
@@ -500,7 +599,12 @@ async function main() {
     }
   }
 
-  await processAllWeeks();
+  try {
+    await processAllWeeks();
+  } catch (err) {
+    console.error("❌ Aborting due to fail-fast error:", err.message);
+    process.exit(1);
+  }
 }
 
 // Run the script
