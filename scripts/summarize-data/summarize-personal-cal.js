@@ -48,7 +48,7 @@ const calSummaryConfig = [
   },
   {
     key: "workoutEvents",
-    displayName: "Workout Time",
+    displayName: "Workout Events",
     include: true,
     order: 8,
     evaluation: (count) => (count > 0 ? "✅" : "❌"),

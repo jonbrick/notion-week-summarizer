@@ -1,9 +1,7 @@
 const { Client } = require("@notionhq/client");
 const { findWeekRecapPage } = require("../../src/utils/notion-utils");
 const config = require("../../config/retro-extraction-config");
-const {
-  extractSectionItems,
-} = require("../../src/utils/retro-extraction-functions");
+const extractionFunctions = require("../../src/utils/retro-extraction-functions");
 require("dotenv").config();
 
 // Initialize Notion client
@@ -66,7 +64,7 @@ function extractBadItems(taskSummary, calSummary) {
     }
 
     // Use the new config-driven extraction function
-    const sectionContent = extractSectionItems(
+    const sectionContent = extractionFunctions.extractSectionItems(
       taskSummary,
       calSummary,
       sectionName,
@@ -79,12 +77,18 @@ function extractBadItems(taskSummary, calSummary) {
     const shouldShow = hasContent || sectionConfig.alwaysShowBadSection;
 
     if (shouldShow) {
-      // Add section header
-      output += config.formatting.sectionHeader(sectionName) + "\n";
+      // Add section header using custom title
+      const sectionTitle = sectionConfig.title || sectionName;
+      output += config.formatting.sectionHeader(sectionTitle) + "\n";
 
       // Add content or empty message
       if (hasContent) {
-        output += sectionContent.join(config.formatting.itemSeparator) + "\n";
+        // For CAL_EVENTS and TASKS, add extra spacing between categories
+        if (sectionName === "CAL_EVENTS" || sectionName === "TASKS") {
+          output += sectionContent.join("\n\n") + "\n";
+        } else {
+          output += sectionContent.join(config.formatting.itemSeparator) + "\n";
+        }
       } else {
         output += sectionConfig.emptyMessage + "\n";
       }

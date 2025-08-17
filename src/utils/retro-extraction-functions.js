@@ -102,7 +102,14 @@ function extractEventsWithCriteria(taskSummary, criteria) {
   lines.forEach((line) => {
     if (line.trim() && !line.includes("=====")) {
       if (matchesCriteria(line.trim(), criteria)) {
-        eventList.push(line.trim());
+        // Clean up the event - remove emoji and event type, keep only the description after first dash
+        let cleanEvent = line.trim();
+        const dashIndex = cleanEvent.indexOf(" - ");
+        if (dashIndex !== -1) {
+          // Take everything after "Event Type - "
+          cleanEvent = cleanEvent.substring(dashIndex + 3);
+        }
+        eventList.push(cleanEvent);
       }
     }
   });
@@ -190,7 +197,11 @@ function extractCalSummaryWithCriteria(calSummary, criteria) {
 
   lines.forEach((line) => {
     if (line.trim() && matchesCriteria(line, criteria)) {
-      matchingItems.push(line.trim());
+      // Remove the emoji but keep the rest
+      const cleanLine = line.replace(/^[✅❌☑️]\s*/, "").trim();
+      if (cleanLine) {
+        matchingItems.push(cleanLine);
+      }
     }
   });
 
@@ -202,6 +213,7 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
   const lines = calSummary.split("\n");
   const output = [];
   let currentCategory = "";
+  let originalCategoryLine = ""; // Keep original line for criteria matching
   let currentEvents = [];
 
   lines.forEach((line) => {
@@ -214,13 +226,14 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
       if (
         currentCategory &&
         currentEvents.length > 0 &&
-        matchesCriteria(currentCategory, criteria)
+        matchesCriteria(originalCategoryLine, criteria)
       ) {
         output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
       }
 
       // Start new category - extract name and stats
       let categoryLine = line.trim();
+      originalCategoryLine = categoryLine; // Keep original for criteria matching
       const match = categoryLine.match(/([✅❌☑️])\s*(.+?)\s*\(([^)]+)\)/);
       if (match) {
         let categoryName = match[2].trim();
@@ -235,9 +248,8 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
           categoryName = config.categoryMappings[categoryName];
         }
 
-        currentCategory = `${categoryLine.charAt(
-          0
-        )} ${categoryName} (${stats})`;
+        // Remove emoji from the category display
+        currentCategory = `${categoryName} (${stats})`;
         currentEvents = [];
       }
     }
@@ -256,7 +268,7 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
   if (
     currentCategory &&
     currentEvents.length > 0 &&
-    matchesCriteria(currentCategory, criteria)
+    matchesCriteria(originalCategoryLine, criteria)
   ) {
     output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
   }
@@ -288,7 +300,8 @@ function extractTasksWithCriteria(taskSummary, criteria) {
       // Extract category name and count
       const match = line.match(/([✅❌⚠️])\s*(.+?)\s*\((\d+\/\d+|\d+)\)/);
       if (match) {
-        currentCategory = `${match[1]} ${match[2].trim()} (${match[3]})`;
+        // Remove emoji from category display
+        currentCategory = `${match[2].trim()} (${match[3]})`;
         currentTasks = [];
       }
     }

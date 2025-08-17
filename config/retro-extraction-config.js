@@ -31,6 +31,7 @@ module.exports = {
       includeInBad: false,
       alwaysShowBadSection: false,
       emptyMessage: "No trips this week",
+      title: "TRIPS",
     },
 
     EVENTS: {
@@ -39,6 +40,7 @@ module.exports = {
       includeInBad: true,
       alwaysShowBadSection: false,
       emptyMessage: "No events this week",
+      title: "EVENTS",
     },
 
     ROCKS: {
@@ -47,6 +49,7 @@ module.exports = {
       includeInBad: true,
       alwaysShowBadSection: false,
       emptyMessage: "No rocks this week",
+      title: "ROCKS",
     },
 
     HABITS: {
@@ -55,6 +58,7 @@ module.exports = {
       includeInBad: true,
       alwaysShowBadSection: false,
       emptyMessage: "No habits tracked this week",
+      title: "HABITS",
     },
 
     CAL_SUMMARY: {
@@ -63,6 +67,7 @@ module.exports = {
       includeInBad: true,
       alwaysShowBadSection: false,
       emptyMessage: "No calendar summary this week",
+      title: "CAL SUMMARY",
     },
 
     CAL_EVENTS: {
@@ -71,6 +76,7 @@ module.exports = {
       includeInBad: true,
       alwaysShowBadSection: false,
       emptyMessage: "No calendar events this week",
+      title: "CAL EVENTS",
     },
 
     TASKS: {
@@ -79,6 +85,7 @@ module.exports = {
       includeInBad: false,
       alwaysShowBadSection: false,
       emptyMessage: "No tasks completed this week",
+      title: "TASKS",
     },
   },
 
@@ -146,7 +153,7 @@ module.exports = {
   // Section output formatting
   formatting: {
     sectionHeader: (sectionName) => `===== ${sectionName} =====`,
-    sectionSeparator: "\n\n",
+    sectionSeparator: "\n",
     itemSeparator: "\n",
   },
 };
