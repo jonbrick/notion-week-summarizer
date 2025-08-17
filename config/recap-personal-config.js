@@ -72,11 +72,14 @@ module.exports = {
     itemSeparator: ", ",
     categoryHeader: (evaluation, category) => {
       const evalLower = (evaluation || "").toLowerCase();
+      const evalCap = evalLower
+        ? evalLower.charAt(0).toUpperCase() + evalLower.slice(1)
+        : "";
       const catLower = (category || "").toLowerCase();
       if (evalLower === "some") {
-        return `${evalLower} ${catLower}`;
+        return `${evalCap} ${catLower}`;
       }
-      return `${evalLower} of ${catLower}`;
+      return `${evalCap} of ${catLower}`;
     },
 
     // How to combine items within sections
