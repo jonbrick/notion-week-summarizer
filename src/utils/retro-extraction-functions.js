@@ -473,6 +473,15 @@ module.exports = {
   extractSection,
   matchesCriteria,
 
+  // Direct extraction functions (exported for monthly retro and others)
+  extractTripsWithCriteria,
+  extractEventsWithCriteria,
+  extractRocksWithCriteria,
+  extractHabitsWithCriteria,
+  extractCalSummaryWithCriteria,
+  extractCalEventsWithCriteria,
+  extractTasksWithCriteria,
+
   // Legacy functions for backward compatibility
   extractTrips,
   extractAllEvents,

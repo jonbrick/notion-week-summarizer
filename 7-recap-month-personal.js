@@ -4,7 +4,7 @@ require("dotenv").config();
 
 // Initialize Notion client
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
-const MONTHS_DATABASE_ID = process.env.MONTHS_RECAP_MONTHS_DATABASE_ID;
+const MONTHS_DATABASE_ID = process.env.RECAP_MONTHS_DATABASE_ID;
 
 // CLI
 const rl = readline.createInterface({
@@ -21,6 +21,22 @@ console.log("📅 Personal Month Recap Updater");
 
 async function findMonthRecapPage(monthNumber) {
   const padded = String(monthNumber).padStart(2, "0");
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const monthName = monthNames[monthNumber - 1];
+
   const resp = await notion.databases.query({
     database_id: MONTHS_DATABASE_ID,
   });
@@ -31,11 +47,15 @@ async function findMonthRecapPage(monthNumber) {
     const title = Array.isArray(titleProp?.title)
       ? titleProp.title.map((t) => t.plain_text).join("")
       : "";
+
+    // Check various possible formats
     if (
+      title === `${padded}. ${monthName} Recap` ||
       title === `Month ${monthNumber} Recap` ||
       title === `Month ${padded} Recap` ||
       title === `Month ${monthNumber}` ||
-      title === `Month ${padded}`
+      title === `Month ${padded}` ||
+      (title.includes(`${padded}.`) && title.includes(monthName))
     ) {
       target = page;
       break;
@@ -56,32 +76,48 @@ async function processMonth(monthNumber) {
       return;
     }
 
-    // Read formula-based summaries
-    const monthTaskSummary =
-      page.properties["Month Personal Task Summary"]?.formula?.string || "";
-    const monthCalSummary =
-      page.properties["Month Personal Cal Summary"]?.formula?.string || "";
+    // Read the two source properties (they are formulas, not rich text)
+    const monthWentWellProp = page.properties["Month - What went well"];
+    const monthDidntGoWellProp =
+      page.properties["Month - What didn't go so well"];
 
-    // Build recap content: simple concatenation of both monthly formulas
-    let recap = "";
-    if (monthTaskSummary && monthTaskSummary.trim()) {
-      recap += monthTaskSummary.trim();
+    let monthWentWell = "";
+    let monthDidntGoWell = "";
+
+    // Handle formula property extraction
+    if (monthWentWellProp?.formula?.string) {
+      monthWentWell = monthWentWellProp.formula.string.trim();
     }
-    if (monthCalSummary && monthCalSummary.trim()) {
-      recap += (recap ? "\n\n" : "") + monthCalSummary.trim();
+
+    if (monthDidntGoWellProp?.formula?.string) {
+      monthDidntGoWell = monthDidntGoWellProp.formula.string.trim();
+    }
+
+    console.log(`📋 Found "What went well": ${monthWentWell ? "YES" : "NO"}`);
+    console.log(
+      `📋 Found "What didn't go so well": ${monthDidntGoWell ? "YES" : "NO"}`
+    );
+
+    // Build combined recap content
+    let recap = "";
+    if (monthWentWell && monthWentWell.trim()) {
+      recap += monthWentWell.trim();
+    }
+    if (monthDidntGoWell && monthDidntGoWell.trim()) {
+      recap += (recap ? "\n\n" : "") + monthDidntGoWell.trim();
     }
 
     if (!recap) {
-      console.log("⚠️ No monthly summaries found to update");
+      console.log("⚠️ No monthly recap data found to update");
       return;
     }
 
     // Update target property
-    console.log("📤 Updating Notion 'Personal Recap 1'...");
+    console.log("📤 Updating Notion 'Month Recap - Personal'...");
     await notion.pages.update({
       page_id: page.id,
       properties: {
-        "Personal Recap 1": {
+        "Month Recap - Personal": {
           rich_text: [
             {
               text: { content: recap.substring(0, 2000) },
@@ -99,12 +135,12 @@ async function processMonth(monthNumber) {
 
 async function main() {
   if (!MONTHS_DATABASE_ID) {
-    console.error("❌ Missing env MONTHS_RECAP_MONTHS_DATABASE_ID");
+    console.error("❌ Missing env RECAP_MONTHS_DATABASE_ID");
     process.exit(1);
   }
 
   console.log(
-    "\nThis will update the 'Personal Recap 1' column using:\n- 'Month Personal Task Summary'\n- 'Month Personal Cal Summary'\n"
+    "\nThis will update the 'Month Recap - Personal' column using:\n- 'Month - What went well'\n- 'Month - What didn't go so well'\n"
   );
   const input = await ask("? Which month to process? (1-12): ");
   const month = parseInt((input || "").trim(), 10) || 1;
