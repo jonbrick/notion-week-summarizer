@@ -99,12 +99,7 @@ function parseWeeklySections(monthlyData, sectionType) {
 /**
  * Extract items using the same criteria as weekly retro, but across all weeks
  */
-function extractMonthlyItems(
-  monthlyTaskData,
-  monthlyCalData,
-  criteria,
-  config
-) {
+function extractMonthlyItems(monthlyTaskData, monthlyCalData, mode, config) {
   const allItems = [];
 
   // Parse weekly task sections
@@ -120,16 +115,45 @@ function extractMonthlyItems(
     const taskData = weeklyTaskSections[i] || "";
     const calData = weeklyCalSections[i] || "";
 
-    // Extract from task data
-    const trips = extractTripsWithCriteria(taskData, criteria, config);
-    const events = extractEventsWithCriteria(taskData, criteria, config);
-    const rocks = extractRocksWithCriteria(taskData, criteria);
-    const tasks = extractTasksWithCriteria(taskData, criteria, config);
+    // Extract from task data with section-specific criteria
+    const trips = extractTripsWithCriteria(
+      taskData,
+      config.evaluationCriteria.TRIPS?.[mode] ?? "none",
+      config
+    );
+    const events = extractEventsWithCriteria(
+      taskData,
+      config.evaluationCriteria.EVENTS?.[mode] ?? "none",
+      config,
+      mode
+    );
+    const rocks = extractRocksWithCriteria(
+      taskData,
+      config.evaluationCriteria.ROCKS?.[mode] ?? "none",
+      config
+    );
+    const tasks = extractTasksWithCriteria(
+      taskData,
+      config.evaluationCriteria.TASKS?.[mode] ?? "none",
+      config
+    );
 
-    // Extract from cal data
-    const habits = extractHabitsWithCriteria(calData, criteria, config);
-    const calSummary = extractCalSummaryWithCriteria(calData, criteria, config);
-    const calEvents = extractCalEventsWithCriteria(calData, criteria, config);
+    // Extract from cal data with section-specific criteria
+    const habits = extractHabitsWithCriteria(
+      calData,
+      config.evaluationCriteria.HABITS?.[mode] ?? "none",
+      config
+    );
+    const calSummary = extractCalSummaryWithCriteria(
+      calData,
+      config.evaluationCriteria.CAL_SUMMARY?.[mode] ?? "none",
+      config
+    );
+    const calEvents = extractCalEventsWithCriteria(
+      calData,
+      config.evaluationCriteria.CAL_EVENTS?.[mode] ?? "none",
+      config
+    );
 
     allItems.push({
       week: i + 1,
@@ -149,38 +173,46 @@ function extractMonthlyItems(
 /**
  * Format monthly retrospective sections
  */
-function formatMonthlyRetro(monthlyItems, sectionConfig) {
+function formatMonthlyRetro(monthlyItems, mode, sectionConfig) {
   const sections = [];
 
-  retroConfig.sectionOrder.forEach((sectionName) => {
-    const config = retroConfig.sections[sectionName];
-    if (!config.includeInGood && !config.includeInBad) return;
+  const keyMap = {
+    TRIPS: "trips",
+    EVENTS: "events",
+    ROCKS: "rocks",
+    HABITS: "habits",
+    CAL_SUMMARY: "calSummary",
+    CAL_EVENTS: "calEvents",
+    TASKS: "tasks",
+  };
 
-    const sectionKey = sectionName
-      .toLowerCase()
-      .replace(" ", "")
-      .replace("_", "");
+  retroConfig.sectionOrder.forEach((sectionName) => {
+    const cfg = retroConfig.sections[sectionName];
+    // Respect include flags per mode
+    if (mode === "good" && !cfg.includeInGood) return;
+    if (mode === "bad" && !cfg.includeInBad) return;
+
+    const dataKey = keyMap[sectionName];
     let allSectionItems = [];
 
     // Collect all items from all weeks for this section
     monthlyItems.forEach((weekData) => {
-      const weekItems =
-        weekData[sectionKey] || weekData[sectionName.toLowerCase()] || [];
+      const weekItems = weekData[dataKey] || [];
       if (Array.isArray(weekItems)) {
         allSectionItems = allSectionItems.concat(weekItems);
       }
     });
 
-    if (
+    const shouldShow =
       allSectionItems.length > 0 ||
-      config.alwaysShowGoodSection ||
-      config.alwaysShowBadSection
-    ) {
-      sections.push(`===== ${config.title} =====`);
+      (mode === "good" ? cfg.alwaysShowGoodSection : cfg.alwaysShowBadSection);
+
+    if (shouldShow) {
+      sections.push(`===== ${cfg.title} =====`);
       if (allSectionItems.length > 0) {
         sections.push(allSectionItems.join("\n"));
       } else {
-        sections.push(config.emptyMessage);
+        sections.push(cfg.emptyMessage);
       }
       sections.push("");
     }
@@ -229,7 +261,7 @@ async function processMonth(monthNumber) {
     const goodItems = extractMonthlyItems(
       monthTaskData,
       monthCalData,
-      retroConfig.evaluationCriteria.good,
+      "good",
       retroConfig
     );
 
@@ -238,13 +270,21 @@ async function processMonth(monthNumber) {
     const badItems = extractMonthlyItems(
       monthTaskData,
       monthCalData,
-      retroConfig.evaluationCriteria.bad,
+      "bad",
       retroConfig
     );
 
     // Format the monthly retrospective
-    const goodSection = formatMonthlyRetro(goodItems, retroConfig.sections);
-    const badSection = formatMonthlyRetro(badItems, retroConfig.sections);
+    const goodSection = formatMonthlyRetro(
+      goodItems,
+      "good",
+      retroConfig.sections
+    );
+    const badSection = formatMonthlyRetro(
+      badItems,
+      "bad",
+      retroConfig.sections
+    );
 
     // Combine into final recap
     let monthlyRetro = "";
