@@ -85,10 +85,37 @@ function categorizeEventByColor(event) {
 }
 
 /**
- * Format events for a column (simple list with hours)
- * Copied exactly from archive script
+ * Get the day-of-week label (Sun..Sat) for a Google Calendar event
  */
-function formatEventsColumn(events, columnName, eventType = "events") {
+function getEventDayOfWeek(event) {
+  try {
+    let dateStr = null;
+    if (event.start?.dateTime) {
+      dateStr = event.start.dateTime;
+    } else if (event.start?.date) {
+      dateStr = event.start.date;
+    }
+    if (!dateStr) return null;
+
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return null;
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return days[date.getDay()];
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Format events for a column (simple list with hours)
+ * Copied exactly from archive script, with optional day-of-week labels
+ */
+function formatEventsColumn(
+  events,
+  columnName,
+  eventType = "events",
+  includeDayOfWeek = false
+) {
   if (!events || events.length === 0) {
     return `${columnName} (0 ${eventType}, 0 hours):\nNo ${columnName.toLowerCase()} this week`;
   }
@@ -104,8 +131,9 @@ function formatEventsColumn(events, columnName, eventType = "events") {
 
     const hours = (minutes / 60).toFixed(1);
     const summary = event.summary || "Untitled";
-
-    formattedEvents.push(`• ${summary} (${hours}h)`);
+    const dayLabel = includeDayOfWeek ? getEventDayOfWeek(event) : null;
+    const daySuffix = dayLabel ? ` on ${dayLabel}` : "";
+    formattedEvents.push(`• ${summary}${daySuffix} (${hours}h)`);
   });
 
   const totalHours = (totalMinutes / 60).toFixed(1);
@@ -192,7 +220,9 @@ async function pullPersonalCalendar(weekNumber) {
       ),
       "Interpersonal Events": formatEventsColumn(
         categorizedEvents.interpersonal,
-        "Interpersonal Events"
+        "Interpersonal Events",
+        "events",
+        true
       ),
       "Home Events": formatEventsColumn(categorizedEvents.home, "Home Events"),
       "Mental Health Events": formatEventsColumn(

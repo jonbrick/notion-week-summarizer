@@ -303,6 +303,7 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
   let currentCategory = "";
   let originalCategoryLine = ""; // Keep original line for criteria matching
   let currentEvents = [];
+  let currentCategoryName = ""; // Category without stats/emoji
 
   lines.forEach((line) => {
     // Check if this is a category header
@@ -337,21 +338,25 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
         }
 
         // Remove emoji from the category display
-        currentCategory = `${cleanStatusEmojis(
-          categoryName,
-          config
-        )} (${stats})`;
+        currentCategoryName = cleanStatusEmojis(categoryName, config);
+        currentCategory = `${currentCategoryName} (${stats})`;
         currentEvents = [];
       }
     }
     // Event line (starts with bullet)
     else if (line.trim().startsWith("•")) {
       let event = line.trim().substring(1).trim();
-      // Remove trailing time-of-day patterns like (10:00am - 11:00am) while preserving durations like (2.0h) or (30m)
+      // Always remove time-of-day ranges like (10:00am - 11:00am)
       event = event.replace(
         /\s*\((?=[^)]*(?:\d{1,2}:\d{2}|\b(?:am|pm)\b))[^)]*\)\s*$/i,
         ""
       );
+      // For interpersonal-like categories, remove duration suffixes like (2.0h) or (30m)
+      const interpersonalCategoryPattern =
+        /interpersonal|relationship|relationships|calls|family|social time|time with relationships|calls time|family time/i;
+      if (interpersonalCategoryPattern.test(currentCategoryName)) {
+        event = event.replace(/\s*\((?:\d+(?:\.\d+)?h|\d+m)\)\s*$/i, "");
+      }
       if (event) {
         currentEvents.push(event);
       }
