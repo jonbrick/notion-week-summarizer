@@ -9,6 +9,7 @@ const {
   extractCalEventsWithCriteria,
   extractTasksWithCriteria,
 } = require("./src/utils/retro-extraction-functions");
+const { aggregateMonthlyData } = require("./src/utils/retro-monthly-functions");
 const retroConfig = require("./src/config/retro-extraction-config");
 require("dotenv").config();
 
@@ -171,7 +172,7 @@ function extractMonthlyItems(monthlyTaskData, monthlyCalData, mode, config) {
 }
 
 /**
- * Format monthly retrospective sections
+ * Format monthly retrospective sections with aggregation
  */
 function formatMonthlyRetro(monthlyItems, mode, sectionConfig) {
   const sections = [];
@@ -193,24 +194,30 @@ function formatMonthlyRetro(monthlyItems, mode, sectionConfig) {
     if (mode === "bad" && !cfg.includeInBad) return;
 
     const dataKey = keyMap[sectionName];
-    let allSectionItems = [];
+    let weeklyArrays = [];
 
-    // Collect all items from all weeks for this section
+    // Collect arrays from each week for this section
     monthlyItems.forEach((weekData) => {
       const weekItems = weekData[dataKey] || [];
       if (Array.isArray(weekItems)) {
-        allSectionItems = allSectionItems.concat(weekItems);
+        weeklyArrays.push(weekItems);
       }
     });
 
+    // Aggregate the weekly data instead of concatenating
+    const aggregatedItems = aggregateMonthlyData(
+      weeklyArrays,
+      sectionName,
+      retroConfig
+    );
     const shouldShow =
-      allSectionItems.length > 0 ||
+      aggregatedItems.length > 0 ||
       (mode === "good" ? cfg.alwaysShowGoodSection : cfg.alwaysShowBadSection);
 
     if (shouldShow) {
       sections.push(`===== ${cfg.title} =====`);
-      if (allSectionItems.length > 0) {
-        sections.push(allSectionItems.join("\n"));
+      if (aggregatedItems.length > 0) {
+        sections.push(aggregatedItems.join("\n"));
       } else {
         sections.push(cfg.emptyMessage);
       }
@@ -286,39 +293,42 @@ async function processMonth(monthNumber) {
       retroConfig.sections
     );
 
-    // Combine into final recap
-    let monthlyRetro = "";
-    if (goodSection) {
-      monthlyRetro += "===== WHAT WENT WELL =====\n" + goodSection;
-    }
-    if (badSection) {
-      monthlyRetro +=
-        (monthlyRetro ? "\n\n" : "") +
-        "===== WHAT DIDN'T GO WELL =====\n" +
-        badSection;
-    }
-
-    if (!monthlyRetro) {
+    // Check if we have any content to update
+    if (!goodSection && !badSection) {
       console.log("⚠️ No monthly retrospective generated");
       return;
     }
 
-    // Update target property
-    console.log("📤 Updating Notion 'Month Recap - Personal'...");
+    // Update target properties (separate columns)
+    console.log("📤 Updating Notion monthly columns...");
+    const properties = {};
+
+    if (goodSection) {
+      properties["Month - What went well"] = {
+        rich_text: [
+          {
+            text: { content: goodSection.substring(0, 2000) },
+          },
+        ],
+      };
+    }
+
+    if (badSection) {
+      properties["Month - What didn't go so well"] = {
+        rich_text: [
+          {
+            text: { content: badSection.substring(0, 2000) },
+          },
+        ],
+      };
+    }
+
     await notion.pages.update({
       page_id: page.id,
-      properties: {
-        "Month Recap - Personal": {
-          rich_text: [
-            {
-              text: { content: monthlyRetro.substring(0, 2000) },
-            },
-          ],
-        },
-      },
+      properties: properties,
     });
 
-    console.log("✅ Monthly retrospective updated successfully!");
+    console.log("✅ Monthly columns updated successfully!");
   } catch (err) {
     console.error("❌ Error processing month:", err.message);
     console.error(err.stack);
@@ -332,7 +342,7 @@ async function main() {
   }
 
   console.log(
-    "\nThis will generate a monthly retrospective using:\n- 'Month - Personal Tasks' (formula)\n- 'Month - Personal Cal' (formula)\n"
+    "\nThis will generate monthly summaries using:\n- 'Month - Personal Tasks' (formula)\n- 'Month - Personal Cal' (formula)\n\nWill update:\n- 'Month - What went well'\n- 'Month - What didn't go so well'\n"
   );
   const input = await ask("? Which month to process? (1-12): ");
   const month = parseInt((input || "").trim(), 10) || 1;

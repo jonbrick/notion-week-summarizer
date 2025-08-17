@@ -3,6 +3,22 @@
  *
  * This config drives which sections appear in "What went well" vs "What didn't go so well"
  * and defines the criteria for determining good vs bad items within each section.
+ *
+ *
+ * EVALUATION CRITERIA INSTRUCTIONS:
+ *
+ * This object defines what content gets included in good vs bad sections.
+ *
+ * Supported criteria types:
+ * - "all": Include everything from the section
+ * - "none": Include nothing from the section
+ * - ["text", "emoji"]: Include only items containing these strings/emojis
+ * - { not: ["text", "emoji"] }: Include everything EXCEPT items containing these
+ *
+ * Examples:
+ * - good: "all" = All events go to good section
+ * - bad: ["😔", "Wasted"] = Only sad/wasted events go to bad section
+ * - good: { not: ["😔"] } = All events except sad ones go to good section
  */
 
 module.exports = {
@@ -89,22 +105,6 @@ module.exports = {
     },
   },
 
-  /*
-   * EVALUATION CRITERIA INSTRUCTIONS:
-   *
-   * This object defines what content gets included in good vs bad sections.
-   *
-   * Supported criteria types:
-   * - "all": Include everything from the section
-   * - "none": Include nothing from the section
-   * - ["text", "emoji"]: Include only items containing these strings/emojis
-   * - { not: ["text", "emoji"] }: Include everything EXCEPT items containing these
-   *
-   * Examples:
-   * - good: "all" = All events go to good section
-   * - bad: ["😔", "Wasted"] = Only sad/wasted events go to bad section
-   * - good: { not: ["😔"] } = All events except sad ones go to good section
-   */
   evaluationCriteria: {
     TRIPS: {
       good: "all",
@@ -156,6 +156,28 @@ module.exports = {
     "Reading Time": "No Reading Time",
     "Coding Time": "No Coding Time",
     "Art Time": "No Art Time",
+  },
+
+  // For CAL EVENTS: categories that should only show totals (no event details)
+  calEventsHideDetails: [
+    "Interpersonal Time",
+    "Relationship Time",
+    "Calls time",
+    "Family time",
+    "Workout Events",
+    "Mental Health Time",
+    "Physical Health Time",
+  ],
+
+  // For TASKS: categories that should show task details (not just totals)
+  tasksShowDetails: ["Personal Tasks", "Physical Health Tasks"],
+
+  // Monthly habit evaluation thresholds
+  monthlyHabitThresholds: {
+    earlyWakeUp: { goodPerWeek: 4, warningPerWeek: 2 },
+    daysSober: { goodPerWeek: 4, warningPerWeek: 2 },
+    workouts: { goodPerWeek: 3, warningPerWeek: 1 },
+    avgWeight: { goodAbsolute: 195, warningAbsolute: 200 },
   },
 
   // Section output formatting
