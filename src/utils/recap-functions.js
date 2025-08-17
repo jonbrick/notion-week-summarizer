@@ -14,6 +14,16 @@ function parseHours(text) {
 }
 
 /**
+ * Get day-of-week index (Sun=0 ... Sat=6) from a string, or 7 if none found
+ */
+function getDayIndex(text) {
+  const dayMatch = text.match(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b/);
+  if (!dayMatch) return 7;
+  const order = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return order[dayMatch[1]] ?? 7;
+}
+
+/**
  * Parse task count from text like "Personal Tasks (11)" or "Home Tasks (3)"
  * @param {string} text - Text containing task count
  * @returns {number} - Parsed count, or 0 if not found
@@ -174,6 +184,10 @@ function combineSection(sectionName, goodContent, badContent, config) {
 
   switch (sectionType) {
     case "simple":
+      // Special handling for EVENTS: sort items by day-of-week across good+bad
+      if (sectionName === "EVENTS") {
+        return combineEventsSection(goodContent, badContent, config);
+      }
       return combineSimpleSection(goodContent, badContent, config);
 
     case "calEvents":
@@ -205,6 +219,22 @@ function combineSimpleSection(goodContent, badContent, config) {
   }
 
   return combined.join(config.formatting.itemSeparator);
+}
+
+/**
+ * Combine EVENTS with day-of-week sorting across good + bad items
+ */
+function combineEventsSection(goodContent, badContent, config) {
+  const items = [];
+  if (goodContent && goodContent.trim()) {
+    items.push(...goodContent.split("\n").filter((l) => l.trim()));
+  }
+  if (badContent && badContent.trim()) {
+    items.push(...badContent.split("\n").filter((l) => l.trim()));
+  }
+
+  const sorted = items.sort((a, b) => getDayIndex(a) - getDayIndex(b));
+  return sorted.join(config.formatting.itemSeparator);
 }
 
 /**
@@ -246,7 +276,11 @@ function combineCalEventsSection(goodContent, badContent, config) {
       config.formatting.categoryHeader(evaluation, categoryName) +
       ` (${category.hours} hours)` +
       "\n";
-    output += category.events.join("\n") + "\n\n";
+    // Sort events by day-of-week (Sun -> Sat) if a day token exists
+    const sortedEvents = [...category.events].sort((a, b) => {
+      return getDayIndex(a) - getDayIndex(b);
+    });
+    output += sortedEvents.join("\n") + "\n\n";
   }
 
   return output.trim();

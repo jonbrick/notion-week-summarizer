@@ -133,7 +133,7 @@ function extractEventsWithCriteria(taskSummary, criteria, config, mode) {
           const eventTypeWithEmojis = cleanEvent.substring(0, dashIndex);
           const description = cleanEvent.substring(dashIndex + 3);
 
-          // Remove emojis from type unless they are explicitly preserved for this mode
+          // Preserve only configured emojis from the type; drop all other type text
           const preserveEmojis =
             (config &&
               config.formatting &&
@@ -141,16 +141,19 @@ function extractEventsWithCriteria(taskSummary, criteria, config, mode) {
             {};
           const emojisToPreserve = new Set(preserveEmojis[mode] || []);
 
-          // Strip emojis not preserved
-          const strippedType = eventTypeWithEmojis.replace(
-            /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,
-            (m) => (emojisToPreserve.has(m) ? m : "")
-          );
+          // Collect only preserved emojis present in the type
+          const keptEmojis = Array.from(
+            eventTypeWithEmojis.matchAll(
+              /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu
+            )
+          )
+            .map((m) => m[0])
+            .filter((e) => emojisToPreserve.has(e));
 
-          // If type becomes empty, return only description; otherwise, keep preserved emojis + description
-          cleanEvent = strippedType.trim()
-            ? `${strippedType} - ${description}`
-            : description;
+          cleanEvent =
+            keptEmojis.length > 0
+              ? `${keptEmojis.join(" ")} ${description}`.trim()
+              : description;
         }
         eventList.push(cleanEvent);
       }
