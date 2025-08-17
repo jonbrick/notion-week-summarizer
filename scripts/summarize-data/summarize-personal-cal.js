@@ -455,107 +455,116 @@ function formatHabits(habitsDetails) {
 /**
  * Generate Personal Cal Summary using config
  */
+/**
+ * Generate Personal Cal Summary using structured arrays
+ */
 function generatePersonalCalSummary(data) {
-  let summary = "";
+  const output = {
+    habits: [],
+    calSummary: [],
+    summary: [],
+  };
 
-  // HABITS section first
+  // 1. HABITS section
   if (data.habitsDetails && data.habitsDetails.trim()) {
-    summary += "===== HABITS =====\n";
-    summary += formatHabits(data.habitsDetails) + "\n\n";
+    const habitsFormatted = formatHabits(data.habitsDetails);
+    if (habitsFormatted) {
+      output.habits.push(habitsFormatted);
+    }
   }
 
-  // CAL SUMMARY section for include: false items
-  summary += "===== CAL SUMMARY =====\n";
+  // 2. Process all calendar events
+  const allEvents = calSummaryConfig.sort((a, b) => a.order - b.order);
 
-  const statsOnlyEvents = calSummaryConfig
-    .filter((event) => !event.include)
-    .sort((a, b) => a.order - b.order);
-
-  statsOnlyEvents.forEach((eventConfig) => {
+  allEvents.forEach((eventConfig) => {
     const eventData = data[eventConfig.key];
-    const hours = extractHours(eventData);
-    const count = extractEventCount(eventData);
-    const status = eventConfig.evaluation
-      ? eventConfig.evaluation(parseInt(count))
-      : "☑️";
 
-    if (eventConfig.key === "personalPREvents") {
-      const appsCount = extractAppsCount(eventData);
-      const commitsCount = extractCommitsCount(eventData);
-      summary += `${status} ${eventConfig.displayName} (${appsCount} apps, ${commitsCount} commits):\n`;
-    } else {
-      summary += `${status} ${eventConfig.displayName} (${count} events, ${hours} hours):\n`;
-    }
-  });
-
-  summary += "\n";
-
-  // SUMMARY section
-  summary += "===== SUMMARY =====\n";
-
-  const eventSummaries = [];
-  const enabledEvents = calSummaryConfig
-    .filter((event) => event.include)
-    .sort((a, b) => a.order - b.order);
-
-  // Detailed events will be added below; stats-only items were included in CAL SUMMARY above
-
-  // Add detailed events
-  enabledEvents.forEach((eventConfig) => {
-    const eventData = data[eventConfig.key];
+    // Extract counts
     const count =
       eventConfig.key === "personalPREvents"
         ? extractAppsCount(eventData)
         : extractEventCount(eventData);
+    const hours = extractHours(eventData);
+
+    // Get status emoji
     const status = eventConfig.evaluation
       ? eventConfig.evaluation(parseInt(count))
       : "☑️";
 
+    // Handle special cases
     if (eventConfig.key === "interpersonalEvents") {
-      // Special handling for interpersonal events grouping
-      const interpersonalOutput = formatInterpersonalEvents(
-        eventData,
-        "Interpersonal"
-      );
+      // Special interpersonal grouping
+      const interpersonalOutput = formatInterpersonalEvents(eventData);
       if (interpersonalOutput) {
-        eventSummaries.push(interpersonalOutput);
-      }
-    } else if (eventConfig.key === "personalPREvents") {
-      // Special handling for Personal PR events
-      const prOutput = formatPersonalPREvents(eventData, "Personal PR");
-      if (prOutput) {
-        eventSummaries.push(`${status} ${prOutput}`);
-      } else {
-        // Show title with count but no "No ___ events this week" text
-        const appsCount = extractAppsCount(eventData);
-        const commitsCount = extractCommitsCount(eventData);
-        eventSummaries.push(
-          `${status} Personal PR (${appsCount} apps, ${commitsCount} commits):`
-        );
+        // Parse interpersonal groups and categorize each
+        const interpersonalLines = interpersonalOutput
+          .split("\n")
+          .filter((line) => line.match(/^[☑️✅❌⚠️]/));
+
+        interpersonalLines.forEach((line) => {
+          const hasEvents = !line.includes("(0 events");
+          if (hasEvents) {
+            output.summary.push(line);
+          } else {
+            output.calSummary.push(line);
+          }
+        });
       }
     } else {
-      // Standard calendar event formatting
-      const calendarOutput = formatCalendarEvents(
-        eventData,
-        eventConfig.displayName
-      );
-      if (calendarOutput) {
-        eventSummaries.push(`${status} ${calendarOutput}`);
+      // Standard event processing
+      let eventLine;
+
+      if (eventConfig.key === "personalPREvents") {
+        const appsCount = extractAppsCount(eventData);
+        const commitsCount = extractCommitsCount(eventData);
+        eventLine = `${status} ${eventConfig.displayName} (${appsCount} apps, ${commitsCount} commits):`;
+
+        // Add event details if available
+        const prDetails = formatPersonalPREvents(eventData, "");
+        if (prDetails) {
+          eventLine += "\n" + prDetails.split("\n").slice(1).join("\n"); // Remove title line
+        }
       } else {
-        // For empty events, show title with count but no "No ___ events this week" text
-        const count = extractEventCount(eventData);
-        const hours = extractHours(eventData);
-        eventSummaries.push(
-          `${status} ${eventConfig.displayName} (${count} events, ${hours} hours):`
-        );
+        eventLine = `${status} ${eventConfig.displayName} (${count} events, ${hours} hours):`;
+
+        // Add event details if available
+        const eventDetails = formatCalendarEvents(eventData, "");
+        if (eventDetails) {
+          eventLine += "\n" + eventDetails.split("\n").slice(1).join("\n"); // Remove title line
+        }
+      }
+
+      // Categorize based on include flag and count
+      if (!eventConfig.include) {
+        output.calSummary.push(eventLine);
+      } else if (
+        parseInt(count) === 0 ||
+        (eventConfig.key === "personalPREvents" &&
+          extractAppsCount(eventData) === "0")
+      ) {
+        output.calSummary.push(eventLine);
+      } else {
+        output.summary.push(eventLine);
       }
     }
   });
 
-  // Join all summaries
-  summary += eventSummaries.join("\n");
+  // 3. Build final output
+  let result = "";
 
-  return summary.trim();
+  if (output.habits.length > 0) {
+    result += "===== HABITS =====\n" + output.habits.join("\n") + "\n";
+  }
+
+  if (output.calSummary.length > 0) {
+    result += "===== CAL SUMMARY =====\n" + output.calSummary.join("\n") + "\n";
+  }
+
+  if (output.summary.length > 0) {
+    result += "===== SUMMARY =====\n" + output.summary.join("\n");
+  }
+
+  return result.trim();
 }
 
 /**
