@@ -119,6 +119,8 @@ const interpersonalGroupingConfig = {
       "lb",
       "vb",
       "ez",
+      "mom",
+      "dad",
       "jordan",
     ],
     precedence: 3,
@@ -200,18 +202,18 @@ async function processWeek(weekNumber) {
       ":"
     );
 
-    // Move any lines with (0 events) or (0 apps) from SUMMARY to CAL SUMMARY
+    // Move any lines with (0 events) or (0 apps) from CAL EVENTS to CAL SUMMARY
     const moveZeroItemsRegex =
-      /(===== SUMMARY =====\n)((?:.*\n)*?)(^[☑️✅❌⚠️] .+? \(0 (?:events|apps).+?\):$)/gm;
+      /(===== CAL EVENTS =====\n)((?:.*\n)*?)(^[☑️✅❌⚠️] .+? \(0 (?:events|apps).+?\):$)/gm;
     let match;
     while ((match = moveZeroItemsRegex.exec(calSummary)) !== null) {
       const zeroItem = match[3];
       // Insert before CAL SUMMARY section ends
       calSummary = calSummary.replace(
-        /(===== CAL SUMMARY =====\n(?:.*\n)*?)(===== SUMMARY =====)/,
+        /(===== CAL SUMMARY =====\n(?:.*\n)*?)(===== CAL EVENTS =====)/,
         `$1${zeroItem}\n$2`
       );
-      // Remove from SUMMARY section
+      // Remove from CAL EVENTS section
       calSummary = calSummary.replace(match[0], match[1] + match[2]);
       break; // Process one at a time to avoid regex issues
     }
@@ -496,17 +498,37 @@ function generatePersonalCalSummary(data) {
       // Special interpersonal grouping
       const interpersonalOutput = formatInterpersonalEvents(eventData);
       if (interpersonalOutput) {
-        // Parse interpersonal groups and categorize each
-        const interpersonalLines = interpersonalOutput
-          .split("\n")
-          .filter((line) => line.match(/^[☑️✅❌⚠️]/));
+        // Split into sections by status emoji lines
+        const sections = [];
+        const lines = interpersonalOutput.split("\n");
+        let currentSection = [];
 
-        interpersonalLines.forEach((line) => {
-          const hasEvents = !line.includes("(0 events");
+        lines.forEach((line) => {
+          if (line.match(/^[☑️✅❌⚠️]/)) {
+            // New section header - save previous section if exists
+            if (currentSection.length > 0) {
+              sections.push(currentSection.join("\n"));
+            }
+            currentSection = [line];
+          } else if (currentSection.length > 0) {
+            // Add line to current section
+            currentSection.push(line);
+          }
+        });
+
+        // Add final section
+        if (currentSection.length > 0) {
+          sections.push(currentSection.join("\n"));
+        }
+
+        // Categorize each complete section
+        sections.forEach((section) => {
+          const hasEvents = !section.includes("(0 events");
           if (hasEvents) {
-            output.summary.push(line);
+            // Trim any trailing newlines from interpersonal sections to prevent double spacing
+            output.summary.push(section.trim());
           } else {
-            output.calSummary.push(line);
+            output.calSummary.push(section.trim());
           }
         });
       }
@@ -555,15 +577,16 @@ function generatePersonalCalSummary(data) {
   let result = "";
 
   if (output.habits.length > 0) {
-    result += "===== HABITS =====\n" + output.habits.join("\n") + "\n";
+    result += "===== HABITS =====\n" + output.habits.join("\n") + "\n\n";
   }
 
   if (output.calSummary.length > 0) {
-    result += "===== CAL SUMMARY =====\n" + output.calSummary.join("\n") + "\n";
+    result +=
+      "===== CAL SUMMARY =====\n" + output.calSummary.join("\n") + "\n\n";
   }
 
   if (output.summary.length > 0) {
-    result += "===== SUMMARY =====\n" + output.summary.join("\n");
+    result += "===== CAL EVENTS =====\n" + output.summary.join("\n\n");
   }
 
   return result.trim();
