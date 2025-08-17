@@ -85,7 +85,7 @@ function extractSectionItems(
     case "ROCKS":
       return extractRocksWithCriteria(taskSummary, criteria, config);
     case "HABITS":
-      return extractHabitsWithCriteria(taskSummary, criteria, config);
+      return extractHabitsWithCriteria(calSummary, criteria, config);
     case "CAL_SUMMARY":
       return extractCalSummaryWithCriteria(calSummary, criteria, config);
     case "CAL_EVENTS":
@@ -152,32 +152,55 @@ function extractRocksWithCriteria(taskSummary, criteria) {
 
   lines.forEach((line) => {
     if (line.trim() && matchesCriteria(line, criteria)) {
-      let cleanRock = line.trim();
+      const original = line.trim();
 
-      // Clean up the rock text based on status
-      if (line.includes("✅") || line.includes("Went well")) {
-        cleanRock = cleanRock.replace(/✅\s*/, "");
-        cleanRock = cleanRock.replace(/^Went well\s*-\s*/, "");
-        cleanRock = cleanRock.replace(/\s*\([^)]+\)\s*$/, "");
-      } else if (line.includes("👾") || line.includes("Made progress")) {
-        cleanRock = cleanRock.replace(/👾\s*/, "");
-        cleanRock = cleanRock.replace(
-          /^Made progress\s*-\s*/,
-          "made progress on "
-        );
-        cleanRock = cleanRock.replace(/\s*\([^)]+\)\s*$/, "");
-      } else if (line.includes("🥊") || line.includes("Went bad")) {
-        cleanRock = cleanRock.replace(/🥊\s*/, "");
-        cleanRock = cleanRock.replace(/^Went bad\s*-\s*/, "");
-        cleanRock = cleanRock.replace(/\s*\([^)]+\)\s*$/, "");
-      } else if (line.includes("🚧") || line.includes("Didn't go so well")) {
-        cleanRock = cleanRock.replace(/🚧\s*/, "");
-        cleanRock = cleanRock.replace(/^Didn't go so well\s*-\s*/, "");
-        cleanRock = cleanRock.replace(/\s*\([^)]+\)\s*$/, "");
+      // Robust parse: optional leading emoji/text, status phrase, dash, title, optional parens
+      const parsed = original.match(
+        /^\s*[^A-Za-z0-9]*\s*(Went well|Made progress|Didn't go so well|Went bad)\s*-\s*(.+?)(?:\s*\([^)]+\)\s*)?$/i
+      );
+
+      let phrase = "";
+      if (parsed) {
+        const status = parsed[1].toLowerCase();
+        const title = parsed[2].trim();
+        if (!title) return;
+        if (status === "made progress") {
+          phrase = `Made progress on ${title}`;
+        } else if (status === "went bad") {
+          phrase = `${title} went bad`;
+        } else if (status === "didn't go so well") {
+          phrase = `${title} didn't go so well`;
+        } else {
+          // went well
+          phrase = title;
+        }
+      } else {
+        // Fallback cleanup if the strict parse did not match
+        const isProgress = /\bMade progress\b/i.test(original);
+        const isWentBad = /\bWent bad\b/i.test(original);
+        const isNotGreat = /Didn't go so well/i.test(original);
+        let title = original
+          .replace(/^[^A-Za-z0-9]+\s*/, "")
+          .replace(/^Went well\s*-\s*/i, "")
+          .replace(/^Made progress\s*-\s*/i, "")
+          .replace(/^Went bad\s*-\s*/i, "")
+          .replace(/^Didn't go so well\s*-\s*/i, "")
+          .replace(/\s*\([^)]+\)\s*$/, "")
+          .trim();
+        if (!title) return;
+        if (isProgress) {
+          phrase = `Made progress on ${title}`;
+        } else if (isWentBad) {
+          phrase = `${title} went bad`;
+        } else if (isNotGreat) {
+          phrase = `${title} didn't go so well`;
+        } else {
+          phrase = title;
+        }
       }
 
-      if (cleanRock.trim()) {
-        matchingRocks.push(cleanRock.trim());
+      if (phrase.trim()) {
+        matchingRocks.push(phrase.trim());
       }
     }
   });
@@ -188,8 +211,8 @@ function extractRocksWithCriteria(taskSummary, criteria) {
 /**
  * HABITS EXTRACTION
  */
-function extractHabitsWithCriteria(taskSummary, criteria, config) {
-  const habits = extractSection(taskSummary, "HABITS");
+function extractHabitsWithCriteria(calSummary, criteria, config) {
+  const habits = extractSection(calSummary, "HABITS");
   if (!habits) return [];
 
   const lines = habits.split("\n");
@@ -220,8 +243,27 @@ function extractCalSummaryWithCriteria(calSummary, criteria, config) {
 
   lines.forEach((line) => {
     if (line.trim() && matchesCriteria(line, criteria)) {
+      let processed = line;
+      // Replace zero-item lines for specific categories regardless of emoji
+      if (config && config.calSummaryZeroItemReplacements) {
+        const zeroMatch = processed.match(
+          /^[✅❌☑️⚠️]\s*(.+?)\s*\((\d+) events?,\s*(\d+\.?\d*) hours?\):?/
+        );
+        if (zeroMatch) {
+          const category = zeroMatch[1].trim();
+          const events = parseInt(zeroMatch[2], 10);
+          const hours = parseFloat(zeroMatch[3]);
+          if (events === 0 && hours === 0) {
+            const replacement = config.calSummaryZeroItemReplacements[category];
+            if (replacement) {
+              processed = replacement;
+            }
+          }
+        }
+      }
+
       // Use config-based status emoji cleaning
-      const cleanLine = cleanStatusEmojis(line, config);
+      const cleanLine = cleanStatusEmojis(processed, config);
       if (cleanLine) {
         matchingItems.push(cleanLine);
       }

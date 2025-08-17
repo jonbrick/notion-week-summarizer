@@ -86,6 +86,9 @@ function extractGoodItems(taskSummary, calSummary) {
         // For CAL_EVENTS and TASKS, add extra spacing between categories
         if (sectionName === "CAL_EVENTS" || sectionName === "TASKS") {
           output += sectionContent.join("\n\n") + "\n";
+        } else if (sectionName === "ROCKS") {
+          // Join rocks with comma separation
+          output += sectionContent.join(", ") + "\n";
         } else {
           output += sectionContent.join(config.formatting.itemSeparator) + "\n";
         }

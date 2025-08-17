@@ -150,6 +150,14 @@ module.exports = {
     Family: "Family time",
   },
 
+  // For CAL SUMMARY: replace zero-item lines with friendlier text
+  calSummaryZeroItemReplacements: {
+    "Video Game Time": "No Video Game Time",
+    "Reading Time": "No Reading Time",
+    "Coding Time": "No Coding Time",
+    "Art Time": "No Art Time",
+  },
+
   // Section output formatting
   formatting: {
     sectionHeader: (sectionName) => `===== ${sectionName} =====`,
