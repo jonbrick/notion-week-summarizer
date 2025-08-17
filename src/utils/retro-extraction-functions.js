@@ -10,7 +10,26 @@
  */
 
 /**
- * Check if an item matches the given criteria
+ * Clean status emojis from text using config (preserves content emojis like 🍻🛌)
+ */
+function cleanStatusEmojis(text, config) {
+  if (
+    !config ||
+    !config.formatting ||
+    !config.formatting.statusEmojisToRemove
+  ) {
+    return text;
+  }
+
+  let cleanText = text;
+  config.formatting.statusEmojisToRemove.forEach((emoji) => {
+    cleanText = cleanText.replace(new RegExp(emoji, "g"), "");
+  });
+
+  return cleanText.trim();
+}
+
+/**
  * Supports: "all", "none", ["text1", "text2"], { not: ["text1", "text2"] }
  */
 function matchesCriteria(item, criteria) {
@@ -41,6 +60,10 @@ function extractSection(summaryText, sectionName) {
 }
 
 /**
+ * Check if an item matches the given criteria
+ * Config is passed in to avoid circular dependencies
+ */
+/**
  * Generic section extraction using config-driven criteria
  * Config is passed in to avoid circular dependencies
  */
@@ -56,19 +79,19 @@ function extractSectionItems(
 
   switch (sectionName) {
     case "TRIPS":
-      return extractTripsWithCriteria(taskSummary, criteria);
+      return extractTripsWithCriteria(taskSummary, criteria, config);
     case "EVENTS":
-      return extractEventsWithCriteria(taskSummary, criteria);
+      return extractEventsWithCriteria(taskSummary, criteria, config);
     case "ROCKS":
-      return extractRocksWithCriteria(taskSummary, criteria);
+      return extractRocksWithCriteria(taskSummary, criteria, config);
     case "HABITS":
-      return extractHabitsWithCriteria(calSummary, criteria); // Use calSummary for habits
+      return extractHabitsWithCriteria(taskSummary, criteria, config);
     case "CAL_SUMMARY":
-      return extractCalSummaryWithCriteria(calSummary, criteria);
+      return extractCalSummaryWithCriteria(calSummary, criteria, config);
     case "CAL_EVENTS":
       return extractCalEventsWithCriteria(calSummary, criteria, config);
     case "TASKS":
-      return extractTasksWithCriteria(taskSummary, criteria);
+      return extractTasksWithCriteria(taskSummary, criteria, config);
     default:
       return [];
   }
@@ -165,7 +188,7 @@ function extractRocksWithCriteria(taskSummary, criteria) {
 /**
  * HABITS EXTRACTION
  */
-function extractHabitsWithCriteria(taskSummary, criteria) {
+function extractHabitsWithCriteria(taskSummary, criteria, config) {
   const habits = extractSection(taskSummary, "HABITS");
   if (!habits) return [];
 
@@ -174,8 +197,8 @@ function extractHabitsWithCriteria(taskSummary, criteria) {
 
   lines.forEach((line) => {
     if (line.trim() && matchesCriteria(line, criteria)) {
-      // Remove the emoji but keep the rest
-      const cleanLine = line.replace(/^[✅❌⚠️]\s*/, "").trim();
+      // Only remove status emojis, keep content emojis like 🍻🛌
+      const cleanLine = cleanStatusEmojis(line, config);
       if (cleanLine) {
         matchingHabits.push(cleanLine);
       }
@@ -188,7 +211,7 @@ function extractHabitsWithCriteria(taskSummary, criteria) {
 /**
  * CAL SUMMARY EXTRACTION
  */
-function extractCalSummaryWithCriteria(calSummary, criteria) {
+function extractCalSummaryWithCriteria(calSummary, criteria, config) {
   const calSummarySection = extractSection(calSummary, "CAL SUMMARY");
   if (!calSummarySection) return [];
 
@@ -197,8 +220,8 @@ function extractCalSummaryWithCriteria(calSummary, criteria) {
 
   lines.forEach((line) => {
     if (line.trim() && matchesCriteria(line, criteria)) {
-      // Remove the emoji but keep the rest
-      const cleanLine = line.replace(/^[✅❌☑️]\s*/, "").trim();
+      // Use config-based status emoji cleaning
+      const cleanLine = cleanStatusEmojis(line, config);
       if (cleanLine) {
         matchingItems.push(cleanLine);
       }
@@ -249,7 +272,10 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
         }
 
         // Remove emoji from the category display
-        currentCategory = `${categoryName} (${stats})`;
+        currentCategory = `${cleanStatusEmojis(
+          categoryName,
+          config
+        )} (${stats})`;
         currentEvents = [];
       }
     }
@@ -280,7 +306,7 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
  * TASKS EXTRACTION
  * Note: Looking for "TASKS" section (updated from old "SUMMARY" section name)
  */
-function extractTasksWithCriteria(taskSummary, criteria) {
+function extractTasksWithCriteria(taskSummary, criteria, config) {
   const tasks = extractSection(taskSummary, "TASKS");
   if (!tasks) return [];
 
@@ -298,10 +324,12 @@ function extractTasksWithCriteria(taskSummary, criteria) {
       }
 
       // Extract category name and count
-      const match = line.match(/([✅❌⚠️])\s*(.+?)\s*\((\d+\/\d+|\d+)\)/);
+      const match = line.match(/([✅❌⚠️☑️])\s*(.+?)\s*\((\d+\/\d+|\d+)\)/);
       if (match) {
-        // Remove emoji from category display
-        currentCategory = `${match[2].trim()} (${match[3]})`;
+        // Remove emoji from category display using config
+        currentCategory = `${cleanStatusEmojis(match[2].trim(), config)} (${
+          match[3]
+        })`;
         currentTasks = [];
       }
     }

@@ -127,7 +127,7 @@ module.exports = {
     },
 
     CAL_SUMMARY: {
-      good: ["✅"],
+      good: ["✅", "☑️ Personal Time"],
       bad: ["❌"],
     },
 
