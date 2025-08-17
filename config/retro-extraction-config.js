@@ -164,5 +164,11 @@ module.exports = {
     sectionSeparator: "\n",
     itemSeparator: "\n",
     statusEmojisToRemove: ["✅", "❌", "☑️", "⚠️"],
+    // Preserve these emojis when they appear in the Event Type (left of the dash)
+    // Different sets for good vs bad modes
+    preserveTypeEmojisForModes: {
+      good: [],
+      bad: ["😔", "💔"],
+    },
   },
 };

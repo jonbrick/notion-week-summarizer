@@ -81,7 +81,7 @@ function extractSectionItems(
     case "TRIPS":
       return extractTripsWithCriteria(taskSummary, criteria, config);
     case "EVENTS":
-      return extractEventsWithCriteria(taskSummary, criteria, config);
+      return extractEventsWithCriteria(taskSummary, criteria, config, mode);
     case "ROCKS":
       return extractRocksWithCriteria(taskSummary, criteria, config);
     case "HABITS":
@@ -113,7 +113,7 @@ function extractTripsWithCriteria(taskSummary, criteria) {
 /**
  * EVENTS EXTRACTION
  */
-function extractEventsWithCriteria(taskSummary, criteria) {
+function extractEventsWithCriteria(taskSummary, criteria, config, mode) {
   const events = extractSection(taskSummary, "EVENTS");
   if (!events || events.includes("No events")) {
     return [];
@@ -124,13 +124,33 @@ function extractEventsWithCriteria(taskSummary, criteria) {
 
   lines.forEach((line) => {
     if (line.trim() && !line.includes("=====")) {
-      if (matchesCriteria(line.trim(), criteria)) {
-        // Clean up the event - remove emoji and event type, keep only the description after first dash
-        let cleanEvent = line.trim();
+      const raw = line.trim();
+      if (matchesCriteria(raw, criteria)) {
+        let cleanEvent = raw;
         const dashIndex = cleanEvent.indexOf(" - ");
         if (dashIndex !== -1) {
-          // Take everything after "Event Type - "
-          cleanEvent = cleanEvent.substring(dashIndex + 3);
+          // Split into type and description
+          const eventTypeWithEmojis = cleanEvent.substring(0, dashIndex);
+          const description = cleanEvent.substring(dashIndex + 3);
+
+          // Remove emojis from type unless they are explicitly preserved for this mode
+          const preserveEmojis =
+            (config &&
+              config.formatting &&
+              config.formatting.preserveTypeEmojisForModes) ||
+            {};
+          const emojisToPreserve = new Set(preserveEmojis[mode] || []);
+
+          // Strip emojis not preserved
+          const strippedType = eventTypeWithEmojis.replace(
+            /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,
+            (m) => (emojisToPreserve.has(m) ? m : "")
+          );
+
+          // If type becomes empty, return only description; otherwise, keep preserved emojis + description
+          cleanEvent = strippedType.trim()
+            ? `${strippedType} - ${description}`
+            : description;
         }
         eventList.push(cleanEvent);
       }

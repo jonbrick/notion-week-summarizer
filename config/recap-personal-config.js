@@ -16,10 +16,9 @@ module.exports = {
     TRIPS: "simple",
     EVENTS: "simple",
     ROCKS: "simple",
-    CAL_EVENTS: "calEvents",
+    "CAL EVENTS": "calEvents",
     TASKS: "tasks",
     HABITS: "habits",
-    "CAL SUMMARY": "simple", // Handle any other simple sections
   },
 
   // Evaluation rules for different section types
@@ -82,5 +81,5 @@ module.exports = {
   },
 
   // Order sections should appear in output (inherit from extraction config?)
-  sectionOrder: ["TRIPS", "EVENTS", "ROCKS", "CAL_EVENTS", "TASKS", "HABITS"],
+  sectionOrder: ["TRIPS", "EVENTS", "ROCKS", "CAL EVENTS", "TASKS", "HABITS"],
 };

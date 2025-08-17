@@ -85,7 +85,21 @@ function extractBadItems(taskSummary, calSummary) {
       if (hasContent) {
         // For CAL_EVENTS and TASKS, add extra spacing between categories
         if (sectionName === "CAL_EVENTS" || sectionName === "TASKS") {
-          output += sectionContent.join("\n\n") + "\n";
+          if (sectionName === "CAL_EVENTS") {
+            const decorated = sectionContent.map((block) => {
+              const parts = block.split("\n");
+              const header = parts[0] || "";
+              const eventsLine = parts[1] || "";
+              const updatedEventsLine = eventsLine
+                .split(", ")
+                .map((ev) => ev.replace(/\bWasted Day\b/g, "🗑️ Wasted Day"))
+                .join(", ");
+              return header + "\n" + updatedEventsLine;
+            });
+            output += decorated.join("\n\n") + "\n";
+          } else {
+            output += sectionContent.join("\n\n") + "\n";
+          }
         } else if (sectionName === "ROCKS") {
           // Join rocks with comma separation
           output += sectionContent.join(", ") + "\n";

@@ -242,8 +242,11 @@ function combineCalEventsSection(goodContent, badContent, config) {
 
   for (const [categoryName, category] of allCategories) {
     const evaluation = getEvaluationLabel(category.hours, ranges);
-    output += config.formatting.categoryHeader(evaluation, categoryName) + "\n";
-    output += category.events.join("\n") + "\n";
+    output +=
+      config.formatting.categoryHeader(evaluation, categoryName) +
+      ` (${category.hours} hours)` +
+      "\n";
+    output += category.events.join("\n") + "\n\n";
   }
 
   return output.trim();
@@ -284,8 +287,11 @@ function combineTasksSection(goodContent, badContent, config) {
 
   for (const [categoryName, category] of allCategories) {
     const evaluation = getEvaluationLabel(category.count, ranges);
-    output += config.formatting.categoryHeader(evaluation, categoryName) + "\n";
-    output += category.tasks.join("\n") + "\n";
+    output +=
+      config.formatting.categoryHeader(evaluation, categoryName) +
+      ` (${category.count})` +
+      "\n";
+    output += category.tasks.join("\n") + "\n\n";
   }
 
   return output.trim();
