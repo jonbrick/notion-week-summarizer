@@ -527,10 +527,12 @@ function generatePersonalCalSummary(data) {
       } else {
         eventLine = `${status} ${eventConfig.displayName} (${count} events, ${hours} hours):`;
 
-        // Add event details if available
-        const eventDetails = formatCalendarEvents(eventData, "");
-        if (eventDetails) {
-          eventLine += "\n" + eventDetails.split("\n").slice(1).join("\n"); // Remove title line
+        // Add event details only if include is true
+        if (eventConfig.include) {
+          const eventDetails = formatCalendarEvents(eventData, "");
+          if (eventDetails) {
+            eventLine += "\n" + eventDetails.split("\n").slice(1).join("\n"); // Remove title line
+          }
         }
       }
 
