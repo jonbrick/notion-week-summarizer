@@ -225,6 +225,34 @@ async function processWeek(weekNumber) {
 
     // Update Notion with the results
     if (goodItems || badItems) {
+      // Reclassify "Good body weight (0 avg body weight)" from good to not great
+      try {
+        if (goodItems && goodItems.trim().length > 0) {
+          const goodLines = goodItems.split("\n");
+          let removedBodyWeightZero = false;
+          const filteredGoodLines = goodLines.filter((line) => {
+            const normalized = line.trim();
+            const isTarget =
+              /^✅\s*⚖️\s*Good body weight\s*\(0 avg body weight\)\s*$/u.test(
+                normalized
+              );
+            if (isTarget) removedBodyWeightZero = true;
+            return !isTarget;
+          });
+
+          if (removedBodyWeightZero) {
+            goodItems = filteredGoodLines.join("\n").trim();
+            const notGreatLine =
+              "⚠️ ⚖️ Not great body weight (0 avg body weight)";
+            badItems =
+              badItems && badItems.trim().length > 0
+                ? `${badItems.trim()}\n${notGreatLine}`
+                : notGreatLine;
+          }
+        }
+      } catch (_) {
+        // If anything goes wrong, proceed without blocking the recap
+      }
       await updateNotionRecap(weekNumber, goodItems, badItems);
       console.log(`✅ Successfully updated Week ${paddedWeek} recap!`);
     } else {
