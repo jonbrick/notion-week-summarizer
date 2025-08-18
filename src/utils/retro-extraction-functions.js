@@ -312,12 +312,13 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
       (line.includes("✅") || line.includes("❌") || line.includes("☑️"))
     ) {
       // Save previous category if it matches criteria
-      if (
-        currentCategory &&
-        currentEvents.length > 0 &&
-        matchesCriteria(originalCategoryLine, criteria)
-      ) {
-        output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
+      if (currentCategory && matchesCriteria(originalCategoryLine, criteria)) {
+        if (currentEvents.length > 0) {
+          output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
+        } else {
+          // Show just the category header when details are hidden
+          output.push(currentCategory);
+        }
       }
 
       // Start new category - extract name and stats
@@ -345,6 +346,22 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
     }
     // Event line (starts with bullet)
     else if (line.trim().startsWith("•")) {
+      // Check if we should hide details for this category (monthly config)
+      const monthlyConfig = config.monthlyConfig;
+      let shouldHideDetails = false;
+      if (monthlyConfig && monthlyConfig.calEventDetails) {
+        const categoryConfig = monthlyConfig.calEventDetails.find(
+          (cat) => cat.displayName === currentCategoryName
+        );
+        if (categoryConfig && !categoryConfig.showDetails) {
+          shouldHideDetails = true;
+        }
+      }
+
+      if (shouldHideDetails) {
+        return; // Skip this event detail, but category header will still be added
+      }
+
       let event = line.trim().substring(1).trim();
       // Always remove time-of-day ranges like (10:00am - 11:00am)
       event = event.replace(
@@ -364,12 +381,13 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
   });
 
   // Don't forget the last category
-  if (
-    currentCategory &&
-    currentEvents.length > 0 &&
-    matchesCriteria(originalCategoryLine, criteria)
-  ) {
-    output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
+  if (currentCategory && matchesCriteria(originalCategoryLine, criteria)) {
+    if (currentEvents.length > 0) {
+      output.push(`${currentCategory}:\n${currentEvents.join(", ")}`);
+    } else {
+      // Show just the category header when details are hidden
+      output.push(currentCategory);
+    }
   }
 
   return output;
@@ -411,11 +429,29 @@ function extractTasksWithCriteria(taskSummary, criteria, config) {
         currentCategory = `${cleanCategoryName} (${match[3]})`;
         currentTasks = [];
         // Determine if item details should be included for this category
-        const showDetailsList =
-          config && Array.isArray(config.tasksShowDetails)
-            ? config.tasksShowDetails
-            : [];
-        includeDetailsForCategory = showDetailsList.includes(cleanCategoryName);
+        // Determine if item details should be included for this category
+        // First check monthly config, then fall back to regular config
+        let includeDetailsFromConfig = false;
+        const monthlyConfig = config.monthlyConfig;
+
+        if (monthlyConfig && monthlyConfig.taskDetails) {
+          const categoryConfig = monthlyConfig.taskDetails.find(
+            (cat) => cat.displayName === cleanCategoryName
+          );
+          if (categoryConfig) {
+            includeDetailsFromConfig = categoryConfig.showDetails;
+          }
+        } else {
+          // Fall back to regular config
+          const showDetailsList =
+            config && Array.isArray(config.tasksShowDetails)
+              ? config.tasksShowDetails
+              : [];
+          includeDetailsFromConfig =
+            showDetailsList.includes(cleanCategoryName);
+        }
+
+        includeDetailsForCategory = includeDetailsFromConfig;
       }
     }
     // Task line (starts with bullet)

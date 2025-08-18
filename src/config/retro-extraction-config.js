@@ -161,7 +161,7 @@ module.exports = {
   // For CAL EVENTS: categories that should only show totals (no event details)
   calEventsHideDetails: [
     "Interpersonal Time",
-    "Relationship Time",
+    // "Relationship Time",
     "Calls time",
     "Family time",
     "Workout Events",

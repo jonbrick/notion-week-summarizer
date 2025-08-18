@@ -14,6 +14,7 @@ const {
   evaluateMonthlyHabits,
 } = require("./src/utils/retro-monthly-functions");
 const retroConfig = require("./src/config/retro-extraction-config");
+const monthlyConfig = require("./src/config/retro-monthly-config");
 require("dotenv").config();
 
 // Initialize Notion client
@@ -146,9 +147,11 @@ function extractMonthlyItems(
     const tasks = extractTasksWithCriteria(
       taskData,
       config.evaluationCriteria.TASKS?.[mode] ?? "none",
-      config
+      { ...config, monthlyConfig }
     );
 
+    // Extract from cal data with section-specific criteria
+    // Use monthly habit evaluation instead of weekly extraction
     // Extract from cal data with section-specific criteria
     // Use monthly habit evaluation instead of weekly extraction
     let habits = [];
@@ -159,11 +162,6 @@ function extractMonthlyItems(
         weekCount,
         config
       );
-      console.log(`🔍 Mode: ${mode}`);
-      console.log(`🔍 Monthly habits data: ${monthlyHabitsData}`);
-      console.log(`🔍 Week count: ${weekCount}`);
-      console.log(`🔍 Good habits:`, habitEvaluation.good);
-      console.log(`🔍 Bad habits:`, habitEvaluation.bad);
       habits = mode === "good" ? habitEvaluation.good : habitEvaluation.bad;
     }
     const calSummary = extractCalSummaryWithCriteria(
@@ -174,7 +172,7 @@ function extractMonthlyItems(
     const calEvents = extractCalEventsWithCriteria(
       calData,
       config.evaluationCriteria.CAL_EVENTS?.[mode] ?? "none",
-      config
+      { ...config, monthlyConfig }
     );
 
     allItems.push({
@@ -233,11 +231,10 @@ function formatMonthlyRetro(monthlyItems, mode, sectionConfig) {
       aggregatedItems = weeklyArrays.length > 0 ? weeklyArrays[0] || [] : [];
     } else {
       // Aggregate the weekly data for other sections
-      aggregatedItems = aggregateMonthlyData(
-        weeklyArrays,
-        sectionName,
-        retroConfig
-      );
+      aggregatedItems = aggregateMonthlyData(weeklyArrays, sectionName, {
+        ...retroConfig,
+        monthlyConfig,
+      });
     }
     const shouldShow =
       aggregatedItems.length > 0 ||

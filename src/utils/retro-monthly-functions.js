@@ -4,6 +4,25 @@
  */
 
 /**
+ * Remove day-of-week patterns from text for monthly summaries
+ * (e.g., "Phish (MSG) on Sun - Tue" becomes "Phish (MSG)")
+ */
+function removeDayOfWeekPatterns(text) {
+  if (!text) return text;
+
+  return text
+    .replace(
+      /\s+on\s+(Sun|Mon|Tue|Wed|Thu|Fri|Sat)(\s*-\s*(Sun|Mon|Tue|Wed|Thu|Fri|Sat))?\s*$/i,
+      ""
+    )
+    .replace(
+      /\s+on\s+(Sun|Mon|Tue|Wed|Thu|Fri|Sat)(\s*-\s*(Sun|Mon|Tue|Wed|Thu|Fri|Sat))?\s+/i,
+      " "
+    )
+    .trim();
+}
+
+/**
  * Generic monthly aggregation function
  * Routes to specific aggregation logic based on section type
  */
@@ -18,26 +37,67 @@ function aggregateMonthlyData(weeklyArrays, sectionName, config) {
     case "CAL_SUMMARY":
       return aggregateCalSummary(weeklyArrays, weeklyArrays.length);
     case "CAL_EVENTS":
-      return aggregateCalEvents(weeklyArrays, weeklyArrays.length);
+      return aggregateCalEvents(
+        weeklyArrays,
+        weeklyArrays.length,
+        config.monthlyConfig
+      );
     case "TASKS":
-      return aggregateTasksMonthly(weeklyArrays);
+      return aggregateTasksMonthly(weeklyArrays, config.monthlyConfig);
+    case "TRIPS":
+    case "EVENTS":
+    case "ROCKS":
+      // For TRIPS, EVENTS, and ROCKS, concatenate with comma separation
+      return concatenateWeeklyDataWithCommas(weeklyArrays);
     default:
-      // For other sections (TRIPS, EVENTS, ROCKS, TASKS), just concatenate
+      // For other sections, just concatenate with newlines
       return concatenateWeeklyData(weeklyArrays);
   }
 }
 
 /**
  * Simple concatenation for sections that don't need special aggregation
+ * Also removes day-of-week patterns for monthly summaries
  */
 function concatenateWeeklyData(weeklyArrays) {
   const allItems = [];
   weeklyArrays.forEach((weekArray) => {
     if (Array.isArray(weekArray)) {
-      allItems.push(...weekArray);
+      // Clean day-of-week patterns from each item for monthly view
+      const cleanedItems = weekArray
+        .map((item) =>
+          typeof item === "string" ? removeDayOfWeekPatterns(item) : item
+        )
+        .filter((item) => item && item.trim()); // Remove empty items
+
+      allItems.push(...cleanedItems);
     }
   });
   return allItems;
+}
+
+/**
+ * Concatenate weekly data with comma separation (for TRIPS, EVENTS, ROCKS)
+ * Also removes day-of-week patterns for monthly summaries
+ */
+function concatenateWeeklyDataWithCommas(weeklyArrays) {
+  const allItems = [];
+  weeklyArrays.forEach((weekArray) => {
+    if (Array.isArray(weekArray)) {
+      // Clean day-of-week patterns from each item for monthly view
+      const cleanedItems = weekArray
+        .map((item) =>
+          typeof item === "string" ? removeDayOfWeekPatterns(item) : item
+        )
+        .filter((item) => item && item.trim()); // Remove empty items
+
+      allItems.push(...cleanedItems);
+    }
+  });
+
+  // Return as a single comma-separated string wrapped in an array
+  // (formatMonthlyRetro expects an array of items to join with \n)
+  return allItems.length > 0 ? [allItems.join(", ")] : [];
 }
 
 /**
@@ -133,10 +193,11 @@ function aggregateCalSummary(weeklyArrays, totalWeeks) {
 
 /**
  * Aggregate CAL EVENTS data
- * Similar to CAL SUMMARY but for calendar events
+ * Uses monthly config to determine whether to show details or just totals
  */
-function aggregateCalEvents(weeklyArrays, totalWeeks) {
+function aggregateCalEvents(weeklyArrays, totalWeeks, monthlyConfig) {
   const categoryTotals = new Map();
+  const categoryDetails = new Map();
   const aggregated = [];
 
   weeklyArrays.forEach((weekArray) => {
@@ -147,7 +208,8 @@ function aggregateCalEvents(weeklyArrays, totalWeeks) {
 
       // Pattern: "Category (X events, Y hours)" on the header line
       // Items from weekly extraction can be multi-line: first line is header, following lines are details
-      const headerLine = item.split("\n")[0].trim();
+      const lines = item.split("\n");
+      const headerLine = lines[0].trim();
       const eventHoursMatch = headerLine.match(
         /^[✅❌☑️⚠️]?\s*(.+?)\s*\((\d+)\s+events?,\s*([\d.]+)\s+hours?\)/
       );
@@ -159,22 +221,52 @@ function aggregateCalEvents(weeklyArrays, totalWeeks) {
 
         if (!categoryTotals.has(category)) {
           categoryTotals.set(category, { events: 0, hours: 0 });
+          categoryDetails.set(category, []);
         }
 
         const totals = categoryTotals.get(category);
         totals.events += events;
         totals.hours += hours;
+
+        // Collect details if present (lines after the header)
+        if (lines.length > 1) {
+          const details = lines.slice(1).join("\n").trim();
+          if (details) {
+            // Remove day-of-week patterns from event details
+            const cleanedDetails = removeDayOfWeekPatterns(details);
+            categoryDetails.get(category).push(cleanedDetails);
+          }
+        }
       }
     });
   });
 
-  // Add aggregated category totals
+  // Add aggregated category totals with optional details
   categoryTotals.forEach((totals, category) => {
-    aggregated.push(
-      `${category} (${totals.events} events, ${totals.hours.toFixed(
-        1
-      )} hours total)`
+    const categoryConfig = monthlyConfig?.calEventDetails?.find(
+      (cat) => cat.displayName === category
     );
+    const showDetails = categoryConfig ? categoryConfig.showDetails : false;
+
+    let output = `${category} (${totals.events} events, ${totals.hours.toFixed(
+      1
+    )} hours total)`;
+
+    if (showDetails && categoryDetails.has(category)) {
+      const details = categoryDetails.get(category);
+      if (details.length > 0) {
+        // Clean day-of-week patterns from each detail item
+        const cleanedDetails = details.map((detail) =>
+          detail
+            .split(", ")
+            .map((item) => removeDayOfWeekPatterns(item.trim()))
+            .join(", ")
+        );
+        output += ":\n" + cleanedDetails.join(", ");
+      }
+    }
+
+    aggregated.push(output);
   });
 
   return aggregated;
@@ -187,9 +279,14 @@ function aggregateCalEvents(weeklyArrays, totalWeeks) {
  *   "Category (7/10)" or "Category (7)"
  * Items may come as multi-line strings: first line header, following line contains comma-separated tasks.
  */
-function aggregateTasksMonthly(weeklyArrays) {
-  const categoryTotals = new Map(); // category -> { done: number, total: number | null }
-  const order = []; // preserve first-seen order of categories
+/**
+ * Aggregate TASKS data monthly
+ * Uses monthly config to determine whether to show details or just totals
+ */
+function aggregateTasksMonthly(weeklyArrays, monthlyConfig) {
+  const categoryTotals = new Map();
+  const categoryDetails = new Map();
+  const order = [];
 
   weeklyArrays.forEach((weekArray) => {
     if (!Array.isArray(weekArray)) return;
@@ -197,7 +294,8 @@ function aggregateTasksMonthly(weeklyArrays) {
     weekArray.forEach((item) => {
       if (!item || typeof item !== "string") return;
 
-      const headerLine = item.split("\n")[0].trim();
+      const lines = item.split("\n");
+      const headerLine = lines[0].trim();
       const match = headerLine.match(
         /^\s*[^A-Za-z0-9]*\s*(.+?)\s*\((\d+)(?:\/(\d+))?\)\s*$/
       );
@@ -209,6 +307,7 @@ function aggregateTasksMonthly(weeklyArrays) {
 
       if (!categoryTotals.has(rawCategory)) {
         categoryTotals.set(rawCategory, { done: 0, total: totalCount });
+        categoryDetails.set(rawCategory, []);
         order.push(rawCategory);
       }
 
@@ -220,6 +319,14 @@ function aggregateTasksMonthly(weeklyArrays) {
         }
         totals.total += isNaN(totalCount) ? 0 : totalCount;
       }
+
+      // Collect details if present (lines after the header)
+      if (lines.length > 1) {
+        const details = lines.slice(1).join("\n").trim();
+        if (details) {
+          categoryDetails.get(rawCategory).push(details);
+        }
+      }
     });
   });
 
@@ -227,11 +334,27 @@ function aggregateTasksMonthly(weeklyArrays) {
   order.forEach((category) => {
     const totals = categoryTotals.get(category);
     if (!totals) return;
+
+    const categoryConfig = monthlyConfig?.taskDetails?.find(
+      (cat) => cat.displayName === category
+    );
+    const showDetails = categoryConfig ? categoryConfig.showDetails : false;
+
+    let output;
     if (totals.total !== null && totals.total !== undefined) {
-      aggregated.push(`${category} (${totals.done}/${totals.total})`);
+      output = `${category} (${totals.done}/${totals.total})`;
     } else {
-      aggregated.push(`${category} (${totals.done})`);
+      output = `${category} (${totals.done})`;
     }
+
+    if (showDetails && categoryDetails.has(category)) {
+      const details = categoryDetails.get(category);
+      if (details.length > 0) {
+        output += "\n" + details.join(", ");
+      }
+    }
+
+    aggregated.push(output);
   });
 
   return aggregated;
