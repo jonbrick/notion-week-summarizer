@@ -29,7 +29,7 @@ module.exports = {
     "ROCKS",
     "HABITS",
     "CAL_SUMMARY",
-    "CAL_EVENTS",
+    "CAL EVENTS",
     "TASKS",
   ],
 
@@ -86,7 +86,7 @@ module.exports = {
       title: "CAL SUMMARY",
     },
 
-    CAL_EVENTS: {
+    "CAL EVENTS": {
       includeInGood: true,
       alwaysShowGoodSection: false,
       includeInBad: true,
@@ -131,7 +131,7 @@ module.exports = {
       bad: ["❌"],
     },
 
-    CAL_EVENTS: {
+    "CAL EVENTS": {
       good: ["✅"],
       bad: ["❌"],
     },

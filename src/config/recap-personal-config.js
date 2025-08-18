@@ -23,7 +23,7 @@ module.exports = {
 
   // Evaluation rules for different section types
   evaluationRules: {
-    // CAL_EVENTS: Based on hours parsed from "(X events, Y hours)"
+    // CAL EVENTS: Based on hours parsed from "(X events, Y hours)"
     calEvents: {
       categories: {
         // Hours thresholds for evaluation

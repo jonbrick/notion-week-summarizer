@@ -36,7 +36,7 @@ function aggregateMonthlyData(weeklyArrays, sectionName, config) {
       return aggregateHabits(weeklyArrays);
     case "CAL_SUMMARY":
       return aggregateCalSummary(weeklyArrays, weeklyArrays.length);
-    case "CAL_EVENTS":
+    case "CAL EVENTS":
       return aggregateCalEvents(
         weeklyArrays,
         weeklyArrays.length,

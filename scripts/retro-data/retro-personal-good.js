@@ -40,12 +40,6 @@ async function processWeekGood(weekNumber) {
         .join("");
     }
 
-    console.log("🔍 FULL CAL SUMMARY LENGTH:", calSummary.length);
-    console.log(
-      "🔍 CAL SUMMARY CONTAINS CAL_EVENTS?",
-      calSummary.includes("===== CAL EVENTS =====")
-    );
-
     // Parse and extract good items using config
     const goodItems = extractGoodItems(taskSummary, calSummary);
 
@@ -70,30 +64,19 @@ function extractGoodItems(taskSummary, calSummary) {
   // Loop through sections in the order defined by config
   for (const sectionName of config.sectionOrder) {
     const sectionConfig = config.sections[sectionName];
-    console.log("🔍 SECTION DEBUG: Processing section:", sectionName);
-    console.log(
-      "🔍 SECTION DEBUG: Include in good:",
-      sectionConfig.includeInGood
-    );
 
     // Skip sections not included in good
     if (!sectionConfig.includeInGood) {
-      console.log("🔍 SECTION DEBUG: Skipping section:", sectionName);
       continue;
     }
 
     // Use the new config-driven extraction function
-    console.log("🔍 SECTION DEBUG: Calling extraction for:", sectionName);
     const sectionContent = extractionFunctions.extractSectionItems(
       taskSummary,
       calSummary,
       sectionName,
       "good",
       config
-    );
-    console.log(
-      "🔍 SECTION DEBUG: Extracted content length:",
-      sectionContent ? sectionContent.length : 0
     );
 
     // Determine if we should show this section
@@ -107,8 +90,8 @@ function extractGoodItems(taskSummary, calSummary) {
 
       // Add content or empty message
       if (hasContent) {
-        // For CAL_EVENTS and TASKS, add extra spacing between categories
-        if (sectionName === "CAL_EVENTS" || sectionName === "TASKS") {
+        // For CAL EVENTS and TASKS, add extra spacing between categories
+        if (sectionName === "CAL EVENTS" || sectionName === "TASKS") {
           output += sectionContent.join("\n\n") + "\n";
         } else if (sectionName === "ROCKS") {
           // Join rocks with comma separation

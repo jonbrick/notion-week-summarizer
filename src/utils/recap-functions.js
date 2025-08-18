@@ -104,8 +104,8 @@ function extractSection(columnText, sectionName) {
 }
 
 /**
- * Parse CAL_EVENTS section into categories with hours
- * @param {string} sectionContent - CAL_EVENTS section content
+ * Parse CAL EVENTS section into categories with hours
+ * @param {string} sectionContent - CAL EVENTS section content
  * @returns {Array} - Array of {category, hours, events, content}
  */
 function parseCalEvents(sectionContent) {
@@ -238,7 +238,7 @@ function combineEventsSection(goodContent, badContent, config) {
 }
 
 /**
- * Combine CAL_EVENTS sections with evaluations
+ * Combine CAL EVENTS sections with evaluations
  */
 function combineCalEventsSection(goodContent, badContent, config) {
   const allCategories = new Map();

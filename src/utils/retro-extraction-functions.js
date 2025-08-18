@@ -51,27 +51,13 @@ function matchesCriteria(item, criteria) {
  * Extract a section from summary text using ===== delimiters
  */
 function extractSection(summaryText, sectionName) {
-  console.log(`🔍 EXTRACT DEBUG: Looking for section: "${sectionName}"`);
-  console.log(
-    `🔍 EXTRACT DEBUG: Raw text preview: "${summaryText.substring(0, 500)}..."`
-  );
-
-  // Add debug to see if the section exists in the text
   const sectionExists = summaryText.includes(`===== ${sectionName} =====`);
-  console.log(
-    `🔍 EXTRACT DEBUG: Section "${sectionName}" exists in text: ${sectionExists}`
-  );
 
   const pattern = new RegExp(
     `=====\\s*${sectionName}\\s*=====([\\s\\S]*?)(?=\\n=====|$)`,
     "i"
   );
   const match = summaryText.match(pattern);
-
-  if (!match && sectionExists) {
-    console.log(`🔍 EXTRACT DEBUG: REGEX FAILED for section "${sectionName}"`);
-    console.log(`🔍 EXTRACT DEBUG: Full text: "${summaryText}"`);
-  }
 
   return match ? match[1].trim() : "";
 }
@@ -90,7 +76,10 @@ function extractSectionItems(
   mode,
   config
 ) {
-  const criteria = config.evaluationCriteria[sectionName]?.[mode];
+  const criteria =
+    config.evaluationCriteria[sectionName]?.[mode] ||
+    config.evaluationCriteria[sectionName.replace("_", " ")]?.[mode] ||
+    config.evaluationCriteria[sectionName.replace(" ", "_")]?.[mode];
   if (!criteria) return [];
 
   switch (sectionName) {
@@ -104,7 +93,7 @@ function extractSectionItems(
       return extractHabitsWithCriteria(calSummary, criteria, config);
     case "CAL_SUMMARY":
       return extractCalSummaryWithCriteria(calSummary, criteria, config);
-    case "CAL_EVENTS":
+    case "CAL EVENTS":
       return extractCalEventsWithCriteria(calSummary, criteria, config);
     case "TASKS":
       return extractTasksWithCriteria(taskSummary, criteria, config);
@@ -316,37 +305,18 @@ function extractCalSummaryWithCriteria(calSummary, criteria, config) {
  * CAL EVENTS EXTRACTION
  */
 function extractCalEventsWithCriteria(calSummary, criteria, config) {
-  console.log("🔍 CAL_EVENTS DEBUG: Starting extraction");
-  console.log("🔍 CAL_EVENTS DEBUG: Criteria:", criteria);
-
   if (!calSummary) {
-    console.log("🔍 CAL_EVENTS DEBUG: No calSummary provided");
     return [];
   }
 
-  // ADD THIS DEBUG
-  console.log("🔍 CAL_EVENTS DEBUG: Full calSummary text:");
-  console.log(calSummary);
-  console.log("🔍 CAL_EVENTS DEBUG: End of full text");
-
-  // Extract only the CAL_EVENTS section first
-  const calEventsSection = extractSection(calSummary, "CAL_EVENTS");
-  console.log(
-    "🔍 CAL_EVENTS DEBUG: Extracted section length:",
-    calEventsSection ? calEventsSection.length : 0
-  );
-  console.log(
-    "🔍 CAL_EVENTS DEBUG: Section content preview:",
-    calEventsSection ? calEventsSection.substring(0, 200) + "..." : "NONE"
-  );
+  // Extract only the CAL EVENTS section first
+  const calEventsSection = extractSection(calSummary, "CAL EVENTS");
 
   if (!calEventsSection) {
-    console.log("🔍 CAL_EVENTS DEBUG: No CAL_EVENTS section found");
     return [];
   }
 
   const lines = calEventsSection.split("\n");
-  console.log("🔍 CAL_EVENTS DEBUG: Number of lines:", lines.length);
 
   const output = [];
   let currentCategory = "";
@@ -443,9 +413,6 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
       output.push(currentCategory);
     }
   }
-
-  console.log("🔍 CAL_EVENTS DEBUG: Final output length:", output.length);
-  console.log("🔍 CAL_EVENTS DEBUG: Final output:", output);
   return output;
 }
 
@@ -464,16 +431,6 @@ function extractTasksWithCriteria(taskSummary, criteria, config) {
   let includeDetailsForCategory = true;
 
   lines.forEach((line, index) => {
-    console.log(`🔍 CAL_EVENTS DEBUG: Line ${index}: "${line}"`);
-    console.log(
-      `🔍 CAL_EVENTS DEBUG: Line includes '(': ${line.includes("(")}`
-    );
-    console.log(
-      `🔍 CAL_EVENTS DEBUG: Line includes '✅': ${line.includes("✅")}`
-    );
-    console.log(
-      `🔍 CAL_EVENTS DEBUG: Emoji test result: ${/[✅❌☑️⚠️]/u.test(line)}`
-    );
     // Check if this is a category header
     if (line.includes("(") && matchesCriteria(line, criteria)) {
       // Save previous category if exists
@@ -598,11 +555,11 @@ function extractBadHabits(taskSummary, calSummary, config) {
 }
 
 function extractGoodCalEvents(calSummary, config) {
-  return extractSectionItems("", calSummary, "CAL_EVENTS", "good", config);
+  return extractSectionItems("", calSummary, "CAL EVENTS", "good", config);
 }
 
 function extractBadCalEvents(calSummary, config) {
-  return extractSectionItems("", calSummary, "CAL_EVENTS", "bad", config);
+  return extractSectionItems("", calSummary, "CAL EVENTS", "bad", config);
 }
 
 function extractCompletedTasks(taskSummary, calSummary, config) {

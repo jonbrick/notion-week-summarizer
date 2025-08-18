@@ -171,7 +171,7 @@ function extractMonthlyItems(
     );
     const calEvents = extractCalEventsWithCriteria(
       calData,
-      config.evaluationCriteria.CAL_EVENTS?.[mode] ?? "none",
+      config.evaluationCriteria["CAL EVENTS"]?.[mode] ?? "none",
       { ...config, monthlyConfig }
     );
 
@@ -202,7 +202,7 @@ function formatMonthlyRetro(monthlyItems, mode, sectionConfig) {
     ROCKS: "rocks",
     HABITS: "habits",
     CAL_SUMMARY: "calSummary",
-    CAL_EVENTS: "calEvents",
+    "CAL EVENTS": "calEvents",
     TASKS: "tasks",
   };
 
@@ -302,15 +302,6 @@ async function processMonth(monthNumber) {
     if (!monthTaskData && !monthCalData) {
       console.log("⚠️ No monthly data found to process");
       return;
-    }
-
-    // DELETE ME BECAUSE I AM DEBUGGING LOG STUFF
-    console.log(
-      `📊 Week count from DB: ${weekCountProp?.number}, using: ${weekCount}`
-    );
-    console.log(`📊 Monthly habits data: ${monthlyHabitsData ? "YES" : "NO"}`);
-    if (monthlyHabitsData) {
-      console.log(`🔍 Raw habits data: "${monthlyHabitsData}"`);
     }
 
     // Extract "what went well" items using good criteria

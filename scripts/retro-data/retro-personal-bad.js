@@ -83,9 +83,9 @@ function extractBadItems(taskSummary, calSummary) {
 
       // Add content or empty message
       if (hasContent) {
-        // For CAL_EVENTS and TASKS, add extra spacing between categories
-        if (sectionName === "CAL_EVENTS" || sectionName === "TASKS") {
-          if (sectionName === "CAL_EVENTS") {
+        // For CAL EVENTS and TASKS, add extra spacing between categories
+        if (sectionName === "CAL EVENTS" || sectionName === "TASKS") {
+          if (sectionName === "CAL EVENTS") {
             const decorated = sectionContent.map((block) => {
               const parts = block.split("\n");
               const header = parts[0] || "";
