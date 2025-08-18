@@ -111,9 +111,6 @@ async function processWeek(weekNumber) {
     await updateOverviewColumn(targetWeekPage.id, overview);
 
     console.log(`✅ Week ${weekNumber} overview generated successfully!`);
-    console.log(
-      `📝 Preview (first 200 chars): ${overview.substring(0, 200)}...`
-    );
   } catch (error) {
     console.error(`❌ Error processing Week ${weekNumber}:`, error.message);
   }
