@@ -408,7 +408,7 @@ function aggregateMonthlyHabits(monthlyHabitsData, weekCount, config) {
   const goodHabits = [];
   const badHabits = [];
 
-  // Get evaluation rules from config
+  // Get evaluation rules from monthly config (not extraction config!)
   const habitRules = config.monthlyHabitEvals || {};
 
   // Parse each habit pattern
@@ -423,10 +423,10 @@ function aggregateMonthlyHabits(monthlyHabitsData, weekCount, config) {
 
       if (evaluation === "good") {
         goodHabits.push(habitString);
-      } else if (evaluation === "bad") {
+      } else if (evaluation === "bad" || evaluation === "warning") {
         badHabits.push(habitString);
       }
-      // Skip 'warning' habits (they don't go in either column)
+      // Warnings now go to "didn't go so well" column
     }
   });
 
@@ -445,7 +445,7 @@ function evaluateMonthlyHabits(monthlyHabitsData, weekCount, config) {
   const goodHabits = [];
   const badHabits = [];
 
-  // Get evaluation rules from config
+  // Get evaluation rules from monthly config (not extraction config!)
   const habitRules = config.monthlyHabitEvals || {};
 
   // Process each habit rule
@@ -459,10 +459,12 @@ function evaluateMonthlyHabits(monthlyHabitsData, weekCount, config) {
       );
       if (hobbyResult.evaluation === "good") {
         goodHabits.push(hobbyResult.habitString);
-      } else if (hobbyResult.evaluation === "bad") {
+      } else if (
+        hobbyResult.evaluation === "bad" ||
+        hobbyResult.evaluation === "warning"
+      ) {
         badHabits.push(hobbyResult.habitString);
       }
-      // Skip 'warning' habits
     } else {
       // Handle simple single-pattern habits
       const match = monthlyHabitsData.match(rule.pattern);
@@ -483,10 +485,10 @@ function evaluateMonthlyHabits(monthlyHabitsData, weekCount, config) {
 
         if (evaluation === "good") {
           goodHabits.push(habitString);
-        } else if (evaluation === "bad") {
+        } else if (evaluation === "bad" || evaluation === "warning") {
           badHabits.push(habitString);
         }
-        // Skip 'warning' habits
+        // Warnings now go to "didn't go so well" column
       }
     }
   });
@@ -498,21 +500,53 @@ function evaluateMonthlyHabits(monthlyHabitsData, weekCount, config) {
  * Handle hobby habits with complex scoring
  */
 function evaluateHobbyHabits(monthlyHabitsData, weekCount, rule) {
-  // Extract individual hobby days
+  // Extract individual hobby days from a single combined pattern if provided
   const hobbyValues = {};
   let hobbyDetails = [];
 
-  // Extract each hobby type
-  Object.entries(rule.patterns).forEach(([hobbyType, pattern]) => {
-    const match = monthlyHabitsData.match(pattern);
+  if (rule.pattern) {
+    const match = monthlyHabitsData.match(rule.pattern);
     if (match) {
-      const days = parseInt(match[1]);
-      hobbyValues[hobbyType] = days;
-      hobbyDetails.push(`${days} days ${hobbyType}`);
+      const readingDays = parseInt(match[1]) || 0;
+      const artDays = parseInt(match[2]) || 0;
+      const codingDays = parseInt(match[3]) || 0;
+      const gamingDays = parseInt(match[4]) || 0;
+
+      hobbyValues.reading = readingDays;
+      hobbyValues.art = artDays;
+      hobbyValues.coding = codingDays;
+      hobbyValues.gaming = gamingDays;
+
+      hobbyDetails = [
+        `${readingDays} days reading`,
+        `${artDays} days making art`,
+        `${codingDays} days coding`,
+        `${gamingDays} days playing video games`,
+      ];
     } else {
-      hobbyValues[hobbyType] = 0;
+      hobbyValues.reading = 0;
+      hobbyValues.art = 0;
+      hobbyValues.coding = 0;
+      hobbyValues.gaming = 0;
     }
-  });
+  } else if (rule.patterns) {
+    // Backward-compatibility: support separate patterns object
+    Object.entries(rule.patterns).forEach(([hobbyType, pattern]) => {
+      const match = monthlyHabitsData.match(pattern);
+      if (match) {
+        const days = parseInt(match[1]);
+        hobbyValues[hobbyType] = days;
+        hobbyDetails.push(`${days} days ${hobbyType}`);
+      } else {
+        hobbyValues[hobbyType] = 0;
+      }
+    });
+  } else {
+    hobbyValues.reading = 0;
+    hobbyValues.art = 0;
+    hobbyValues.coding = 0;
+    hobbyValues.gaming = 0;
+  }
 
   // Calculate total score (good hobbies - bad hobbies)
   const goodDays =
@@ -522,9 +556,15 @@ function evaluateHobbyHabits(monthlyHabitsData, weekCount, rule) {
   const badDays = hobbyValues.gaming || 0;
   const totalScore = goodDays - badDays;
 
-  // Scale thresholds by week count
-  const goodThreshold = rule.goodPerWeek * weekCount;
-  const warningThreshold = rule.warningPerWeek * weekCount;
+  // Use absolute thresholds for hobby habits (don't scale by week count)
+  const goodThreshold =
+    rule.goodAbsolute !== undefined
+      ? rule.goodAbsolute
+      : rule.goodPerWeek * weekCount;
+  const warningThreshold =
+    rule.warningAbsolute !== undefined
+      ? rule.warningAbsolute
+      : rule.warningPerWeek * weekCount;
 
   let evaluation;
   if (totalScore > goodThreshold) {

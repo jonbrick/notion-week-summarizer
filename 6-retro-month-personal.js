@@ -160,7 +160,7 @@ function extractMonthlyItems(
       const habitEvaluation = evaluateMonthlyHabits(
         monthlyHabitsData,
         weekCount,
-        config
+        monthlyConfig
       );
       habits = mode === "good" ? habitEvaluation.good : habitEvaluation.bad;
     }
@@ -274,7 +274,7 @@ async function processMonth(monthNumber) {
     let monthCalData = "";
 
     // Get monthly habits data and week count
-    const monthlyHabitsDataProp = page.properties["Monthly Habits"];
+    const monthlyHabitsDataProp = page.properties["Month Habits Details"];
     const weekCountProp = page.properties["Number of weeks"];
 
     let monthlyHabitsData = "";
@@ -309,6 +309,9 @@ async function processMonth(monthNumber) {
       `📊 Week count from DB: ${weekCountProp?.number}, using: ${weekCount}`
     );
     console.log(`📊 Monthly habits data: ${monthlyHabitsData ? "YES" : "NO"}`);
+    if (monthlyHabitsData) {
+      console.log(`🔍 Raw habits data: "${monthlyHabitsData}"`);
+    }
 
     // Extract "what went well" items using good criteria
     console.log("📝 Extracting what went well...");
