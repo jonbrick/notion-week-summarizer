@@ -158,25 +158,31 @@ module.exports = {
     "Art Time": "No Art Time",
   },
 
-  // For CAL EVENTS: categories that should only show totals (no event details)
-  calEventsHideDetails: [
-    "Interpersonal Time",
-    // "Relationship Time",
-    "Calls time",
-    "Family time",
-    "Workout Events",
-    "Mental Health Time",
-    "Physical Health Time",
+  // CAL EVENTS detail control
+  calEventDetails: [
+    { displayName: "Personal Time", showDetails: false },
+    { displayName: "Interpersonal Time", showDetails: true },
+    { displayName: "Physical Health Time", showDetails: true },
+    { displayName: "Mental Health Time", showDetails: true },
+    { displayName: "Workout Events", showDetails: true },
+    { displayName: "Reading Time", showDetails: false },
+    { displayName: "Coding Time", showDetails: false },
+    { displayName: "Art Time", showDetails: false },
+    { displayName: "Video Game Time", showDetails: false },
+    { displayName: "Personal PR", showDetails: true },
+    { displayName: "Relationship Time", showDetails: true },
+    { displayName: "Family Time", showDetails: true },
+    { displayName: "Calls", showDetails: true },
   ],
 
-  // For TASKS: categories that should show task details (not just totals)
-  tasksShowDetails: ["Personal Tasks", "Physical Health Tasks"],
-
-  // For TASKS: optional per-item filtering
-  // If non-empty, only tasks containing at least one of these substrings are shown
-  tasksShowItemPatterns: [],
-  // Tasks containing any of these substrings will be hidden
-  tasksHideItemPatterns: [],
+  // TASKS detail control
+  taskDetails: [
+    { displayName: "Personal Tasks", showDetails: true },
+    { displayName: "Physical Health Tasks", showDetails: true },
+    { displayName: "Interpersonal Tasks", showDetails: false },
+    { displayName: "Mental Health Tasks", showDetails: false },
+    { displayName: "Home Tasks", showDetails: true },
+  ],
 
   // Section output formatting
   formatting: {

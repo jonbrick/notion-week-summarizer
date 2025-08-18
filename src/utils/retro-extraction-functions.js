@@ -298,7 +298,11 @@ function extractCalSummaryWithCriteria(calSummary, criteria, config) {
 function extractCalEventsWithCriteria(calSummary, criteria, config) {
   if (!calSummary) return [];
 
-  const lines = calSummary.split("\n");
+  // Extract only the CAL_EVENTS section first
+  const calEventsSection = extractSection(calSummary, "CAL_EVENTS");
+  if (!calEventsSection) return [];
+
+  const lines = calEventsSection.split("\n");
   const output = [];
   let currentCategory = "";
   let originalCategoryLine = ""; // Keep original line for criteria matching
@@ -443,12 +447,15 @@ function extractTasksWithCriteria(taskSummary, criteria, config) {
           }
         } else {
           // Fall back to regular config
-          const showDetailsList =
-            config && Array.isArray(config.tasksShowDetails)
-              ? config.tasksShowDetails
-              : [];
-          includeDetailsFromConfig =
-            showDetailsList.includes(cleanCategoryName);
+          const taskDetailConfig =
+            config && Array.isArray(config.taskDetails)
+              ? config.taskDetails.find(
+                  (cat) => cat.displayName === cleanCategoryName
+                )
+              : null;
+          includeDetailsFromConfig = taskDetailConfig
+            ? taskDetailConfig.showDetails
+            : false;
         }
 
         includeDetailsForCategory = includeDetailsFromConfig;
