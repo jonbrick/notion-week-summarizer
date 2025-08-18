@@ -67,7 +67,7 @@ const taskDetails = [
   },
   {
     displayName: "Home Tasks",
-    showDetails: true,
+    showDetails: false,
   },
 ];
 
