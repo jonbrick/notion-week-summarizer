@@ -638,13 +638,12 @@ function formatInterpersonalEvents(eventData, eventType) {
       if (config.keywords) {
         const matches = config.keywords.filter((keyword) => {
           const keywordLower = keyword.toLowerCase();
-          if (keywordLower === "ft" || keywordLower === "fam") {
-            const wordRegex = new RegExp(`\\b${keywordLower}\\b`, "i");
-            return wordRegex.test(event.name);
-          }
-          return eventLower.includes(keywordLower);
+          const boundaryRegex = new RegExp(
+            `(^|\\s|[^a-zA-Z])${keywordLower}(\\s|[^a-zA-Z]|$)`,
+            "i"
+          );
+          return boundaryRegex.test(event.name);
         });
-
         if (matches.length > 0) {
           matchedKeywords.push({
             category: key,
