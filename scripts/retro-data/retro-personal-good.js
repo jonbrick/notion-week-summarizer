@@ -25,13 +25,26 @@ async function processWeekGood(weekNumber) {
       return null;
     }
 
-    // Extract data from summary fields using config
+    // Extract data from summary fields using config - handle truncation
     const taskSummary =
       targetWeekPage.properties[config.dataSources.taskSummary]?.rich_text?.[0]
         ?.plain_text || "";
-    const calSummary =
-      targetWeekPage.properties[config.dataSources.calSummary]?.rich_text?.[0]
-        ?.plain_text || "";
+
+    // Get full cal summary by concatenating all rich_text blocks if truncated
+    let calSummary = "";
+    const calSummaryRichText =
+      targetWeekPage.properties[config.dataSources.calSummary]?.rich_text || [];
+    if (calSummaryRichText.length > 0) {
+      calSummary = calSummaryRichText
+        .map((block) => block.plain_text || "")
+        .join("");
+    }
+
+    console.log("🔍 FULL CAL SUMMARY LENGTH:", calSummary.length);
+    console.log(
+      "🔍 CAL SUMMARY CONTAINS CAL_EVENTS?",
+      calSummary.includes("===== CAL EVENTS =====")
+    );
 
     // Parse and extract good items using config
     const goodItems = extractGoodItems(taskSummary, calSummary);
@@ -57,19 +70,30 @@ function extractGoodItems(taskSummary, calSummary) {
   // Loop through sections in the order defined by config
   for (const sectionName of config.sectionOrder) {
     const sectionConfig = config.sections[sectionName];
+    console.log("🔍 SECTION DEBUG: Processing section:", sectionName);
+    console.log(
+      "🔍 SECTION DEBUG: Include in good:",
+      sectionConfig.includeInGood
+    );
 
     // Skip sections not included in good
     if (!sectionConfig.includeInGood) {
+      console.log("🔍 SECTION DEBUG: Skipping section:", sectionName);
       continue;
     }
 
     // Use the new config-driven extraction function
+    console.log("🔍 SECTION DEBUG: Calling extraction for:", sectionName);
     const sectionContent = extractionFunctions.extractSectionItems(
       taskSummary,
       calSummary,
       sectionName,
       "good",
       config
+    );
+    console.log(
+      "🔍 SECTION DEBUG: Extracted content length:",
+      sectionContent ? sectionContent.length : 0
     );
 
     // Determine if we should show this section

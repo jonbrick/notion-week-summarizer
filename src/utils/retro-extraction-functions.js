@@ -51,14 +51,30 @@ function matchesCriteria(item, criteria) {
  * Extract a section from summary text using ===== delimiters
  */
 function extractSection(summaryText, sectionName) {
+  console.log(`🔍 EXTRACT DEBUG: Looking for section: "${sectionName}"`);
+  console.log(
+    `🔍 EXTRACT DEBUG: Raw text preview: "${summaryText.substring(0, 500)}..."`
+  );
+
+  // Add debug to see if the section exists in the text
+  const sectionExists = summaryText.includes(`===== ${sectionName} =====`);
+  console.log(
+    `🔍 EXTRACT DEBUG: Section "${sectionName}" exists in text: ${sectionExists}`
+  );
+
   const pattern = new RegExp(
     `=====\\s*${sectionName}\\s*=====([\\s\\S]*?)(?=\\n=====|$)`,
     "i"
   );
   const match = summaryText.match(pattern);
+
+  if (!match && sectionExists) {
+    console.log(`🔍 EXTRACT DEBUG: REGEX FAILED for section "${sectionName}"`);
+    console.log(`🔍 EXTRACT DEBUG: Full text: "${summaryText}"`);
+  }
+
   return match ? match[1].trim() : "";
 }
-
 /**
  * Check if an item matches the given criteria
  * Config is passed in to avoid circular dependencies
@@ -295,14 +311,43 @@ function extractCalSummaryWithCriteria(calSummary, criteria, config) {
 
   return matchingItems;
 }
+
+/**
+ * CAL EVENTS EXTRACTION
+ */
 function extractCalEventsWithCriteria(calSummary, criteria, config) {
-  if (!calSummary) return [];
+  console.log("🔍 CAL_EVENTS DEBUG: Starting extraction");
+  console.log("🔍 CAL_EVENTS DEBUG: Criteria:", criteria);
+
+  if (!calSummary) {
+    console.log("🔍 CAL_EVENTS DEBUG: No calSummary provided");
+    return [];
+  }
+
+  // ADD THIS DEBUG
+  console.log("🔍 CAL_EVENTS DEBUG: Full calSummary text:");
+  console.log(calSummary);
+  console.log("🔍 CAL_EVENTS DEBUG: End of full text");
 
   // Extract only the CAL_EVENTS section first
   const calEventsSection = extractSection(calSummary, "CAL_EVENTS");
-  if (!calEventsSection) return [];
+  console.log(
+    "🔍 CAL_EVENTS DEBUG: Extracted section length:",
+    calEventsSection ? calEventsSection.length : 0
+  );
+  console.log(
+    "🔍 CAL_EVENTS DEBUG: Section content preview:",
+    calEventsSection ? calEventsSection.substring(0, 200) + "..." : "NONE"
+  );
+
+  if (!calEventsSection) {
+    console.log("🔍 CAL_EVENTS DEBUG: No CAL_EVENTS section found");
+    return [];
+  }
 
   const lines = calEventsSection.split("\n");
+  console.log("🔍 CAL_EVENTS DEBUG: Number of lines:", lines.length);
+
   const output = [];
   let currentCategory = "";
   let originalCategoryLine = ""; // Keep original line for criteria matching
@@ -310,11 +355,8 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
   let currentCategoryName = ""; // Category without stats/emoji
 
   lines.forEach((line) => {
-    // Check if this is a category header
-    if (
-      line.includes("(") &&
-      (line.includes("✅") || line.includes("❌") || line.includes("☑️"))
-    ) {
+    // Check if this is a category header (more robust emoji detection)
+    if (line.includes("(") && /[✅❌☑️⚠️]/u.test(line)) {
       // Save previous category if it matches criteria
       if (currentCategory && matchesCriteria(originalCategoryLine, criteria)) {
         if (currentEvents.length > 0) {
@@ -350,11 +392,19 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
     }
     // Event line (starts with bullet)
     else if (line.trim().startsWith("•")) {
-      // Check if we should hide details for this category (monthly config)
-      const monthlyConfig = config.monthlyConfig;
+      // Check main config for weekly behavior
       let shouldHideDetails = false;
-      if (monthlyConfig && monthlyConfig.calEventDetails) {
-        const categoryConfig = monthlyConfig.calEventDetails.find(
+      if (config && config.calEventDetails) {
+        const categoryConfig = config.calEventDetails.find(
+          (cat) => cat.displayName === currentCategoryName
+        );
+        if (categoryConfig && !categoryConfig.showDetails) {
+          shouldHideDetails = true;
+        }
+      }
+      // Override with monthly config if present (for monthly retros)
+      else if (config.monthlyConfig && config.monthlyConfig.calEventDetails) {
+        const categoryConfig = config.monthlyConfig.calEventDetails.find(
           (cat) => cat.displayName === currentCategoryName
         );
         if (categoryConfig && !categoryConfig.showDetails) {
@@ -394,6 +444,8 @@ function extractCalEventsWithCriteria(calSummary, criteria, config) {
     }
   }
 
+  console.log("🔍 CAL_EVENTS DEBUG: Final output length:", output.length);
+  console.log("🔍 CAL_EVENTS DEBUG: Final output:", output);
   return output;
 }
 
@@ -411,7 +463,17 @@ function extractTasksWithCriteria(taskSummary, criteria, config) {
   let currentTasks = [];
   let includeDetailsForCategory = true;
 
-  lines.forEach((line) => {
+  lines.forEach((line, index) => {
+    console.log(`🔍 CAL_EVENTS DEBUG: Line ${index}: "${line}"`);
+    console.log(
+      `🔍 CAL_EVENTS DEBUG: Line includes '(': ${line.includes("(")}`
+    );
+    console.log(
+      `🔍 CAL_EVENTS DEBUG: Line includes '✅': ${line.includes("✅")}`
+    );
+    console.log(
+      `🔍 CAL_EVENTS DEBUG: Emoji test result: ${/[✅❌☑️⚠️]/u.test(line)}`
+    );
     // Check if this is a category header
     if (line.includes("(") && matchesCriteria(line, criteria)) {
       // Save previous category if exists

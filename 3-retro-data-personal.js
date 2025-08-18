@@ -88,7 +88,7 @@ function runChildScript(scriptPath, args = []) {
     child.stdout.on("data", (data) => {
       const output = data.toString();
       stdout += output;
-      // Don't show real-time output - we'll capture it silently
+      process.stdout.write(output); // Show debug output in real-time
     });
 
     child.stderr.on("data", (data) => {
