@@ -387,37 +387,76 @@ function extractTasksWithCriteria(taskSummary, criteria, config) {
   const output = [];
   let currentCategory = "";
   let currentTasks = [];
+  let includeDetailsForCategory = true;
 
   lines.forEach((line) => {
     // Check if this is a category header
     if (line.includes("(") && matchesCriteria(line, criteria)) {
       // Save previous category if exists
-      if (currentCategory && currentTasks.length > 0) {
-        output.push(`${currentCategory}\n${currentTasks.join(", ")}`);
+      if (currentCategory) {
+        if (includeDetailsForCategory && currentTasks.length > 0) {
+          output.push(`${currentCategory}\n${currentTasks.join(", ")}`);
+        } else {
+          // Push just the header even if no details or none matched
+          output.push(currentCategory);
+        }
       }
 
       // Extract category name and count
       const match = line.match(/([✅❌⚠️☑️])\s*(.+?)\s*\((\d+\/\d+|\d+)\)/);
       if (match) {
         // Remove emoji from category display using config
-        currentCategory = `${cleanStatusEmojis(match[2].trim(), config)} (${
-          match[3]
-        })`;
+        const rawCategoryName = match[2].trim();
+        const cleanCategoryName = cleanStatusEmojis(rawCategoryName, config);
+        currentCategory = `${cleanCategoryName} (${match[3]})`;
         currentTasks = [];
+        // Determine if item details should be included for this category
+        const showDetailsList =
+          config && Array.isArray(config.tasksShowDetails)
+            ? config.tasksShowDetails
+            : [];
+        includeDetailsForCategory = showDetailsList.includes(cleanCategoryName);
       }
     }
     // Task line (starts with bullet)
     else if (line.trim().startsWith("•") && currentCategory) {
-      const task = line.trim().substring(1).trim();
-      if (task) {
-        currentTasks.push(task);
+      if (!includeDetailsForCategory) {
+        // Skip details for categories not configured to show details
+        return;
       }
+      const task = line.trim().substring(1).trim();
+      if (!task) return;
+
+      // Apply optional per-task show/hide filters from config
+      const showPatterns =
+        config && Array.isArray(config.tasksShowItemPatterns)
+          ? config.tasksShowItemPatterns
+          : [];
+      const hidePatterns =
+        config && Array.isArray(config.tasksHideItemPatterns)
+          ? config.tasksHideItemPatterns
+          : [];
+
+      if (showPatterns.length > 0) {
+        const matchesShow = showPatterns.some((p) => task.includes(p));
+        if (!matchesShow) return;
+      }
+      if (hidePatterns.length > 0) {
+        const matchesHide = hidePatterns.some((p) => task.includes(p));
+        if (matchesHide) return;
+      }
+
+      currentTasks.push(task);
     }
   });
 
   // Don't forget the last category
-  if (currentCategory && currentTasks.length > 0) {
-    output.push(`${currentCategory}\n${currentTasks.join(", ")}`);
+  if (currentCategory) {
+    if (includeDetailsForCategory && currentTasks.length > 0) {
+      output.push(`${currentCategory}\n${currentTasks.join(", ")}`);
+    } else {
+      output.push(currentCategory);
+    }
   }
 
   return output;

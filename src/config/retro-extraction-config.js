@@ -172,12 +172,56 @@ module.exports = {
   // For TASKS: categories that should show task details (not just totals)
   tasksShowDetails: ["Personal Tasks", "Physical Health Tasks"],
 
+  // For TASKS: optional per-item filtering
+  // If non-empty, only tasks containing at least one of these substrings are shown
+  tasksShowItemPatterns: [],
+  // Tasks containing any of these substrings will be hidden
+  tasksHideItemPatterns: [],
+
   // Monthly habit evaluation thresholds
-  monthlyHabitThresholds: {
-    earlyWakeUp: { goodPerWeek: 4, warningPerWeek: 2 },
-    daysSober: { goodPerWeek: 4, warningPerWeek: 2 },
-    workouts: { goodPerWeek: 3, warningPerWeek: 1 },
-    avgWeight: { goodAbsolute: 195, warningAbsolute: 200 },
+  monthlyHabitEvals: {
+    earlyWakeUp: {
+      pattern: /🌅 (\d+) early wake up/,
+      goodPerWeek: 4,
+      warningPerWeek: 2,
+      emoji: "🛌",
+      description: "sleeping habits",
+    },
+    daysSober: {
+      pattern: /🍻 (\d+) days sober/,
+      goodPerWeek: 4,
+      warningPerWeek: 2,
+      emoji: "🍻",
+      description: "drinking habits",
+    },
+    workouts: {
+      pattern: /💪 (\d+) workouts/,
+      goodPerWeek: 3,
+      warningPerWeek: 1,
+      emoji: "💪",
+      description: "workout habits",
+    },
+    avgWeight: {
+      pattern: /⚖️ ([\d.]+) avg body weight/,
+      goodAbsolute: 195,
+      warningAbsolute: 200,
+      operator: "<=",
+      emoji: "⚖️",
+      description: "body weight",
+    },
+    // Add hobby habits with complex scoring
+    hobbyHabits: {
+      patterns: {
+        coding: /💻 (\d+) days coding/,
+        reading: /📖 (\d+) days reading/,
+        art: /🎨 (\d+) days making art/,
+        gaming: /🎮 (\d+) days playing video games/,
+      },
+      goodPerWeek: 5, // total score threshold
+      warningPerWeek: 1,
+      emoji: "📖",
+      description: "hobby habits",
+    },
   },
 
   // Section output formatting

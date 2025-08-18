@@ -9,7 +9,10 @@ const {
   extractCalEventsWithCriteria,
   extractTasksWithCriteria,
 } = require("./src/utils/retro-extraction-functions");
-const { aggregateMonthlyData } = require("./src/utils/retro-monthly-functions");
+const {
+  aggregateMonthlyData,
+  evaluateMonthlyHabits,
+} = require("./src/utils/retro-monthly-functions");
 const retroConfig = require("./src/config/retro-extraction-config");
 require("dotenv").config();
 
@@ -100,7 +103,14 @@ function parseWeeklySections(monthlyData, sectionType) {
 /**
  * Extract items using the same criteria as weekly retro, but across all weeks
  */
-function extractMonthlyItems(monthlyTaskData, monthlyCalData, mode, config) {
+function extractMonthlyItems(
+  monthlyTaskData,
+  monthlyCalData,
+  mode,
+  config,
+  monthlyHabitsData,
+  weekCount
+) {
   const allItems = [];
 
   // Parse weekly task sections
@@ -140,11 +150,22 @@ function extractMonthlyItems(monthlyTaskData, monthlyCalData, mode, config) {
     );
 
     // Extract from cal data with section-specific criteria
-    const habits = extractHabitsWithCriteria(
-      calData,
-      config.evaluationCriteria.HABITS?.[mode] ?? "none",
-      config
-    );
+    // Use monthly habit evaluation instead of weekly extraction
+    let habits = [];
+    if (i === 0 && monthlyHabitsData) {
+      // Only evaluate habits once (on first week) using monthly data
+      const habitEvaluation = evaluateMonthlyHabits(
+        monthlyHabitsData,
+        weekCount,
+        config
+      );
+      console.log(`🔍 Mode: ${mode}`);
+      console.log(`🔍 Monthly habits data: ${monthlyHabitsData}`);
+      console.log(`🔍 Week count: ${weekCount}`);
+      console.log(`🔍 Good habits:`, habitEvaluation.good);
+      console.log(`🔍 Bad habits:`, habitEvaluation.bad);
+      habits = mode === "good" ? habitEvaluation.good : habitEvaluation.bad;
+    }
     const calSummary = extractCalSummaryWithCriteria(
       calData,
       config.evaluationCriteria.CAL_SUMMARY?.[mode] ?? "none",
@@ -205,11 +226,19 @@ function formatMonthlyRetro(monthlyItems, mode, sectionConfig) {
     });
 
     // Aggregate the weekly data instead of concatenating
-    const aggregatedItems = aggregateMonthlyData(
-      weeklyArrays,
-      sectionName,
-      retroConfig
-    );
+    // UPDATED: For HABITS, don't aggregate - just use the monthly evaluation results
+    let aggregatedItems;
+    if (sectionName === "HABITS") {
+      // Habits are already evaluated at monthly level, just get the first week's results
+      aggregatedItems = weeklyArrays.length > 0 ? weeklyArrays[0] || [] : [];
+    } else {
+      // Aggregate the weekly data for other sections
+      aggregatedItems = aggregateMonthlyData(
+        weeklyArrays,
+        sectionName,
+        retroConfig
+      );
+    }
     const shouldShow =
       aggregatedItems.length > 0 ||
       (mode === "good" ? cfg.alwaysShowGoodSection : cfg.alwaysShowBadSection);
@@ -247,12 +276,27 @@ async function processMonth(monthNumber) {
     let monthTaskData = "";
     let monthCalData = "";
 
+    // Get monthly habits data and week count
+    const monthlyHabitsDataProp = page.properties["Monthly Habits"];
+    const weekCountProp = page.properties["Number of weeks"];
+
+    let monthlyHabitsData = "";
+    let weekCount = 4; // default
+
     if (monthTaskDataProp?.formula?.string) {
       monthTaskData = monthTaskDataProp.formula.string.trim();
     }
 
     if (monthCalDataProp?.formula?.string) {
       monthCalData = monthCalDataProp.formula.string.trim();
+    }
+
+    if (monthlyHabitsDataProp?.formula?.string) {
+      monthlyHabitsData = monthlyHabitsDataProp.formula.string.trim();
+    }
+
+    if (weekCountProp?.number) {
+      weekCount = weekCountProp.number;
     }
 
     console.log(`📋 Found Task Data: ${monthTaskData ? "YES" : "NO"}`);
@@ -263,13 +307,21 @@ async function processMonth(monthNumber) {
       return;
     }
 
+    // DELETE ME BECAUSE I AM DEBUGGING LOG STUFF
+    console.log(
+      `📊 Week count from DB: ${weekCountProp?.number}, using: ${weekCount}`
+    );
+    console.log(`📊 Monthly habits data: ${monthlyHabitsData ? "YES" : "NO"}`);
+
     // Extract "what went well" items using good criteria
     console.log("📝 Extracting what went well...");
     const goodItems = extractMonthlyItems(
       monthTaskData,
       monthCalData,
       "good",
-      retroConfig
+      retroConfig,
+      monthlyHabitsData,
+      weekCount
     );
 
     // Extract "what didn't go well" items using bad criteria
@@ -278,9 +330,10 @@ async function processMonth(monthNumber) {
       monthTaskData,
       monthCalData,
       "bad",
-      retroConfig
+      retroConfig,
+      monthlyHabitsData,
+      weekCount
     );
-
     // Format the monthly retrospective
     const goodSection = formatMonthlyRetro(
       goodItems,
