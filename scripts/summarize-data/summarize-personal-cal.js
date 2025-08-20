@@ -876,7 +876,7 @@ function formatMentalHealthEvents(eventData, eventType) {
       // Get status emoji from config or use evaluation function
       const categoryStatus = config.evaluation
         ? config.evaluation(categoryEvents.length)
-        : "☑️";
+        : "✅";
 
       if (output) output += "\n";
 
@@ -898,12 +898,25 @@ function formatMentalHealthEvents(eventData, eventType) {
           dayCount !== 1 ? "s" : ""
         }):\n`;
       } else {
-        // Standard format for other categories
+        // Standard format for other categories (include day count)
+        const uniqueDays = new Set();
+        categoryEvents.forEach((event) => {
+          const dayMatch = event.originalLine.match(
+            /on (Sun|Mon|Tue|Wed|Thu|Fri|Sat)/
+          );
+          if (dayMatch) {
+            uniqueDays.add(dayMatch[1]);
+          }
+        });
+        const dayCount = uniqueDays.size;
+
         output += `${categoryStatus} ${config.displayName} (${
           categoryEvents.length
         } event${
           categoryEvents.length !== 1 ? "s" : ""
-        }, ${formattedHours} hours):\n`;
+        }, ${formattedHours} hours, ${dayCount} day${
+          dayCount !== 1 ? "s" : ""
+        }):\n`;
       }
 
       categoryEvents.forEach((event) => {
