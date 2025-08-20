@@ -668,10 +668,20 @@ function formatInterpersonalEvents(eventData, eventType) {
     return "";
   }
 
+  // Use header event count for reliability
+  const headerCount = extractEventCount(eventData);
+  if (parseInt(headerCount) === 0) {
+    return "";
+  }
+
   const lines = eventData.split("\n");
-  const contentLines = lines.filter(
-    (line) => !line.includes("Events (") && line.trim() !== ""
-  );
+  const contentLines = lines.filter((line) => {
+    const cleaned = line.trim().replace(/^•\s*/, "");
+    const isHeader = cleaned.includes("Events (");
+    const isEmpty = cleaned === "";
+    const isNoEventsLine = /^No .* events this week$/i.test(cleaned);
+    return !isHeader && !isNoEventsLine && !isEmpty;
+  });
 
   const events = [];
   contentLines.forEach((line) => {
@@ -796,10 +806,20 @@ function formatMentalHealthEvents(eventData, eventType) {
     return "";
   }
 
+  // Use header event count for reliability
+  const headerCount = extractEventCount(eventData);
+  if (parseInt(headerCount) === 0) {
+    return "";
+  }
+
   const lines = eventData.split("\n");
-  const contentLines = lines.filter(
-    (line) => !line.includes("Events (") && line.trim() !== ""
-  );
+  const contentLines = lines.filter((line) => {
+    const cleaned = line.trim().replace(/^•\s*/, "");
+    const isHeader = cleaned.includes("Events (");
+    const isEmpty = cleaned === "";
+    const isNoEventsLine = /^No .* events this week$/i.test(cleaned);
+    return !isHeader && !isNoEventsLine && !isEmpty;
+  });
 
   const events = [];
   contentLines.forEach((line) => {
