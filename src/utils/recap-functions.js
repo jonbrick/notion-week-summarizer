@@ -9,8 +9,18 @@
  * @returns {number} - Parsed hours, or 0 if not found
  */
 function parseHours(text) {
-  const match = text.match(/\(.*?(\d+(?:\.\d+)?)\s*hours?\)/i);
+  // Updated to handle both old format "(X events, Y hours)" and new format "(X events, Y hours, Z days)"
+  const match = text.match(/\(.*?(\d+(?:\.\d+)?)\s*hours?.*?\)/i);
   return match ? parseFloat(match[1]) : 0;
+}
+function parseEvents(text) {
+  const match = text.match(/\((\d+)\s*events?/i);
+  return match ? parseInt(match[1]) : 0;
+}
+
+function parseDays(text) {
+  const match = text.match(/(\d+)\s*days?\)/i);
+  return match ? parseInt(match[1]) : 0;
 }
 
 /**
@@ -104,9 +114,9 @@ function extractSection(columnText, sectionName) {
 }
 
 /**
- * Parse CAL EVENTS section into categories with hours
+ * Parse CAL EVENTS section into categories with events, hours, and days
  * @param {string} sectionContent - CAL EVENTS section content
- * @returns {Array} - Array of {category, hours, events, content}
+ * @returns {Array} - Array of {category, events, hours, days, eventsList, content}
  */
 function parseCalEvents(sectionContent) {
   const categories = [];
@@ -116,20 +126,24 @@ function parseCalEvents(sectionContent) {
 
   for (const line of lines) {
     // Check if this is a category header (contains hours info)
-    if (line.includes("(") && line.includes("hours)")) {
+    if (line.includes("(") && line.includes("hours")) {
       const hours = parseHours(line);
+      const events = parseEvents(line);
+      const days = parseDays(line);
       const categoryName = line.split("(")[0].trim().replace(":", "");
 
       currentCategory = {
         category: categoryName,
+        events: events,
         hours,
-        events: [],
+        days,
+        eventsList: [],
         content: line,
       };
       categories.push(currentCategory);
     } else if (currentCategory && line.trim()) {
       // This is an event under the current category
-      currentCategory.events.push(line.trim());
+      currentCategory.eventsList.push(line.trim());
       currentCategory.content += "\n" + line;
     }
   }
@@ -257,8 +271,10 @@ function combineCalEventsSection(goodContent, badContent, config) {
       if (allCategories.has(cat.category)) {
         // Combine with existing
         const existing = allCategories.get(cat.category);
+        existing.events += cat.events;
         existing.hours += cat.hours;
-        existing.events.push(...cat.events);
+        existing.days += cat.days;
+        existing.eventsList.push(...cat.eventsList);
         existing.content += "\n" + cat.content;
       } else {
         allCategories.set(cat.category, cat);
@@ -274,10 +290,10 @@ function combineCalEventsSection(goodContent, badContent, config) {
     const evaluation = getEvaluationLabel(category.hours, ranges);
     output +=
       config.formatting.categoryHeader(evaluation, categoryName) +
-      ` (${category.hours} hours)` +
+      ` (${category.events} events, ${category.hours} hours, ${category.days} days)` +
       "\n";
     // Sort events by day-of-week (Sun -> Sat) if a day token exists
-    const sortedEvents = [...category.events].sort((a, b) => {
+    const sortedEvents = [...category.eventsList].sort((a, b) => {
       return getDayIndex(a) - getDayIndex(b);
     });
     output += sortedEvents.join("\n") + "\n\n";

@@ -174,6 +174,9 @@ function formatPersonalTasksSummary(personalTasks) {
     "Physical Health Tasks": ["workout", "run"],
   };
 
+  // Admin keywords for task categorization
+  const adminKeywords = ["recap", "retro", "plan", "journal"];
+
   const lines = personalTasks.split("\n");
   const enabledCategories = taskCategoriesConfig
     .filter((cat) => cat.include)
@@ -185,6 +188,8 @@ function formatPersonalTasksSummary(personalTasks) {
   let totalTasks = 0;
   let currentCategoryTasks = 0;
   let currentCategorySection = ""; // Build category section separately
+  let adminTasks = [];
+  let adminTaskCount = 0;
 
   for (const line of lines) {
     // Check if this line is a category header
@@ -217,8 +222,22 @@ function formatPersonalTasksSummary(personalTasks) {
           /\s*\([A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\)$/,
           ""
         );
-        currentCategorySection += cleanedLine + "\n";
-        currentCategoryTasks++;
+
+        // Check if this is an admin task (only for Personal Tasks category)
+        const isAdminTask =
+          currentCategory === "Personal Tasks" &&
+          adminKeywords.some((keyword) =>
+            cleanedLine.toLowerCase().includes(keyword.toLowerCase())
+          );
+
+        if (isAdminTask) {
+          // Store admin task separately
+          adminTasks.push(cleanedLine);
+          adminTaskCount++;
+        } else {
+          currentCategorySection += cleanedLine + "\n";
+          currentCategoryTasks++;
+        }
         totalTasks++;
       }
     }
@@ -231,6 +250,15 @@ function formatPersonalTasksSummary(personalTasks) {
     }
     output += `✅ ${currentCategory} (${currentCategoryTasks})\n`;
     output += currentCategorySection;
+  }
+
+  // Add Admin tasks as separate category if any exist
+  if (adminTasks.length > 0) {
+    if (output.includes("✅")) {
+      output += "\n";
+    }
+    output += `✅ Admin (${adminTaskCount})\n`;
+    output += adminTasks.join("\n") + "\n";
   }
 
   return output.trim();

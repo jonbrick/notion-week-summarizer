@@ -90,6 +90,33 @@ const calSummaryConfig = [
   },
 ];
 
+// Mental Health Events Grouping Configuration
+const mentalHealthGroupingConfig = {
+  general: {
+    displayName: "Mental Health Time",
+    include: true,
+    order: 7,
+    precedence: 0,
+  },
+  awake: {
+    displayName: "Awake",
+    include: true,
+    order: 8,
+    keywords: ["awake", "leg pain", "anxiety"],
+    precedence: 2,
+    evaluation: () => "❌",
+  },
+  wastedDays: {
+    displayName: "Wasted Days",
+    include: true,
+    order: 9,
+    keywords: ["wasted day"],
+    precedence: 3,
+    evaluation: () => "❌",
+    countType: "days", // Special flag for day counting
+  },
+};
+
 // Interpersonal Events Grouping Configuration - Updated order and names
 const interpersonalGroupingConfig = {
   general: {
@@ -534,6 +561,44 @@ function generatePersonalCalSummary(data) {
           }
         });
       }
+    } else if (eventConfig.key === "mentalHealthEvents") {
+      // Special mental health grouping
+      const mentalHealthOutput = formatMentalHealthEvents(eventData);
+      if (mentalHealthOutput) {
+        // Split into sections by status emoji lines
+        const sections = [];
+        const lines = mentalHealthOutput.split("\n");
+        let currentSection = [];
+
+        lines.forEach((line) => {
+          if (line.match(/^[☑️✅❌⚠️]/)) {
+            // New section header - save previous section if exists
+            if (currentSection.length > 0) {
+              sections.push(currentSection.join("\n"));
+            }
+            currentSection = [line];
+          } else if (currentSection.length > 0) {
+            // Add line to current section
+            currentSection.push(line);
+          }
+        });
+
+        // Add final section
+        if (currentSection.length > 0) {
+          sections.push(currentSection.join("\n"));
+        }
+
+        // Categorize each complete section
+        sections.forEach((section) => {
+          const hasEvents = !section.includes("(0 events");
+          if (hasEvents) {
+            // Trim any trailing newlines from mental health sections to prevent double spacing
+            output.summary.push(section.trim());
+          } else {
+            output.calSummary.push(section.trim());
+          }
+        });
+      }
     } else {
       // Standard event processing
       let eventLine;
@@ -549,7 +614,8 @@ function generatePersonalCalSummary(data) {
           eventLine += "\n" + prDetails.split("\n").slice(1).join("\n"); // Remove title line
         }
       } else {
-        eventLine = `${status} ${eventConfig.displayName} (${count} events, ${hours} hours):`;
+        const days = extractDays(eventData);
+        eventLine = `${status} ${eventConfig.displayName} (${count} events, ${hours} hours, ${days} days):`;
 
         // Add event details only if include is true
         if (eventConfig.include) {
@@ -690,11 +756,25 @@ function formatInterpersonalEvents(eventData, eventType) {
 
       if (output) output += "\n";
 
+      // Extract unique days from "on Day" pattern
+      const uniqueDays = new Set();
+      categoryEvents.forEach((event) => {
+        const dayMatch = event.originalLine.match(
+          /on (Sun|Mon|Tue|Wed|Thu|Fri|Sat)/
+        );
+        if (dayMatch) {
+          uniqueDays.add(dayMatch[1]);
+        }
+      });
+      const dayCount = uniqueDays.size;
+
       output += `${categoryStatus} ${config.displayName} (${
         categoryEvents.length
       } event${
         categoryEvents.length !== 1 ? "s" : ""
-      }, ${formattedHours} hours):\n`;
+      }, ${formattedHours} hours, ${dayCount} day${
+        dayCount !== 1 ? "s" : ""
+      }):\n`;
 
       categoryEvents.forEach((event) => {
         output += `• ${event.originalLine}\n`;
@@ -708,6 +788,132 @@ function formatInterpersonalEvents(eventData, eventType) {
 /**
  * Helper functions for formatting
  */
+/**
+ * Format mental health events with grouping
+ */
+function formatMentalHealthEvents(eventData, eventType) {
+  if (!eventData || !eventData.trim()) {
+    return "";
+  }
+
+  const lines = eventData.split("\n");
+  const contentLines = lines.filter(
+    (line) => !line.includes("Events (") && line.trim() !== ""
+  );
+
+  const events = [];
+  contentLines.forEach((line) => {
+    const trimmedLine = line.trim().replace(/^•\s*/, "");
+    if (trimmedLine) {
+      const hoursMatch = trimmedLine.match(/\(([0-9.]+)h\)$/);
+      const hours = hoursMatch ? parseFloat(hoursMatch[1]) : 0;
+      const eventName = trimmedLine.replace(/\s*\([0-9.]+h\)$/, "");
+
+      events.push({
+        name: eventName,
+        hours: hours,
+        originalLine: trimmedLine,
+      });
+    }
+  });
+
+  // Categorize events
+  const categorizedEvents = {
+    general: [],
+    awake: [],
+    wastedDays: [],
+  };
+
+  events.forEach((event) => {
+    let assignedCategory = null;
+    let matchedKeywords = [];
+
+    Object.entries(mentalHealthGroupingConfig).forEach(([key, config]) => {
+      if (config.keywords) {
+        const matches = config.keywords.filter((keyword) => {
+          const keywordLower = keyword.toLowerCase();
+          const boundaryRegex = new RegExp(
+            `(^|\\s|[^a-zA-Z])${keywordLower}(\\s|[^a-zA-Z]|$)`,
+            "i"
+          );
+          return boundaryRegex.test(event.name);
+        });
+        if (matches.length > 0) {
+          matchedKeywords.push({
+            category: key,
+            keywords: matches,
+            precedence: config.precedence,
+          });
+        }
+      }
+    });
+
+    if (matchedKeywords.length > 0) {
+      matchedKeywords.sort((a, b) => b.precedence - a.precedence);
+      assignedCategory = matchedKeywords[0].category;
+      categorizedEvents[assignedCategory].push(event);
+    } else {
+      categorizedEvents.general.push(event);
+    }
+  });
+
+  // Build output
+  let output = "";
+  const displayOrder = Object.entries(mentalHealthGroupingConfig)
+    .filter(([key, config]) => config.include)
+    .sort((a, b) => a[1].order - b[1].order);
+
+  displayOrder.forEach(([categoryKey, config]) => {
+    const categoryEvents = categorizedEvents[categoryKey];
+
+    if (categoryEvents.length > 0) {
+      const totalHours = categoryEvents.reduce(
+        (sum, event) => sum + event.hours,
+        0
+      );
+      const formattedHours = totalHours.toFixed(1);
+
+      // Get status emoji from config or use evaluation function
+      const categoryStatus = config.evaluation
+        ? config.evaluation(categoryEvents.length)
+        : "☑️";
+
+      if (output) output += "\n";
+
+      // Special handling for Wasted Days - count days instead of events/hours
+      if (config.countType === "days") {
+        // Extract unique days from "on Day" pattern
+        const uniqueDays = new Set();
+        categoryEvents.forEach((event) => {
+          const dayMatch = event.originalLine.match(
+            /on (Sun|Mon|Tue|Wed|Thu|Fri|Sat)/
+          );
+          if (dayMatch) {
+            uniqueDays.add(dayMatch[1]);
+          }
+        });
+        const dayCount = uniqueDays.size || categoryEvents.length; // fallback to event count
+
+        output += `${categoryStatus} ${config.displayName} (${dayCount} day${
+          dayCount !== 1 ? "s" : ""
+        }):\n`;
+      } else {
+        // Standard format for other categories
+        output += `${categoryStatus} ${config.displayName} (${
+          categoryEvents.length
+        } event${
+          categoryEvents.length !== 1 ? "s" : ""
+        }, ${formattedHours} hours):\n`;
+      }
+
+      categoryEvents.forEach((event) => {
+        output += `• ${event.originalLine}\n`;
+      });
+    }
+  });
+
+  return output.trim();
+}
 function formatCalendarEvents(eventData, eventType) {
   if (!eventData || !eventData.trim()) {
     return null; // Return null if no data, let caller handle display
@@ -741,6 +947,10 @@ function extractAppsCount(eventData) {
 function extractCommitsCount(eventData) {
   const commitsMatch = eventData?.match(/(\d+)\s*commits?/);
   return commitsMatch ? commitsMatch[1] : "0";
+}
+function extractDays(eventData) {
+  const daysMatch = eventData?.match(/(\d+)\s*days?/);
+  return daysMatch ? daysMatch[1] : "0";
 }
 
 function formatPersonalPREvents(eventData, eventType) {

@@ -117,20 +117,25 @@ function formatEventsColumn(
   includeDayOfWeek = false
 ) {
   if (!events || events.length === 0) {
-    return `${columnName} (0 ${eventType}, 0 hours):\nNo ${columnName.toLowerCase()} this week`;
+    return `${columnName} (0 ${eventType}, 0 hours, 0 days):\nNo ${columnName.toLowerCase()} this week`;
   }
 
-  // Calculate total hours
+  // Calculate total hours and days
   let totalMinutes = 0;
   const formattedEvents = [];
+  const uniqueDates = new Set();
 
   events.forEach((event) => {
+    // Count unique days
+    const eventDate = getEventStartDate(event);
+    if (eventDate) uniqueDates.add(eventDate);
+
     const duration = extractEventDuration(event);
     const minutes = duration?.minutes || 0;
     totalMinutes += minutes;
 
     const hours = (minutes / 60).toFixed(1);
-    const summary = event.summary || "Untitled";
+    const summary = (event.summary || "Untitled").trim();
     const dayLabel = includeDayOfWeek ? getEventDayOfWeek(event) : null;
     const daySuffix = dayLabel ? ` on ${dayLabel}` : "";
     formattedEvents.push(`• ${summary}${daySuffix} (${hours}h)`);
@@ -138,15 +143,31 @@ function formatEventsColumn(
 
   const totalHours = (totalMinutes / 60).toFixed(1);
 
+  const dayCount = uniqueDates.size;
+
   let output = `${columnName} (${events.length} event`;
   if (events.length !== 1) output += "s";
   output += `, ${totalHours} hour`;
   if (totalHours !== "1.0") output += "s";
+  output += `, ${dayCount} day`;
+  if (dayCount !== 1) output += "s";
   output += "):\n";
 
   output += formattedEvents.join("\n");
 
   return output;
+}
+
+/**
+ * Extract event start date for day counting
+ */
+function getEventStartDate(event) {
+  if (event.start?.date) {
+    return event.start.date; // All-day event (YYYY-MM-DD)
+  } else if (event.start?.dateTime) {
+    return event.start.dateTime.split("T")[0]; // Timed event (extract date part)
+  }
+  return null;
 }
 
 /**
@@ -216,7 +237,9 @@ async function pullPersonalCalendar(weekNumber) {
     return {
       "Personal Events": formatEventsColumn(
         categorizedEvents.personal,
-        "Personal Events"
+        "Personal Events",
+        "events",
+        true
       ),
       "Interpersonal Events": formatEventsColumn(
         categorizedEvents.interpersonal,
@@ -224,14 +247,23 @@ async function pullPersonalCalendar(weekNumber) {
         "events",
         true
       ),
-      "Home Events": formatEventsColumn(categorizedEvents.home, "Home Events"),
+      "Home Events": formatEventsColumn(
+        categorizedEvents.home,
+        "Home Events",
+        "events",
+        true
+      ),
       "Mental Health Events": formatEventsColumn(
         categorizedEvents.mentalHealth,
-        "Mental Health Events"
+        "Mental Health Events",
+        "events",
+        true
       ),
       "Physical Health Events": formatEventsColumn(
         categorizedEvents.physicalHealth,
-        "Physical Health Events"
+        "Physical Health Events",
+        "events",
+        true
       ),
     };
   } catch (error) {

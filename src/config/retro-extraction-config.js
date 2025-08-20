@@ -182,6 +182,7 @@ module.exports = {
     { displayName: "Interpersonal Tasks", showDetails: false },
     { displayName: "Mental Health Tasks", showDetails: false },
     { displayName: "Home Tasks", showDetails: true },
+    { displayName: "Admin", showDetails: true },
   ],
 
   // Section output formatting
