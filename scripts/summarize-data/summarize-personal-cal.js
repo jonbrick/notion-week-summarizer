@@ -429,7 +429,7 @@ function formatHabits(habitsDetails) {
         // NEW Evaluation logic: Total possible = 21 points (7 days × 3 good hobbies)
         const totalScore = goodHobbyDays - badHobbyDays; // Gaming subtracts from total
 
-        if (totalScore > 5) {
+        if (totalScore > 3) {
           status = "✅";
           habitDescription = "Good hobby habits";
         } else if (totalScore >= 1) {
