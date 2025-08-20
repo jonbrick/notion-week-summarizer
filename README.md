@@ -1,444 +1,413 @@
 # Notion Week Summarizer
 
-This Node.js automation suite connects to Notion and Claude AI to pull weekly data from calendars, tasks, and habits, then automatically generate professional weekly summaries and retrospectives.
+A comprehensive automation suite that transforms your scattered weekly data into organized, structured insights. Connects Notion and Google Calendar to automatically pull, categorize, and format your personal and work activities into professional weekly retrospectives.
 
-## ✨ Features
+## ✨ What It Does
 
-- **Comprehensive Data Pulling**: Automatically pulls from personal/work calendars, tasks, and habits
-- **Interactive & Command-Line Modes**: Choose weeks and data sources interactively or via CLI arguments
-- **Multi-Week Processing**: Handle single weeks or batch process multiple weeks at once
-- **AI-Powered Summaries**: Uses Claude AI to create professional weekly summaries and retrospectives
-- **Modular Architecture**: Separate scripts for different data sources (personal, work, habits)
-- **Custom Context Support**: Optional context files for AI writing style and definitions
+**Turns this chaos:**
+
+- 47 calendar events across 9 calendars
+- 23 completed tasks in Notion
+- 15 habit tracking entries
+- 98 commits across 14 personal projects
+
+**Into this insight:**
+
+```
+===== TRIPS =====
+💜 Family Trip - 2025 Portland Easter Weekend
+
+===== HABITS =====
+💪 Great workout habits (5 workouts this week)
+🛌 Poor sleep habits (1 early wake up, 6 days sleeping in)
+
+===== CAL EVENTS =====
+✅ Tons of interpersonal time (23.3 hours, 6 events, 4 days):
+Hillstone & Res with Alex on Sun, Dye Easter Eggs w J and cousins on Sat...
+
+✅ Some family time (0.3 hours, 1 event, 1 day):
+Mom check-in on Mon
+
+===== TASKS =====
+✅ Personal Tasks (9)
+Two black 64 cartridges, Amazon returns to Sara, Curate Vicki's Tribute Dropbox...
+
+✅ Admin (2)
+Plan Apr, Plan week 16
+```
+
+## 🏗️ Architecture
+
+### Three-Phase Pipeline
+
+1. **📥 Data Pull**: Extracts from 15+ sources (calendars, tasks, habits, GitHub commits)
+2. **📊 Data Summarization**: Categorizes and formats raw data with intelligent grouping
+3. **📝 Structured Output**: Organizes data into standardized weekly retrospective format
+
+### Smart Data Processing
+
+- **Calendar Events**: Auto-categorizes by color/calendar (Personal, Work, Interpersonal, etc.)
+- **Task Categorization**: Automatically sorts tasks (Personal, Admin, Home, Physical Health)
+- **Habit Evaluation**: Tracks patterns across multiple metrics with intelligent scoring
+- **GitHub Integration**: Processes personal project commits with automatic grouping
+- **Admin Task Detection**: Identifies planning/reflection tasks (recap, retro, plan, journal)
 
 ## 🚀 Quick Start
 
-1. **Install dependencies**:
+### Installation
 
-   ```bash
-   npm install
-   ```
+```bash
+git clone <your-repo>
+cd notion-week-summarizer
+npm install
+```
 
-2. **Set up environment** (create `.env` file):
+### Environment Setup
 
-   ```env
-   NOTION_TOKEN=your_notion_integration_token
-   ANTHROPIC_API_KEY=your_claude_api_key
-   TASKS_DATABASE_ID=your_tasks_database_id
-   RECAP_DATABASE_ID=your_recap_database_id
-   WEEKS_DATABASE_ID=your_weeks_database_id
-   ```
+Create `.env` file:
 
-3. **Pull weekly data**:
+```env
+# Core APIs
+NOTION_TOKEN=your_notion_integration_token
 
-   ```bash
-   # Pull all data for current week
-   node pull-week.js
+# Notion Databases
+TASKS_DATABASE_ID=your_tasks_database_id
+RECAP_DATABASE_ID=your_recap_database_id
+WEEKS_DATABASE_ID=your_weeks_database_id
 
-   # Pull specific data sources
-   node pull-personal.js
-   node pull-work.js
-   node personal-habits-pull.js
-   ```
+# Google Calendar IDs
+PERSONAL_CALENDAR_ID=your_main_personal_calendar
+WORK_CALENDAR_ID=your_work_calendar
 
-4. **Generate summaries**:
+# Specialized Calendar IDs (Optional)
+WORKOUT_CALENDAR_ID=your_workout_calendar
+READING_CALENDAR_ID=your_reading_calendar
+VIDEO_GAMES_CALENDAR_ID=your_gaming_calendar
+PERSONAL_CODING_CALENDAR_ID=your_coding_calendar
+ART_CALENDAR_ID=your_art_calendar
 
-   ```bash
-   # Personal summary
-   node summarize-personal.js --weeks 1,2,3
+# Habit Tracking Calendars (Optional)
+WAKE_UP_EARLY_CALENDAR_ID=early_wake_tracking
+SLEEP_IN_CALENDAR_ID=sleep_in_tracking
+SOBER_DAYS_CALENDAR_ID=sobriety_tracking
+DRINKING_DAYS_CALENDAR_ID=drinking_tracking
+BODY_WEIGHT_CALENDAR_ID=weight_tracking
+```
 
-   # Work summary
-   node summarize-work.js --weeks 1,2,3
+### One-Command Weekly Processing
 
-   # Full week summary
-   node summarize-week.js --weeks 1,2,3
-   ```
+```bash
+# Complete weekly pipeline for current week
+node 5-run-week-personal.js
 
-## 📋 Notion Database Requirements
+# Process specific week with full pipeline
+node 5-run-week-personal.js
+> Which week? 25
+> This will run ALL steps for Week 25:
+>    1) Pull data
+>    2) Summarize data (tasks + cal)
+>    3) Generate structured output
+> Continue? y
+```
+
+## 📋 Usage Examples
+
+### Individual Script Execution
+
+```bash
+# Data pulling (modular)
+node 1-pull-data-personal.js --weeks 22,23,24
+node scripts/data-pulls/pull-personal-calendar.js --weeks 22
+node scripts/data-pulls/pull-personal-tasks.js --weeks 22
+
+# Data summarization
+node 2-summarize-data-personal.js --weeks 22
+node scripts/summarize-data/summarize-personal-tasks.js --weeks 22
+node scripts/summarize-data/summarize-personal-cal.js --weeks 22
+
+# Final output generation
+node scripts/output/generate-weekly-summary.js --weeks 22
+```
+
+### Batch Processing
+
+```bash
+# Process multiple weeks
+node 5-run-week-personal.js --weeks 20,21,22,23,24
+
+# Process with fail-fast mode
+node 1-pull-data-personal.js --weeks 22 --fail-fast
+```
+
+## 🗄️ Notion Database Requirements
+
+### Recap Database (Primary Output)
+
+**Purpose**: Stores all weekly summaries and retrospectives
+
+**Required Properties**:
+
+- **Week Recap** (Title) - "Week 01 Recap" format
+- **⌛ Weeks** (Relation) - Links to Weeks database for date ranges
+- **Personal Task Summary** (Rich Text) - Raw task and calendar data
+- **Personal Cal Summary** (Rich Text) - Processed calendar summaries
+- **Weekly Summary** (Rich Text) - Final structured weekly output
 
 ### Tasks Database
 
-- **Task** (Title) - Task name
-- **Due Date** (Date) - When task is due/completed
-- **Type** (Select) - Categories:
-  - 💼 Work
-  - 🏃‍♂️ Physical Health
-  - 🌱 Personal
-  - 🍻 Interpersonal
-  - ❤️ Mental Health
-  - 🏠 Home
-- **Status** (Status) - Must include "🟢 Done" option
-- **Week Number** (Number) - Optional reference field
+**Purpose**: Task management with automatic categorization
 
-### Recap Database
+**Required Properties**:
 
-- **Week Recap** (Title) - Week identifier (e.g., "Week 01 Recap")
-- **⌛ Weeks** (Relation) - Links to Weeks database
-- **Summary Fields** (Rich Text):
-  - Work Summary
-  - Physical Health Summary
-  - Personal Summary
-  - Interpersonal Summary
-  - Mental Health Summary
-  - Home Summary
+- **Task** (Title) - Task description
+- **Due Date** (Date) - Completion date for filtering
+- **Type** (Select) - Categories: 💼 Work, 🏃‍♂️ Physical Health, 🌱 Personal, 🍻 Interpersonal, ❤️ Mental Health, 🏠 Home
+- **Status** (Status) - Must include "🟢 Done" status
+- **Week Number** (Number) - Optional week reference
 
 ### Weeks Database
 
-- **Date Range (SET)** (Date Range) - Start and end date for each week
-- **Title/Name** - Week identifier (e.g., "Week 01")
+**Purpose**: Date range management for weeks
 
-## 🎯 Usage Examples
+**Required Properties**:
 
-### Data Pulling
+- **Date Range (SET)** (Date Range) - Week start/end dates
+- **Title** (Title) - "Week 01" format
 
-```bash
-# Pull all data for interactive week selection
-node pull-week.js
+## 🎯 Smart Features
 
-# Pull all data for specific weeks
-node pull-week.js --weeks 22,23,24
+### Calendar Event Categorization
 
-# Pull only personal data
-node pull-personal.js --weeks 22
+**By Calendar Source**:
 
-# Pull only work data
-node pull-work.js --weeks 22
+- Personal → Personal Time
+- Work → Work Events
+- Workout → Workout Events
+- Reading → Reading Time
 
-# Pull only habits data
-node personal-habits-pull.js --weeks 22
-```
+**By Event Color** (Google Calendar):
 
-### Summary Generation
+- Red → Urgent events
+- Orange → Important events
+- Green → Good/positive events
 
-```bash
-# Generate personal retrospective
-node summarize-personal.js --weeks 22
+**Intelligent Grouping**:
 
-# Generate work summary
-node summarize-work.js --weeks 22
+- **Interpersonal Events**: Auto-detects and sub-categorizes into:
 
-# Generate comprehensive week summary
-node summarize-week.js --weeks 22
-```
+  - General interpersonal time
+  - Relationship time (keywords: "jen")
+  - Family time (keywords: "mom", "dad", "family", "fam")
+  - Calls (keywords: "call", "ft", "facetime")
 
-### Category Numbers
+- **Mental Health Events**: Auto-detects and sub-categorizes into:
+  - General mental health time
+  - Awake time (keywords: "awake", "leg pain", "anxiety") → ❌ status
+  - Wasted days (keywords: "wasted day") → ❌ status, counts days not hours
 
-- `0` - All Categories
-- `1` - 💼 Work
-- `2` - 🏃‍♂️ Physical Health
-- `3` - 🌱 Personal
-- `4` - 🍻 Interpersonal
-- `5` - ❤️ Mental Health
-- `6` - 🏠 Home
+### Task Intelligence
 
-## 📝 Customization
+**Admin Task Detection**: Automatically identifies planning tasks containing:
 
-### Context Files (Optional)
+- "recap", "retro", "plan", "journal" → Moves to separate Admin category
 
-Create context files to customize AI behavior for different summary types:
+**Category Mapping**:
 
-**Personal Context** (`context/context-personal.md`):
+- Personal Tasks → ✅ (good indicator)
+- Admin Tasks → ✅ (productive planning)
+- Home Tasks → ✅ (life maintenance)
+- Physical Health → ✅ (wellness)
 
-```markdown
-# Personal AI Summary Context
+### Habit Evaluation
 
-## Writing Style Rules
+**Multi-Metric Tracking**:
 
-- Use personal, reflective tone
-- Focus on growth and progress
-- Be honest about challenges
+- Early wake ups vs sleeping in → Sleep quality scoring
+- Sober days vs drinking days → Health habit tracking
+- Workout frequency → Fitness consistency
+- Hobby engagement (coding, reading, art, gaming) → Life balance
 
-## Definitions
+**Smart Scoring**: Evaluates habit combinations for overall weekly health assessment
 
-- **Person Name**: Relationship context
-- **Activity**: Personal meaning
-```
+## 🤖 AI Integration
 
-**Work Context** (`context/context-work.md`):
+### Context-Aware Summaries
 
-```markdown
-# Work AI Summary Context
+The system sends structured data to Claude AI with specific context for generating:
 
-## Writing Style Rules
+**"What went well?" Section**:
 
-- Use professional but natural language
-- Focus on outcomes and impact
-- Group related projects together
+- Focuses on achievements, positive habits, meaningful events
+- Filters for ✅ tasks, quality time with people, productive activities
 
-## Definitions
+**"What didn't go so well?" Section**:
 
-- **Project Name**: Context and scope
-- **Team/Role**: Relationship context
-```
+- Highlights improvement areas, negative habits, missed opportunities
+- Filters for ❌ habits, wasted time, health concerns
 
-### Default Configuration
+**Combined Overview**:
 
-Edit configuration files to change defaults:
+- Synthesizes both perspectives into balanced weekly insight
+- Maintains actionable tone focused on growth
+
+### Cost Efficiency
+
+- **Free tier friendly** for Google Calendar API (within limits)
+- **Free tier friendly** for Notion API (within limits)
+- **No per-usage costs** for the core automation
+
+## 🔧 Configuration & Customization
+
+### Calendar Configuration
+
+Edit `scripts/data-pulls/pull-personal-calendar.js` to modify:
 
 ```javascript
-// In src/config/task-config.js
-const DEFAULT_TARGET_WEEKS = [1];
+// Event categorization by calendar
+const CALENDAR_CATEGORY_MAP = {
+  [process.env.PERSONAL_CALENDAR_ID]: "Personal",
+  [process.env.WORKOUT_CALENDAR_ID]: "Physical Health",
+  [process.env.READING_CALENDAR_ID]: "Reading",
+  // Add your calendars...
+};
 
-// In src/config/calendar-config.js
-const CALENDAR_CONFIGS = {
-  personal: {
-    /* settings */
-  },
-  work: {
-    /* settings */
-  },
+// Event categorization by color
+const COLOR_CATEGORY_MAP = {
+  1: "urgent", // Red
+  6: "important", // Orange
+  2: "good", // Green
+  // Customize colors...
 };
 ```
 
-## 🔧 How It Works
+### Task Categorization
 
-### Data Pulling Phase
+Edit `scripts/summarize-data/summarize-personal-tasks.js`:
 
-1. **Calendar Pull**: Extracts events from Google Calendar (personal/work)
-2. **Task Pull**: Queries Notion tasks database for completed items
-3. **Habits Pull**: Collects habit tracking data from Notion
-4. **Data Storage**: Saves all data to respective Notion databases
+```javascript
+const taskCategoriesConfig = [
+  { category: "Personal Tasks", include: true, order: 1 },
+  { category: "Physical Health Tasks", include: true, order: 2 },
+  { category: "Home Tasks", include: true, order: 5 },
+  { category: "Admin", include: true, order: 6 },
+  // Add your categories...
+];
 
-### Summary Generation Phase
-
-1. **Week Discovery**: Finds recap pages by title (supports "Week 1" or "Week 01" format)
-2. **Date Range**: Gets week's start/end dates from linked Weeks database
-3. **Data Aggregation**: Combines calendar events, tasks, and habits for the week
-4. **AI Processing**: Sends data to Claude AI with context for professional summarization
-5. **Update**: Writes generated summaries and retrospectives back to Notion
-
-## 📊 Sample Output
-
-### Data Pulling
-
-```bash
-📅 Week Data Puller
-🔄 Runs Personal + Work + Habits data pull
-
-📋 This will run:
-  • Personal Calendar Pull + Personal Task Pull + Personal Habits Pull
-  • Work Calendar Pull + Work Task Pull
-  • Habits Data Pull
-
-🚀 Running pull-personal.js...
-✅ pull-personal.js completed successfully
-
-🚀 Running pull-work.js...
-✅ pull-work.js completed successfully
-
-🎉 Week data pull complete for week: 22
+// Admin task keywords (automatic detection)
+const adminKeywords = ["recap", "retro", "plan", "journal"];
 ```
 
-### Summary Generation
+### Retrospective Configuration
 
-```bash
-🚀 Starting personal retrospective for week: 22
-📅 Week 22 date range: 2024-05-27 to 2024-06-02
+Edit `src/config/retro-extraction-config.js` for future AI integration:
 
-🔄 Processing calendar events...
-📋 Found 12 personal events
-🔄 Processing completed tasks...
-📋 Found 8 personal tasks
-🔄 Processing habits data...
-📋 Found habit tracking for 7 days
-
-🤖 Generated retrospective: This week focused on health improvements and personal projects...
-
-✅ Successfully updated Week 22 personal retrospective!
+```javascript
+evaluationCriteria: {
+  TASKS: {
+    good: ["✅"],        // Include completed tasks in positive section
+    bad: "none",         // No tasks in negative section
+  },
+  EVENTS: {
+    good: { not: ["😔", "Wasted"] },  // Exclude sad/wasted events
+    bad: ["😔", "Wasted"],            // Include only negative events
+  },
+  HABITS: {
+    good: ["✅"],        // Good habits
+    bad: ["❌", "⚠️"],   // Bad/concerning habits
+  },
+}
 ```
 
-## 💰 Cost Estimation
+## 📊 Sample Output Sections
 
-- **Claude AI**: ~$0.01 per week (data pull + summaries)
-- **Google Calendar API**: Free (within reasonable limits)
-- **Notion API**: Free (within reasonable limits)
-- **Annual cost** (52 weeks): ~$0.52
-- Very cost-effective for comprehensive automation!
+### Complete Weekly Overview
 
-## 🛡️ Security
+```
+===== TRIPS =====
+💜 Family Trip - 2025 Portland Easter Weekend on Fri - Sun
 
-- All API keys stored securely in `.env` (gitignored)
-- Context files can contain personal information (gitignored)
-- Database IDs and sensitive configs protected in environment variables
-- OAuth tokens refreshed automatically when needed
+===== EVENTS =====
+🚀 Work Milestone - Metrics Explorer shipped on Tue
+💜 Family Event - 2025 Easter Celebration on Sat - Sun
 
-## 📄 Dependencies
+===== ROCKS =====
+👾 Made progress - Vick Funeral Prep (🌱 Personal)
+👾 Made progress - Being healthy (🏃‍♂️ Physical)
 
-- `@notionhq/client` - Notion API integration
-- `@anthropic-ai/sdk` - Claude AI API
-- `googleapis` - Google Calendar API integration
-- `dotenv` - Environment variable management
-- `fs` & `readline` - File operations and user input
+===== HABITS =====
+💪 Great workout habits (5 workouts)
+🛌 Poor sleep habits (1 early wake up, 6 days sleeping in)
+🍻 Moderate drinking habits (3 days sober, 4 days drinking)
+📖 Poor hobby engagement (0 days reading, 1 day coding, 3 days gaming)
 
-Notes for Notion…
+===== CAL SUMMARY =====
+✅ Personal Time (15 events, 16.5 hours, 7 days)
+❌ Reading Time (0 events, 0 hours, 0 days)
+❌ Art Time (0 events, 0 hours, 0 days)
 
-// TRIPS
-Trip Types
-💼 Work Trip
-💜 Family Trip
-💒 Wedding
-🏈 Sporting Events
-🍻 Friends Trip
-🧗‍♀️ Adventure
-🌱 Personal Trip
+===== CAL EVENTS =====
+✅ Tons of interpersonal time (6 events, 23.3 hours, 4 days):
+Hillstone & Res with Alex on Sun, Park and Res with Alex on Thu, Dye Easter Eggs w J and cousins on Sat
 
-Trip Status
-🧊 Ice Box
-🧠 Considering
-🔘 To Do
-🚨 To Book
-📅 Scheduled
-🔨 Doing
-✅ Done
-Next Year
+✅ Some family time (1 event, 0.3 hours, 1 day):
+Mom check-in on Mon
 
-// EVENTS
-EVENTS_DATABASE_ID
+✅ Regular calls time (6 events, 5.5 hours, 4 days):
+Sky call on Sun, Brian call on Sun, Dad call on Tue, Mom call on Tue
 
-Event Types
-💼 Work Event
-🍸 Work Social
-🏝️ Work OOO
-🚀 Work Milestone
+❌ Wasted Days (1 day):
+Wasted day on Fri (11.0h)
 
-💜 Family Event
-🗽 Friends & Fam vist NYC
-🍻 Friend Event
-💒 Wedding
+✅ Some workout events (1 event, 1.0 hours, 1 day):
+Lunch workout on Thu (1.0h)
 
-🎭 Comedy & Standup
-🎸 Concerts & Shows
-🏈 Sporting Events
-🏛️ Museums & Tours
+===== TASKS =====
+✅ Personal Tasks (9)
+Two black 64 cartridges, Amazon returns to Sara, Curate Vicki's Tribute Dropbox, File tax extension, Order Kepler Sazerac, Videos for Mom & Dad, Vicki tribute photos, Research Evita, Try on Suit
 
-🏠 Home Updates
-🤒 Sick
-🏋️‍♂️ Athletic Events
-🏝️ Vacation
-🌱 Personal Event
+✅ Admin (2)
+Plan Apr, Plan week 16
+```
 
-Event Status
-🧊 Ice Box
-🧠 Considering
-🔘 To Do
-🚨 To Book
-📅 Scheduled
-🔨 Doing
-✅ Done
-Next Year
+## 🔄 Workflow Integration
 
-// ROCK
-ROCKS_DATABASE_ID
+### Weekly Routine
 
-Rock Types
-💼 Work
-🍻 Interpersonal
-🏠 Home
-🏃‍♂️ Physical
-❤️ Mental/Emotional
-🌱 Personal
+1. **Sunday Planning**: Run data pull for previous week
+2. **Monday Reflection**: Generate retrospectives and overview
+3. **Batch Processing**: Process multiple weeks monthly for trends
 
-Rock Statuses
-To Do
-N/A
-🥊 Went bad
-🚧 Didn't go so well
-👾 Made progress
-✅ Went well
+### Monthly Analysis
 
-// TASKS
-TASKS_DATABASE_ID
+```bash
+# Generate monthly reports (planned feature)
+node 6-generate-month-summary.js --month 4
+```
 
-Task Types
-🌱 Personal
-💼 Work
-🍻 Interpersonal
-🏠 Home
-💪 Physical Health
-❤️ Mental Health
+## 🛠️ Technical Architecture
 
-Work Category
-Research
-Design
-Coding
-Review Feedback & Crit
-QA
-Admin Planning Writing
-Social
-OOO
+### Modular Design
 
-Task Statuses🔴 To Do
-🟡 Scheduled
-🔵 In Progress
-🟢 Done
+- **Data Pulls**: Individual scripts for each data source (calendars, tasks, habits)
+- **Summarization**: Separate processing for tasks vs calendar events
+- **Retrospectives**: Independent good/bad analysis with configurable criteria
+- **Utils**: Shared functions for Notion API, date handling, formatting
 
-// WORK CAL EVENTS
-WORK_GOOGLE_CLIENT_ID
-Lavender (Color 1): Research Cal (category: "research")
-Sage (Color 2): Design Work Cal (category: "design")
-Grape (Color 3): Coding & Tickets Cal (category: "coding")
-Citron (Color 5): Review, Feedback, Crit Cal (category: "review")
-Tomato (Color 11): Design & Dev QA Cal (category: "qa")
-Blueberry (Color 9): Rituals Cal (category: "rituals")
-Graphite (Color 8): Personal Event Cal (category: "personal") // IGNORE
+### Error Handling
 
-// PERSONAL CAL EVENTS
-PERSONAL_GOOGLE_CLIENT_ID
-Sage (Color 2): Personal Cal (category: "personal")
-Grape (Color 3): Interpersonal Cal (category: "interpersonal")
-Citron (Color 5): Home Cal (category: "home")
-Graphite (Color 8): Physical Health Cal (category: "physicalHealth")
-Tomato (Color 11): Mental Health Cal (category: "mentalHealth")
+- **Fail-fast mode**: Stop on first error for debugging
+- **Graceful degradation**: Continue processing other weeks if one fails
+- **Detailed logging**: Comprehensive console output for troubleshooting
 
-// IGNORE
+### Performance
 
-- 0.  💼 Work Schedule
-
-// Habits only
-WAKE_UP_EARLY_CALENDAR_ID
-
-- 1.  ☀️ Wake up before 7am
-
-SLEEP_IN_CALENDAR_ID
-
-- 2.  🛌 Sleep In
-
-SOBER_DAYS_CALENDAR_ID
-
-- 3.  💧 Sober Days
-
-DRINKING_DAYS_CALENDAR_ID
-
-- 4.  🍻 Drinking Days
-
-BODY_WEIGHT_CALENDAR_ID
-
-- 5.  ⚖️ Body Weight
-
-Habits & Events
-WORKOUT_CALENDAR_ID
-
-- 6.  💪 Workout
-
-READ_CALENDAR_ID
-
-- 7.  📖 Read
-
-CODING_CALENDAR_ID
-
-- 8.  💻 Coding
-
-VIDEO_GAMES_CALENDAR_ID
-
-- 9.  🎮 Video Games
-
-PERSONAL_GITHUB_DATA_CALENDAR_ID
-💾 GitHub Data
-
-TRAVEL_CALENDAR_ID
-✈️ Travel Schedule
+- **API Rate Limiting**: Respects Notion and Google Calendar limits
+- **Batch Processing**: Efficiently handles multiple weeks
+- **Caching**: Minimizes redundant API calls within single runs
 
 ---
 
-**Built with**: Notion API, Claude AI, Google Calendar API, Node.js  
-**Time saved**: Automated weekly data collection and retrospectives! 🎉
+**Built with**: Notion API, Google Calendar API, Node.js  
+**Time saved**: Transform hours of manual weekly review into 2 minutes of automated data organization! 🎉
+
+**Perfect for**: Knowledge workers, productivity enthusiasts, quantified self practitioners, anyone wanting structured weekly data collection without the manual overhead.
