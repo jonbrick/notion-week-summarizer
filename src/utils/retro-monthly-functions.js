@@ -131,8 +131,7 @@ function extractHabitCore(item) {
  * Combine category totals (events + hours) and count no-item occurrences
  */
 function aggregateCalSummary(weeklyArrays, totalWeeks) {
-  const categoryTotals = new Map(); // category -> {events, hours}
-  const noItemCounts = new Map(); // "No X Time" -> count
+  const categoryTotals = new Map(); // category -> {events, hours, days}
   const aggregated = [];
 
   weeklyArrays.forEach((weekArray) => {
@@ -141,28 +140,27 @@ function aggregateCalSummary(weeklyArrays, totalWeeks) {
     weekArray.forEach((item) => {
       if (!item || typeof item !== "string") return;
 
-      // Pattern: "Category (X events, Y hours)"
-      const eventHoursMatch = item.match(
-        /^[✅❌☑️⚠️]?\s*(.+?)\s*\((\d+)\s+events?,\s*([\d.]+)\s+hours?\):?\s*$/
+      // Pattern: "Category (X events, Y hours, Z days)" or "Category (X events, Y hours)"
+      const eventHoursDaysMatch = item.match(
+        /^[✅❌☑️⚠️]?\s*(.+?)\s*\((\d+)\s+events?,\s*([\d.]+)\s+hours?(?:,\s*(\d+)\s+days?)?\):?\s*$/
       );
 
-      if (eventHoursMatch) {
-        const category = eventHoursMatch[1].trim();
-        const events = parseInt(eventHoursMatch[2]);
-        const hours = parseFloat(eventHoursMatch[3]);
+      if (eventHoursDaysMatch) {
+        const category = eventHoursDaysMatch[1].trim();
+        const events = parseInt(eventHoursDaysMatch[2]);
+        const hours = parseFloat(eventHoursDaysMatch[3]);
+        const days = eventHoursDaysMatch[4]
+          ? parseInt(eventHoursDaysMatch[4])
+          : 0;
 
         if (!categoryTotals.has(category)) {
-          categoryTotals.set(category, { events: 0, hours: 0 });
+          categoryTotals.set(category, { events: 0, hours: 0, days: 0 });
         }
 
         const totals = categoryTotals.get(category);
         totals.events += events;
         totals.hours += hours;
-      }
-      // Pattern: "No X Time" (zero items)
-      else if (item.match(/^No .+ Time$/)) {
-        const noItem = item.trim();
-        noItemCounts.set(noItem, (noItemCounts.get(noItem) || 0) + 1);
+        totals.days += days;
       }
       // Other items that don't match patterns - keep as is for now
       else {
@@ -174,18 +172,17 @@ function aggregateCalSummary(weeklyArrays, totalWeeks) {
     });
   });
 
-  // Add aggregated category totals
+  // Add aggregated category totals (exclude zero-hour categories for monthly)
   categoryTotals.forEach((totals, category) => {
-    aggregated.push(
-      `${category} (${totals.events} events, ${totals.hours.toFixed(
-        1
-      )} hours total)`
-    );
-  });
+    // Skip categories with zero events and zero hours for monthly summaries
+    if (totals.events === 0 && totals.hours === 0) {
+      return;
+    }
 
-  // Add no-item counts
-  noItemCounts.forEach((count, noItem) => {
-    aggregated.push(`${noItem} (${count}/${totalWeeks} weeks)`);
+    let output = `${category} (${totals.events} events, ${totals.hours.toFixed(
+      1
+    )} hours, ${totals.days} days total)`;
+    aggregated.push(output);
   });
 
   return aggregated;
@@ -210,23 +207,27 @@ function aggregateCalEvents(weeklyArrays, totalWeeks, monthlyConfig) {
       // Items from weekly extraction can be multi-line: first line is header, following lines are details
       const lines = item.split("\n");
       const headerLine = lines[0].trim();
-      const eventHoursMatch = headerLine.match(
-        /^[✅❌☑️⚠️]?\s*(.+?)\s*\((\d+)\s+events?,\s*([\d.]+)\s+hours?\)/
+      const eventHoursDaysMatch = headerLine.match(
+        /^[✅❌☑️⚠️]?\s*(.+?)\s*\((\d+)\s+events?,\s*([\d.]+)\s+hours?(?:,\s*(\d+)\s+days?)?\):?\s*$/
       );
 
-      if (eventHoursMatch) {
-        const category = eventHoursMatch[1].trim();
-        const events = parseInt(eventHoursMatch[2]);
-        const hours = parseFloat(eventHoursMatch[3]);
+      if (eventHoursDaysMatch) {
+        const category = eventHoursDaysMatch[1].trim();
+        const events = parseInt(eventHoursDaysMatch[2]);
+        const hours = parseFloat(eventHoursDaysMatch[3]);
+        const days = eventHoursDaysMatch[4]
+          ? parseInt(eventHoursDaysMatch[4])
+          : 0;
 
         if (!categoryTotals.has(category)) {
-          categoryTotals.set(category, { events: 0, hours: 0 });
+          categoryTotals.set(category, { events: 0, hours: 0, days: 0 });
           categoryDetails.set(category, []);
         }
 
         const totals = categoryTotals.get(category);
         totals.events += events;
         totals.hours += hours;
+        totals.days += days;
 
         // Collect details if present (lines after the header)
         if (lines.length > 1) {
@@ -235,6 +236,34 @@ function aggregateCalEvents(weeklyArrays, totalWeeks, monthlyConfig) {
             // Remove day-of-week patterns from event details
             const cleanedDetails = removeDayOfWeekPatterns(details);
             categoryDetails.get(category).push(cleanedDetails);
+          }
+        }
+      }
+      // Handle "Wasted Days (X day)" pattern
+      else {
+        const dayOnlyMatch = headerLine.match(
+          /^[✅❌☑️⚠️]?\s*(.+?)\s*\((\d+)\s+days?\):?\s*$/
+        );
+
+        if (dayOnlyMatch) {
+          const category = dayOnlyMatch[1].trim();
+          const days = parseInt(dayOnlyMatch[2]);
+
+          if (!categoryTotals.has(category)) {
+            categoryTotals.set(category, { events: 0, hours: 0, days: 0 });
+            categoryDetails.set(category, []);
+          }
+
+          const totals = categoryTotals.get(category);
+          totals.days += days;
+
+          // Handle details if present
+          if (lines.length > 1) {
+            const details = lines.slice(1).join("\n").trim();
+            if (details) {
+              const cleanedDetails = removeDayOfWeekPatterns(details);
+              categoryDetails.get(category).push(cleanedDetails);
+            }
           }
         }
       }
@@ -250,7 +279,7 @@ function aggregateCalEvents(weeklyArrays, totalWeeks, monthlyConfig) {
 
     let output = `${category} (${totals.events} events, ${totals.hours.toFixed(
       1
-    )} hours total)`;
+    )} hours${totals.days > 0 ? `, ${totals.days} days` : ""} total)`;
 
     if (showDetails && categoryDetails.has(category)) {
       const details = categoryDetails.get(category);
