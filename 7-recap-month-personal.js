@@ -20,6 +20,9 @@ function ask(question) {
 
 console.log("📝 Monthly Personal Recap Combiner");
 
+// Default months
+let TARGET_MONTHS = [4]; // Default to current month or whatever you prefer
+
 /**
  * Find month recap page - simple presentation layer lookup
  */
@@ -174,26 +177,83 @@ async function processMonth(monthNumber) {
   }
 }
 
+async function processAllMonths() {
+  console.log(
+    `\n🚀 Processing ${TARGET_MONTHS.length} month${
+      TARGET_MONTHS.length > 1 ? "s" : ""
+    }: ${TARGET_MONTHS.join(", ")}`
+  );
+
+  for (const monthNumber of TARGET_MONTHS) {
+    await processMonth(monthNumber);
+  }
+
+  console.log("\n" + "=".repeat(50));
+  console.log(
+    `🎉 Monthly recap combination complete for month${
+      TARGET_MONTHS.length > 1 ? "s" : ""
+    }: ${TARGET_MONTHS.join(", ")}`
+  );
+  console.log("=".repeat(50));
+}
+
 async function main() {
   if (!MONTHS_DATABASE_ID) {
     console.error("❌ Missing RECAP_MONTHS_DATABASE_ID");
     process.exit(1);
   }
 
-  const input = await ask("? Which month to process? (1-12): ");
-  const month = parseInt((input || "").trim(), 10) || 1;
+  const args = process.argv.slice(2);
 
-  console.log(`\n📊 Processing Month: ${month}`);
-  const confirm = await ask("Continue? (y/n): ");
+  // Check for --months argument
+  const monthIndex = args.indexOf("--months");
+  if (monthIndex !== -1 && args[monthIndex + 1]) {
+    TARGET_MONTHS = args[monthIndex + 1]
+      .split(",")
+      .map((m) => parseInt(m.trim()))
+      .filter((m) => !isNaN(m));
 
-  if (confirm.toLowerCase() !== "y") {
-    console.log("❌ Cancelled by user");
-    rl.close();
-    process.exit(0);
+    await processAllMonths();
+  }
+  // Check for quick single month format (--4, --5, etc.)
+  else {
+    for (const arg of args) {
+      if (arg.startsWith("--") && !isNaN(parseInt(arg.slice(2)))) {
+        const monthNumber = parseInt(arg.slice(2));
+        TARGET_MONTHS = [monthNumber];
+        await processAllMonths();
+        process.exit(0);
+      }
+    }
+
+    // No args provided, run interactive mode
+    if (args.length === 0) {
+      const monthsInput = await ask(
+        "? Which months to process? (comma-separated, e.g., 4,5,6): "
+      );
+
+      if (monthsInput.trim()) {
+        TARGET_MONTHS = monthsInput
+          .split(",")
+          .map((m) => parseInt(m.trim()))
+          .filter((m) => !isNaN(m));
+      }
+
+      console.log(`\n📊 Processing months: ${TARGET_MONTHS.join(", ")}`);
+      const confirm = await ask("Continue? (y/n): ");
+
+      if (confirm.toLowerCase() !== "y") {
+        console.log("❌ Cancelled by user");
+        rl.close();
+        process.exit(0);
+      }
+
+      rl.close();
+      await processAllMonths();
+    }
   }
 
-  rl.close();
-  await processMonth(month);
+  process.exit(0);
 }
 
 if (require.main === module) {
