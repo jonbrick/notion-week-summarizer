@@ -110,8 +110,8 @@ const monthlyHabitEvals = {
       art: /(\d+)\s+days making art/,
       gaming: /(\d+)\s+days playing video games/,
     },
-    goodAbsolute: 5, // Fixed threshold, not scaled by weeks
-    warningAbsolute: 1, // Fixed threshold, not scaled by weeks
+    goodAbsolute: 3, // Fixed threshold, not scaled by weeks
+    warningAbsolute: -1, // Fixed threshold, not scaled by weeks
     emoji: "📖",
     description: "hobby habits",
   },
