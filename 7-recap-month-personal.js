@@ -42,11 +42,36 @@ async function findMonthPage(monthNumber) {
     "Nov",
     "Dec",
   ];
+  const fullMonthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   const monthName = monthNames[monthNumber - 1];
+  const fullMonthName = fullMonthNames[monthNumber - 1];
+
+  console.log(
+    `🔍 Looking for month ${monthNumber} (${monthName}/${fullMonthName}) with titles:`
+  );
+  console.log(`   - "${padded}. ${monthName} Recap"`);
+  console.log(`   - "${padded}. ${fullMonthName} Recap"`);
+  console.log(`   - "Month ${monthNumber} Recap"`);
+  console.log(`   - "Month ${padded} Recap"`);
 
   const resp = await notion.databases.query({
     database_id: MONTHS_DATABASE_ID,
   });
+
+  console.log(`📚 Found ${resp.results.length} pages in database:`);
 
   for (const page of resp.results) {
     const titleProp = page.properties["Month Recap"] || page.properties["Name"];
@@ -54,14 +79,20 @@ async function findMonthPage(monthNumber) {
       ? titleProp.title.map((t) => t.plain_text).join("")
       : "";
 
+    console.log(`   - "${title}"`);
+
     if (
       title === `${padded}. ${monthName} Recap` ||
+      title === `${padded}. ${fullMonthName} Recap` ||
       title === `Month ${monthNumber} Recap` ||
       title === `Month ${padded} Recap`
     ) {
+      console.log(`✅ Found matching page: "${title}"`);
       return page;
     }
   }
+
+  console.log(`❌ No matching page found for month ${monthNumber}`);
   return null;
 }
 
